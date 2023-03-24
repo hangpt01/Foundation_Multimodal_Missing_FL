@@ -224,9 +224,9 @@ class BasicServer:
         K = |S_t|
         N = |S|
         -------------------------------------------------------------------------------------------------------------------------
-         weighted_scale                 |uniform (default)          |weighted_com (original fedavg)   |other
+         weighted_scale                 |uniform (default)          |weighted_com (original fedavg)     |other
         ==========================================================================================================================
-        N/K * Σpk * model_k             |1/K * Σmodel_k             |(1-Σpk) * w_old + Σpk * model_k  |Σ(pk/Σpk) * model_k
+        N/K * Σ(pk * model_k)           |1/K * Σmodel_k             |(1-Σpk) * w_old + Σ(pk * model_k)  |Σ(pk/Σpk) * model_k
         """
         if len(models) == 0: return self.model
         if self.aggregation_option == 'weighted_scale':
