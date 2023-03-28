@@ -73,13 +73,13 @@ class Logger(logging.Logger):
             self.time_buf[key][-1] = time.time() - self.time_buf[key][-1]
             self.info("{:<30s}{:.4f}".format(key + ":", self.time_buf[key][-1]) + 's')
 
-    def save_output_as_json(self, filepath=None):
+    def save_output_as_json(self, filepath=None, prefix_log_filename=None):
         """Save the self.output as .json file"""
         if len(self.output) == 0: return
         self.organize_output()
         self.output_to_jsonable_dict()
         if filepath is None:
-            filepath = os.path.join(self.get_output_path(),self.get_output_name())
+            filepath = os.path.join(self.get_output_path(),self.get_output_name(prefix_log_filename=prefix_log_filename))
         if not self.overwrite:
             if os.path.exists(filepath):
                 with open(filepath, 'r') as inf:
@@ -133,7 +133,7 @@ class Logger(logging.Logger):
             if np.all(nf) and np.any(a):
                 self.info(self.temp.format(key, val[-1]))
 
-    def get_output_name(self, suffix='.json'):
+    def get_output_name(self, suffix='.json', prefix_log_filename=None):
         if not hasattr(self, 'meta'): raise NotImplementedError('logger has no attr named "meta"')
         header = "{}_".format(self.meta["algorithm"])
         if hasattr(self, 'server'):
@@ -160,6 +160,8 @@ class Logger(logging.Logger):
                           self.meta['completeness'],
                           self.meta['timeliness'],
         ) + suffix
+        if prefix_log_filename:
+            output_name = prefix_log_filename + '_' + output_name
         return output_name
 
     def get_output_path(self):

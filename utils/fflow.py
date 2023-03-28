@@ -13,7 +13,7 @@ import utils.system_simulator as ss
 import logging
 
 sample_list=['uniform', 'md', 'full', 'uniform_available', 'md_available', 'full_available']
-agg_list=['uniform', 'weighted_scale', 'weighted_com']
+agg_list=['uniform', 'weighted_scale', 'weighted_com', 'other']
 optimizer_list=['SGD', 'Adam', 'RMSprop', 'Adagrad']
 logger = None
 
@@ -64,7 +64,8 @@ def read_option():
     parser.add_argument('--log_file', help='bool controls whether log to file and default value is False', action="store_true", default=False)
     parser.add_argument('--no_log_console', help='bool controls whether log to screen and default value is True', action="store_true", default=False)
     parser.add_argument('--no_overwrite', help='bool controls whether to overwrite the old result', action="store_true", default=False)
-
+    # multimodal setting
+    parser.add_argument('--projector_key', help='')
     try: option = vars(parser.parse_args())
     except IOError as msg: parser.error(str(msg))
     return option
@@ -99,7 +100,7 @@ def initialize(option):
     # init partitioned dataset
     TaskPipe = getattr(importlib.import_module(bmk_core_path), 'TaskPipe')
     TaskPipe.set_option(option['cross_validation'], option['train_on_all'])
-    train_datas, valid_datas, test_data, client_names = TaskPipe.load_task(os.path.join('fedtask', option['task']))
+    train_datas, valid_datas, test_data, client_names, modalities_list = TaskPipe.load_task(os.path.join('fedtask', option['task']))
     # init model
     try:
         utils.fmodule.Model = getattr(importlib.import_module(bmk_model_path), 'Model')
@@ -156,7 +157,7 @@ def initialize(option):
     client_path = '%s.%s' % ('algorithm', option['algorithm'])
     logger.info('Initializing Clients: '+'{} clients of `{}` being created.'.format(num_clients, client_path+'.Client'))
     Client=getattr(importlib.import_module(client_path), 'Client')
-    clients = [Client(option, name=client_names[cid], train_data=train_datas[cid], valid_data=valid_datas[cid]) for cid in range(num_clients)]
+    clients = [Client(option, name=client_names[cid], train_data=train_datas[cid], valid_data=valid_datas[cid], modalities=modalities_list[cid]) for cid in range(num_clients)]
     for cid, c in enumerate(clients): c.id = cid
     # init server
     server_path = '%s.%s' % ('algorithm', option['algorithm'])

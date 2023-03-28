@@ -1,3 +1,5 @@
+import os
+import importlib
 import utils.fflow as flw
 import torch
 
@@ -8,11 +10,14 @@ def main():
     flw.setup_seed(option['seed'])
     # initialize server, clients and fedtask
     server = flw.initialize(option)
+    # import pdb; pdb.set_trace()
+    # exit(0)
     # start federated optimization
     try:
         server.run()
-    except:
+    except Exception as e:
         # log the exception that happens during training-time
+        print(e)
         flw.logger.exception("Exception Logged")
         raise RuntimeError
 
