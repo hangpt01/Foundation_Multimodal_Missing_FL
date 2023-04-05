@@ -384,7 +384,7 @@ class BasicClient():
             optimizer.step()
         return
 
-    @ fmodule.with_multi_gpus
+    @fmodule.with_multi_gpus
     def test(self, model, dataflag='valid'):
         """
         Evaluate the model with local data (e.g. training data or validating data).

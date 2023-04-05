@@ -3,25 +3,40 @@ import copy
 import utils.fflow as flw
 import utils.system_simulator as ss
 from .fedbase import BasicServer, BasicClient
+import collections
+from tqdm.auto import tqdm
+import os
+import torch
+from itertools import chain, combinations
 
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
+        self.contrastive_weight = option['contrastive_weight']
+        self.temperature = option['temperature']
         self.all_modalities = self.model.modalities
-        self.modal_cnt = dict()
+        self.all_modal_combin_list = list()
+        for combin_tuple in chain.from_iterable(combinations(self.all_modalities, r) for r in range(1, len(self.all_modalities) + 1)):
+            self.all_modal_combin_list.append(list(combin_tuple))
+        print(self.all_modal_combin_list)
+        self.feature_extractors_cnt = dict()
         for modal in self.all_modalities:
-            self.modal_cnt[modal] = {
+            self.feature_extractors_cnt[modal] = {
                 "n_clients": len([client for client in self.clients if modal in client.modalities]),
                 "n_data": sum([client.datavol for client in self.clients if modal in client.modalities])
             }
-        self.projector_keys = list(self.model.projectors.keys())
-        self.prj_cnt = dict()
-        for key in self.projector_keys:
-            self.prj_cnt[key] = {
-                "n_clients": len([client for client in self.clients if client.projector_key == key]),
-                "n_data": sum([client.datavol for client in self.clients if client.projector_key == key])
+            
+        self.all_modal_combins = self.all_modalities + [self.model.combin]
+        self.projectors_cnt = dict()
+        for combin in self.all_modal_combins:
+            self.projectors_cnt[combin] = {
+                "n_clients": len([client for client in self.clients if client.modal_combin == combin]),
+                "n_data": sum([client.datavol for client in self.clients if client.modal_combin == combin])
             }
-        self.projector_key = None
+        print(self.feature_extractors_cnt)
+        print(self.projectors_cnt)
+        self.chkpt_dir = os.path.join('fedtask', self.option['task'], 'checkpoints', flw.logger.get_output_name(suffix=''))
+        os.makedirs(self.chkpt_dir, exist_ok=True)
 
     def run(self, prefix_log_filename=None):
         """
@@ -68,12 +83,14 @@ class Server(BasicServer):
         conmmunitcation_result = self.communicate(self.selected_clients)
         models = conmmunitcation_result['model']
         modalities_list = conmmunitcation_result['modalities']
-        projector_keys = conmmunitcation_result['projector_key']
+        modal_combins = conmmunitcation_result['modal_combin']
         # aggregate: pk = 1/K as default where K=len(selected_clients)
-        self.model = self.aggregate(models, modalities_list, projector_keys)
+        self.model = self.aggregate(models, modalities_list, modal_combins)
+        # self.model = models[0]
+        torch.save(self.model.state_dict(), os.path.join(self.chkpt_dir, 'Round{}.pt'.format(self.current_round)))
         return
 
-    def aggregate(self, models: list, modalities_list: list, projector_keys: list):
+    def aggregate(self, models: list, modalities_list: list, modal_combins: list):
         """
         Aggregate the locally improved models.
         :param
@@ -95,41 +112,42 @@ class Server(BasicServer):
             K = len(models)
             N = self.num_clients
             new_model.classifier = fmodule._model_sum([model_k.classifier * pk for model_k, pk in zip(models, p)]) * N / K
-            if hasattr(new_model, 'encoder'):
-                new_model.encoder = fmodule._model_sum([model_k.encoder * pk for model_k, pk in zip(models, p)]) * N / K
+            # if hasattr(new_model, 'encoder'):
+            #     new_model.encoder = fmodule._model_sum([model_k.encoder * pk for model_k, pk in zip(models, p)]) * N / K
+            # feature extractors
             for modal in self.all_modalities:
-                if self.modal_cnt[modal]["n_clients"] == 0:
+                if self.feature_extractors_cnt[modal]["n_clients"] == 0:
                     continue
                 p = list()
                 chosen_models = list()
                 for cid, model, modalities in zip(self.received_clients, models, modalities_list):
                     if modal in modalities:
-                        p.append(1.0 * self.local_data_vols[cid] / self.modal_cnt[modal]["n_data"])
+                        p.append(1.0 * self.local_data_vols[cid] / self.feature_extractors_cnt[modal]["n_data"])
                         chosen_models.append(model)
                 if len(chosen_models) == 0:
                     continue
                 K = len(chosen_models)
-                N = self.modal_cnt[modal]["n_clients"]
+                N = self.feature_extractors_cnt[modal]["n_clients"]
                 new_model.feature_extractors[modal] = fmodule._model_sum([model_k.feature_extractors[modal] * pk for model_k, pk in zip(chosen_models, p)]) * N / K
-            for key in self.projector_keys:
-                if self.prj_cnt[key]["n_clients"] == 0:
+            for combin in self.all_modal_combins:
+                if self.projectors_cnt[combin]["n_clients"] == 0:
                     continue
                 p = list()
                 chosen_models = list()
-                for cid, model, projector_key in zip(self.received_clients, models, projector_keys):
-                    if key == projector_key:
-                        p.append(1.0 * self.local_data_vols[cid] / self.prj_cnt[key]["n_data"])
+                for cid, model, modal_combin in zip(self.received_clients, models, modal_combins):
+                    if combin == modal_combin:
+                        p.append(1.0 * self.local_data_vols[cid] / self.projectors_cnt[combin]["n_data"])
                         chosen_models.append(model)
                 if len(chosen_models) == 0:
                     continue
                 K = len(chosen_models)
-                N = self.prj_cnt[key]["n_clients"]
-                new_model.projectors[key] = fmodule._model_sum([model_k.projectors[key] * pk for model_k, pk in zip(chosen_models, p)]) * N / K
+                N = self.projectors_cnt[combin]["n_clients"]
+                new_model.projectors[combin] = fmodule._model_sum([model_k.projectors[combin] * pk for model_k, pk in zip(chosen_models, p)]) * N / K
                 
         elif self.aggregation_option == 'uniform':
             new_model.classifier = fmodule._model_average([model_k.classifier for model_k in models])
-            if hasattr(new_model, 'encoder'):
-                new_model.encoder = fmodule._model_average([model_k.encoder for model_k in models])
+            # if hasattr(new_model, 'encoder'):
+            #     new_model.encoder = fmodule._model_average([model_k.encoder for model_k in models])
             for modal in self.all_modalities:
                 if self.modal_cnt[modal]["n_clients"] == 0:
                     continue
@@ -140,24 +158,24 @@ class Server(BasicServer):
                 if len(chosen_models) == 0:
                     continue
                 new_model.feature_extractors[modal] = fmodule._model_average([model_k.feature_extractors[modal] for model_k in chosen_models])
-            for key in self.projector_keys:
-                if self.prj_cnt[key]["n_clients"] == 0:
+            for combin in self.all_modal_combins:
+                if self.projectors_cnt[combin]["n_clients"] == 0:
                     continue
                 chosen_models = list()
-                for cid, model, projector_key in zip(self.received_clients, models, projector_keys):
-                    if key == projector_key:
+                for cid, model, modal_combin in zip(self.received_clients, models, modal_combins):
+                    if combin == modal_combin:
                         chosen_models.append(model)
                 if len(chosen_models) == 0:
                     continue
-                new_model.projectors[key] = fmodule._model_average([model_k.projectors[key] for model_k in chosen_models])
+                new_model.projectors[combin] = fmodule._model_average([model_k.projectors[combin] for model_k in chosen_models])
 
         elif self.aggregation_option == 'weighted_com':
             p = [1.0 * self.local_data_vols[cid] / self.total_data_vol for cid in self.received_clients]
             w_classifier = fmodule._model_sum([model_k.classifier * pk for model_k, pk in zip(models, p)])
             new_model.classifier = (1.0 - sum(p)) * new_model.classifier + w_classifier
-            if hasattr(new_model, 'encoder'):
-                w_encoder = fmodule._model_sum([model_k.encoder * pk for model_k, pk in zip(models, p)])
-                new_model.encoder = (1.0 - sum(p)) * new_model.encoder + w_encoder
+            # if hasattr(new_model, 'encoder'):
+            #     w_encoder = fmodule._model_sum([model_k.encoder * pk for model_k, pk in zip(models, p)])
+            #     new_model.encoder = (1.0 - sum(p)) * new_model.encoder + w_encoder
             for modal in self.all_modalities:
                 if self.modal_cnt[modal]["n_clients"] == 0:
                     continue
@@ -171,27 +189,27 @@ class Server(BasicServer):
                     continue
                 w_feature_extractor = fmodule._model_sum([model_k.feature_extractors[modal] * pk for model_k, pk in zip(chosen_models, p)])
                 new_model.feature_extractors[modal] = (1.0 - sum(p)) * new_model.feature_extractors[modal] + w_feature_extractor
-            for key in self.projector_keys:
-                if self.prj_cnt[key]["n_clients"] == 0:
+            for combin in self.all_modal_combins:
+                if self.projectors_cnt[combin]["n_clients"] == 0:
                     continue
                 p = list()
                 chosen_models = list()
-                for cid, model, projector_key in zip(self.received_clients, models, projector_keys):
-                    if key == projector_key:
-                        p.append(1.0 * self.local_data_vols[cid] / self.prj_cnt[key]["n_data"])
+                for cid, model, modal_combin in zip(self.received_clients, models, modal_combins):
+                    if combin == modal_combin:
+                        p.append(1.0 * self.local_data_vols[cid] / self.projectors_cnt[combin]["n_data"])
                         chosen_models.append(model)
                 if len(chosen_models) == 0:
                     continue
-                w_projector = fmodule._model_sum([model_k.projectors[key] * pk for model_k, pk in zip(chosen_models, p)])
-                new_model.projectors[key] = (1.0 - sum(p)) * new_model.projectors[key] + w_projector
+                w_projector = fmodule._model_sum([model_k.projectors[combin] * pk for model_k, pk in zip(chosen_models, p)])
+                new_model.projectors[combin] = (1.0 - sum(p)) * new_model.projectors[combin] + w_projector
 
         else:
             p = [self.local_data_vols[cid] for cid in self.received_clients]
             sump = sum(p)
             p = [1.0 * pk / sump for pk in p]
             new_model.classifier = fmodule._model_sum([model_k.classifier * pk for model_k, pk in zip(models, p)])
-            if hasattr(new_model, 'encoder'):
-                new_model.encoder = fmodule._model_sum([model_k.encoder * pk for model_k, pk in zip(models, p)])
+            # if hasattr(new_model, 'encoder'):
+            #     new_model.encoder = fmodule._model_sum([model_k.encoder * pk for model_k, pk in zip(models, p)])
             for modal in self.all_modalities:
                 if self.modal_cnt[modal]["n_clients"] == 0:
                     continue
@@ -206,21 +224,35 @@ class Server(BasicServer):
                 sump = sum(p)
                 p = [1.0 * pk / sump for pk in p]
                 new_model.feature_extractors[modal] = fmodule._model_sum([model_k.feature_extractors[modal] * pk for model_k, pk in zip(chosen_models, p)])
-            for key in self.projector_keys:
-                if self.prj_cnt[key]["n_clients"] == 0:
+            for combin in self.all_modal_combins:
+                if self.projectors_cnt[combin]["n_clients"] == 0:
                     continue
                 p = list()
                 chosen_models = list()
-                for cid, model, projector_key in zip(self.received_clients, models, projector_keys):
-                    if key == projector_key:
+                for cid, model, modal_combin in zip(self.received_clients, models, modal_combins):
+                    if combin == modal_combin:
                         p.append(self.local_data_vols[cid])
                         chosen_models.append(model)
                 if len(chosen_models) == 0:
                     continue
                 sump = sum(p)
                 p = [1.0 * pk / sump for pk in p]
-                new_model.projectors[key] = fmodule._model_sum([model_k.projectors[key] * pk for model_k, pk in zip(chosen_models, p)])
+                new_model.projectors[combin] = fmodule._model_sum([model_k.projectors[combin] * pk for model_k, pk in zip(chosen_models, p)])
         return new_model
+
+    # def test(self, model=None):
+    #     """
+    #     Evaluate the model on the test dataset owned by the server.
+    #     :param
+    #         model: the model need to be evaluated
+    #     :return:
+    #         metrics: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
+    #     """
+    #     if model is None: model=self.model
+    #     if self.test_data:
+    #         return self.calculator.test(model, self.test_data, self.contrastive_weight, self.temperature, batch_size=self.option['test_batch_size'])
+    #     else:
+    #         return None
 
     def test(self, model=None):
         """
@@ -235,13 +267,29 @@ class Server(BasicServer):
             return self.calculator.custom_test(
                 model,
                 self.test_data,
+                self.contrastive_weight,
+                self.temperature,
                 batch_size=self.option['test_batch_size'],
-                modal_combin=self.projector_keys,
-                save_dir="fedtask/{}/details/{}".format(self.option["task"], flw.logger.get_output_name(suffix='', prefix_log_filename=self.projector_key)),
-                round_id=self.current_round
+                all_modal_combin_list=self.all_modal_combin_list
             )
         else:
             return None
+        
+    def test_on_clients(self, dataflag='valid'):
+        """
+        Validate accuracies and losses on clients' local datasets
+        :param
+            dataflag: choose train data or valid data to evaluate
+        :return
+            metrics: a dict contains the lists of each metric_value of the clients
+        """
+        return dict()
+        # all_metrics = collections.defaultdict(list)
+        # for c in self.clients:
+        #     client_metrics = c.test(self.model, dataflag)
+        #     for met_name, met_val in client_metrics.items():
+        #         all_metrics[met_name].append(met_val)
+        # return all_metrics
 
 
 class Client(BasicClient):
@@ -249,7 +297,9 @@ class Client(BasicClient):
     option, name='', train_data=None, valid_data=None, modalities=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.modalities = modalities
-        self.projector_key = "+".join(self.modalities)
+        self.modal_combin = "+".join(self.modalities)
+        self.contrastive_weight = option['contrastive_weight']
+        self.temperature = option['temperature']
 
     def pack(self, model):
         """
@@ -263,8 +313,42 @@ class Client(BasicClient):
         return {
             "model" : model,
             "modalities": self.modalities,
-            "projector_key": self.projector_key
+            "modal_combin": self.modal_combin
         }
+
+    @ss.with_completeness
+    @fmodule.with_multi_gpus
+    def train(self, model):
+        """
+        Standard local training procedure. Train the transmitted model with local training dataset.
+        :param
+            model: the global model
+        :return
+        """
+        model.train()
+        optimizer = self.calculator.get_optimizer(model, lr = self.learning_rate, weight_decay=self.weight_decay, momentum=self.momentum)
+        for iter in range(self.num_steps):
+            # get a batch of data
+            batch_data = self.get_batch_data()
+            model.zero_grad()
+            # calculate the loss of the model on batched dataset through task-specified calculator
+            loss = self.calculator.train_one_step(model, batch_data, self.contrastive_weight, self.temperature)['loss']
+            loss.backward()
+            optimizer.step()
+        return
+
+    @fmodule.with_multi_gpus
+    def test(self, model, dataflag='valid'):
+        """
+        Evaluate the model with local data (e.g. training data or validating data).
+        :param
+            model:
+            dataflag: choose the dataset to be evaluated on
+        :return:
+            metric: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
+        """
+        dataset = self.train_data if dataflag=='train' else self.valid_data
+        return self.calculator.test(model, dataset, self.contrastive_weight, self.temperature, batch_size=self.test_batch_size)
 
     def get_batch_data(self):
         """
@@ -283,4 +367,4 @@ class Client(BasicClient):
         batch_sample = dict()
         for modal in self.modalities:
             batch_sample[modal] = batch_data[0][modal]
-        return batch_data
+        return batch_sample, batch_data[1]

@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from utils.fmodule import FModule
+from itertools import chain, combinations
 
 class ImageExtractor(FModule):
     def __init__(self):
@@ -39,118 +40,140 @@ class TrajectoryExtractor(FModule):
         x = F.silu(self.ln2(x))
         return torch.flatten(x, start_dim=1)
     
-class Classifier(FModule):
-    def __init__(self, common_dim=64):
-        super(Classifier, self).__init__()
-        self.common_dim = common_dim
-        self.ln1 = nn.Linear(self.common_dim, 256, True)
-        self.ln2 = nn.Linear(256, 128, True)
-        self.ln3 = nn.Linear(128, 10, True)
-    def forward(self, x):
-        x = F.relu(self.ln1(x))
-        x = F.relu(self.ln2(x))
-        x = F.relu(self.ln3(x))
-        return x
-    
 class ImageProjector(FModule):
-    def __init__(self, common_dim=64):
+    def __init__(self):
         super(ImageProjector, self).__init__()
-        self.common_dim = common_dim
-        self.ln = nn.Linear(128 * 7 * 7, self.common_dim, True)
+        self.ln = nn.Linear(128 * 7 * 7, 64, True)
     def forward(self, x):
         return self.ln(x)
     
 class SoundProjector(FModule):
-    def __init__(self, common_dim=64):
+    def __init__(self):
         super(SoundProjector, self).__init__()
-        self.common_dim = common_dim
-        self.ln = nn.Linear(2048, self.common_dim, True)
+        self.ln = nn.Linear(2048, 64, True)
     def forward(self, x):
         return self.ln(x)
     
 class TrajectoryProjector(FModule):
-    def __init__(self, common_dim=64):
+    def __init__(self):
         super(TrajectoryProjector, self).__init__()
-        self.common_dim = common_dim
-        self.ln = nn.Linear(512, self.common_dim, True)
+        self.ln = nn.Linear(512, 64, True)
     def forward(self, x):
         return self.ln(x)
     
 class ImageSoundProjector(FModule):
-    def __init__(self, common_dim=64):
+    def __init__(self):
         super(ImageSoundProjector, self).__init__()
-        self.common_dim = common_dim
-        self.ln = nn.Linear(128 * 7 * 7 + 2048, self.common_dim, True)
+        self.ln = nn.Linear(128 * 7 * 7 + 2048, 64, True)
     def forward(self, x):
         return self.ln(x)
     
 class ImageTrajectoryProjector(FModule):
-    def __init__(self, common_dim=64):
+    def __init__(self):
         super(ImageTrajectoryProjector, self).__init__()
-        self.common_dim = common_dim
-        self.ln = nn.Linear(128 * 7 * 7 + 512, self.common_dim, True)
+        self.ln = nn.Linear(128 * 7 * 7 + 512, 64, True)
     def forward(self, x):
         return self.ln(x)
     
 class SoundTrajectoryProjector(FModule):
-    def __init__(self, common_dim=64):
+    def __init__(self):
         super(SoundTrajectoryProjector, self).__init__()
-        self.common_dim = common_dim
-        self.ln = nn.Linear(2048 + 512, self.common_dim, True)
+        self.ln = nn.Linear(2048 + 512, 64, True)
     def forward(self, x):
         return self.ln(x)
     
 class ImageSoundTrajectoryProjector(FModule):
-    def __init__(self, common_dim=64):
+    def __init__(self):
         super(ImageSoundTrajectoryProjector, self).__init__()
-        self.common_dim = common_dim
-        self.ln = nn.Linear(128 * 7 * 7 + 2048 + 512, self.common_dim, True)
+        self.ln = nn.Linear(128 * 7 * 7 + 2048 + 512, 64, True)
+    def forward(self, x):
+        return self.ln(x)
+
+class Classifier(FModule):
+    def __init__(self):
+        super(Classifier, self).__init__()
+        self.ln = nn.Linear(64, 10, True)
     def forward(self, x):
         return self.ln(x)
 
 class Model(FModule):
-    def __init__(self, common_dim=64):
+    def __init__(self):
         super(Model, self).__init__()
-        self.common_dim = common_dim
-        self.modalities = ["image", "sound", "trajectory"]
+        self.modalities = ["image", "sound"]
+        self.combin = "image+sound"
+        # self.modalities = ["image", "sound", "trajectory"]
 
         # feature extractors
         self.feature_extractors = nn.ModuleDict({
             "image": ImageExtractor(),
             "sound": SoundExtractor(),
-            "trajectory": TrajectoryExtractor()
+            # "trajectory": TrajectoryExtractor()
         })
-
+        
         # projectors
         self.projectors = nn.ModuleDict({
-            "image": ImageProjector(common_dim=self.common_dim),
-            "sound": SoundProjector(common_dim=self.common_dim),
-            "trajectory": TrajectoryProjector(common_dim=self.common_dim),
-            "image+sound": ImageSoundProjector(common_dim=self.common_dim),
-            "image+trajectory": ImageTrajectoryProjector(common_dim=self.common_dim),
-            "sound+trajectory": SoundTrajectoryProjector(common_dim=self.common_dim),
-            "image+sound+trajectory": ImageSoundTrajectoryProjector(common_dim=self.common_dim)
+            "image": ImageProjector(),
+            "sound": SoundProjector(),
+            # "trajectory": TrajectoryProjector(),
+            "image+sound": ImageSoundProjector(),
+            # "image+trajectory": ImageTrajectoryProjector(),
+            # "sound+trajectory": SoundTrajectoryProjector(),
+            # "image+sound+trajectory": ImageSoundTrajectoryProjector()
         })
 
         # classifier
-        self.classifier = Classifier(common_dim=self.common_dim)
+        self.classifier = Classifier()
 
-    def forward(self, x):
-        x = self.get_embedding(x)
-        x = self.classifier(x)
-        return x
+        # criterion
+        self.CELoss = nn.CrossEntropyLoss()
 
-    def get_embedding(self, x):
-        keys = list()
-        features = list()
+    def forward(self, samples, labels, contrastive_weight=0.0, temperature=1.0):
+        current_modalities = list()
+        batch_size = None
+        device = None
         for modal in self.modalities:
-            if modal in x.keys():
-                keys.append(modal)
-                features.append(self.feature_extractors[modal](x[modal]))
-        key = "+".join(keys)
-        features = torch.cat(features, dim=-1)
-        features = self.projectors[key](features)
-        return F.relu(features)
+            if modal in samples.keys():
+                batch_size = samples[modal].shape[0]
+                device = samples[modal].device
+                current_modalities.append(modal)
+        if len(current_modalities) == 1:
+            modal = current_modalities[0]
+            features = self.feature_extractors[modal](samples[modal])
+            representations = F.normalize(F.relu(self.projectors[modal](features)), p=2, dim=1)
+            outputs = self.classifier(representations)
+            loss = self.CELoss(outputs, labels)
+        elif current_modalities == self.modalities:
+            representations_dict = dict()
+            features_dict = dict()
+            for modal in self.modalities:
+                features = self.feature_extractors[modal](samples[modal])
+                features_dict[modal] = features
+                representations_dict[modal] = F.normalize(F.relu(self.projectors[modal](features)), p=2, dim=1)
+            joint_representations = F.normalize(F.relu(self.projectors[self.combin](torch.concat(tuple(features_dict.values()), dim=1))), p=2, dim=1)
+            outputs = self.classifier(joint_representations)
+            loss = self.CELoss(outputs, labels)
+            if batch_size > 1 and contrastive_weight > 0.0:
+                contrastive_loss = 0.0
+                for modal in self.modalities:
+                    concat_reprs = torch.concat((joint_representations, representations_dict[modal]), dim=0)
+                    exp_sim_matrix = torch.exp(torch.mm(concat_reprs, concat_reprs.t().contiguous()) / temperature)
+                    mask = (torch.ones_like(exp_sim_matrix) - torch.eye(2 * batch_size, device=device)).bool()
+                    exp_sim_matrix = exp_sim_matrix.masked_select(mask=mask).view(2 * batch_size, -1)
+                    positive_exp_sim = torch.exp(torch.sum(joint_representations * representations_dict[modal], dim=-1) / temperature)
+                    positive_exp_sim = torch.concat((positive_exp_sim, positive_exp_sim), dim=0)
+                    contrastive_loss += - torch.log(positive_exp_sim / exp_sim_matrix.sum(dim=-1))
+                loss += contrastive_weight * contrastive_loss.mean()
+        return loss, outputs
+    
+    def get_embedding(self, samples):
+        features_dict = dict()
+        representations_dict = dict()
+        for modal in self.modalities:
+            features = self.feature_extractors[modal](samples[modal])
+            features_dict[modal] = features
+            representations_dict[modal] = F.normalize(F.relu(self.projectors[modal](features)), p=2, dim=1)
+        representations_dict[self.combin] = F.normalize(F.relu(self.projectors[self.combin](torch.concat(tuple(features_dict.values()), dim=1))), p=2, dim=1)
+        return representations_dict
 
 if __name__ == '__main__':
     model = Model()

@@ -35,7 +35,7 @@ def main():
     server.projector_key = projector_key
     # start federated optimization
     try:
-        server.run(prefix_log_filename=projector_key)
+        server.run()
     except Exception as e:
         # log the exception that happens during training-time
         print(e)

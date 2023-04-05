@@ -3,19 +3,22 @@ python generate_fedtask.py \
     --dist 0 \
     --skew 0.0 \
     --num_clients 50 \
-    --seed 0
+    --seed 0 \
+    --percentages 0.2 0.2
 
 python main.py \
     --task mhd_classification_cnum50_dist0_skew0_seed0 \
     --model mm \
     --algorithm mm_mhd_fedavg \
-    --sample uniform \
-    --aggregate weighted_com \
-    --num_rounds 100 \
-    --proportion 0.3 \
-    --num_epochs 5 \
-    --learning_rate 0.01 \
+    --sample full \
+    --aggregate weighted_scale \
+    --num_rounds 20 \
+    --proportion 1.0 \
+    --num_epochs 2 \
+    --learning_rate 0.05 \
     --batch_size 64 \
-    --gpu 0 \
+    --gpu 1 \
     --seed 1234 \
-    --test_batch_size 64
+    --test_batch_size 64 \
+    --contrastive_weight 1.0 \
+    --temperature 0.2

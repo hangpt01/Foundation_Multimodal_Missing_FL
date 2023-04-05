@@ -14,7 +14,7 @@ def unstack_tensor(tensor, dim=0):
 class MHDDataset(Dataset):
     def __init__(
         self, 
-        root: str,
+        root: str = './benchmark/RAW_DATA/MHD',
         train: bool = True,
         image_transform: Optional[Callable] = None,
         trajectory_transform: Optional[Callable] = None,
@@ -90,10 +90,7 @@ if __name__ == '__main__':
     dataset = MHDDataset(
         root='./benchmark/RAW_DATA/MHD',
         train=False,
-        download=True,
-        image_transform=transforms.Compose([transforms.Normalize((0.0841,), (0.2487,))]),
-        trajectory_transform=transforms.Compose([transforms.Normalize((0.5347,), (0.1003,))]),
-        sound_transform=transforms.Compose([transforms.Normalize((0.4860,), (0.1292,))]),
+        download=True
     )
     from torch.utils.data import DataLoader
     loader = DataLoader(dataset, batch_size=5)

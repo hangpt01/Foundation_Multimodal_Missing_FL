@@ -6,12 +6,11 @@ import torch
 def main():
     # read options
     option = flw.read_option()
+    print(option)
     # set random seed
     flw.setup_seed(option['seed'])
     # initialize server, clients and fedtask
     server = flw.initialize(option)
-    # import pdb; pdb.set_trace()
-    # exit(0)
     # start federated optimization
     try:
         server.run()

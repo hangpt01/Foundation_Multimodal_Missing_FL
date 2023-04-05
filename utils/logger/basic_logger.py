@@ -149,7 +149,9 @@ class Logger(logging.Logger):
         else:
             output_name = output_name + ("K{}_".format(self.meta['num_steps']))
 
-        output_name = output_name + "LR{:.4f}_P{:.2f}_S{}_LD{:.3f}_WD{:.3f}_AVL{}_CN{}_CP{}_T{}".format(
+        output_name = output_name + "CW{:.2f}_CT{:.2f}_LR{:.4f}_P{:.2f}_S{}_LD{:.3f}_WD{:.3f}_AVL{}_CN{}_CP{}_T{}".format(
+                          self.meta['contrastive_weight'],
+                          self.meta['temperature'],
                           self.meta['learning_rate'],
                           self.meta['proportion'],
                           self.meta['seed'],

@@ -37,7 +37,7 @@ def read_option():
     parser.add_argument('--num_epochs', help='number of epochs when clients trainset on data;', type=int, default=5)
     parser.add_argument('--num_steps', help='the number of local steps, which dominate num_epochs when setting num_steps>0', type=int, default=-1)
     parser.add_argument('--learning_rate', help='learning rate for inner solver;', type=float, default=0.1)
-    parser.add_argument('--batch_size', help='batch size when clients trainset on data;', type=float, default='64')
+    parser.add_argument('--batch_size', help='batch size when clients trainset on data;', type=int, default=64)
     parser.add_argument('--optimizer', help='select the optimizer for gd', type=str, choices=optimizer_list, default='SGD')
     parser.add_argument('--momentum', help='momentum of local update', type=float, default=0)
     parser.add_argument('--weight_decay', help='weight decay for the training process', type=float, default=0)
@@ -65,7 +65,8 @@ def read_option():
     parser.add_argument('--no_log_console', help='bool controls whether log to screen and default value is True', action="store_true", default=False)
     parser.add_argument('--no_overwrite', help='bool controls whether to overwrite the old result', action="store_true", default=False)
     # multimodal setting
-    parser.add_argument('--projector_key', help='')
+    parser.add_argument('--contrastive_weight', help='Sample-based contrastive loss weight;', type=float, default=1.0)
+    parser.add_argument('--temperature', help='Sample-based contrastive loss temperature;', type=float, default=1.0)
     try: option = vars(parser.parse_args())
     except IOError as msg: parser.error(str(msg))
     return option
