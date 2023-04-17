@@ -39,6 +39,13 @@ def _approximate_Delaunay_edges(
         root, graph_params.unfiltered_edges_filepath
     )
     if not os.path.isfile(unfiltered_Delaunay_edges_filepath):
+        print(
+            "./dca/approximate_Delaunay_graph {0} --nrays {1} --out {2} --out_dist {3}".format(
+                os.path.join(root, input_array_filepath),
+                graph_params.T,
+                unfiltered_Delaunay_edges_filepath,
+                os.path.join(root, graph_params.unfiltered_edges_len_filepath),
+        ))
         os_output = os.system(
             "./dca/approximate_Delaunay_graph {0} --nrays {1} --out {2} --out_dist {3}".format(
                 os.path.join(root, input_array_filepath),

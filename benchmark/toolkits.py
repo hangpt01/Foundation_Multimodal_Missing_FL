@@ -164,10 +164,12 @@ class DefaultTaskGen(BasicTaskGen):
     def run(self):
         """ Generate federated task"""
         # check if the task exists
+        # import pdb; pdb.set_trace()
         if self._check_task_exist():
             print("Task Already Exists.")
             return
         # read raw_data into self.train_data and self.test_data
+        # import pdb; pdb.set_trace()
         print('-----------------------------------------------------')
         print('Loading...')
         self.load_data()

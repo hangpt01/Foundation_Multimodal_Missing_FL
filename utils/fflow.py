@@ -67,6 +67,7 @@ def read_option():
     # multimodal setting
     parser.add_argument('--contrastive_weight', help='Sample-based contrastive loss weight;', type=float, default=1.0)
     parser.add_argument('--temperature', help='Sample-based contrastive loss temperature;', type=float, default=1.0)
+    parser.add_argument('--start_round', help='Continue training;', type=int, default=0)
     try: option = vars(parser.parse_args())
     except IOError as msg: parser.error(str(msg))
     return option
@@ -93,6 +94,7 @@ def initialize(option):
     logger = Logger(meta=option, name=log_name, level=option['log_level'])
     logger.info('Using Logger in `{}`'.format(log_path))
     logger.info("Initializing fedtask: {}".format(option['task']))
+    # import pdb; pdb.set_trace()
     # benchmark information
     bmk_name = option['task'][:option['task'].find('cnum')-1]
     bmk_model_path = '.'.join(['benchmark', bmk_name, 'model', option['model']])

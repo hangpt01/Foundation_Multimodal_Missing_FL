@@ -99,25 +99,25 @@ class Classifier(FModule):
 class Model(FModule):
     def __init__(self):
         super(Model, self).__init__()
-        self.modalities = ["image", "sound"]
-        self.combin = "image+sound"
+        self.modalities = ["image", "trajectory"]
+        self.combin = "+".join(self.modalities)
         # self.modalities = ["image", "sound", "trajectory"]
 
         # feature extractors
         self.feature_extractors = nn.ModuleDict({
             "image": ImageExtractor(),
             "sound": SoundExtractor(),
-            # "trajectory": TrajectoryExtractor()
+            "trajectory": TrajectoryExtractor()
         })
         
         # projectors
         self.projectors = nn.ModuleDict({
             "image": ImageProjector(),
             "sound": SoundProjector(),
-            # "trajectory": TrajectoryProjector(),
+            "trajectory": TrajectoryProjector(),
             "image+sound": ImageSoundProjector(),
-            # "image+trajectory": ImageTrajectoryProjector(),
-            # "sound+trajectory": SoundTrajectoryProjector(),
+            "image+trajectory": ImageTrajectoryProjector(),
+            "sound+trajectory": SoundTrajectoryProjector(),
             # "image+sound+trajectory": ImageSoundTrajectoryProjector()
         })
 
@@ -136,6 +136,7 @@ class Model(FModule):
                 batch_size = samples[modal].shape[0]
                 device = samples[modal].device
                 current_modalities.append(modal)
+        # import pdb; pdb.set_trace()
         if len(current_modalities) == 1:
             modal = current_modalities[0]
             features = self.feature_extractors[modal](samples[modal])
@@ -155,6 +156,7 @@ class Model(FModule):
             if batch_size > 1 and contrastive_weight > 0.0:
                 contrastive_loss = 0.0
                 for modal in self.modalities:
+                # for modal in ["trajectory"]:
                     concat_reprs = torch.concat((joint_representations, representations_dict[modal]), dim=0)
                     exp_sim_matrix = torch.exp(torch.mm(concat_reprs, concat_reprs.t().contiguous()) / temperature)
                     mask = (torch.ones_like(exp_sim_matrix) - torch.eye(2 * batch_size, device=device)).bool()

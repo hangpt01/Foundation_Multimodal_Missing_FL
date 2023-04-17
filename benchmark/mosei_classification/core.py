@@ -3,7 +3,7 @@ import ujson
 import importlib
 import random
 from torchvision import transforms
-from .dataset import MHDDataset
+from .dataset import MOSEIDataset
 from benchmark.toolkits import DefaultTaskGen
 from benchmark.toolkits import ClassificationCalculator
 from benchmark.toolkits import IDXTaskPipe
@@ -11,6 +11,7 @@ import torch
 import numpy as np
 from itertools import combinations
 from tqdm.auto import tqdm
+from sklearn.metrics import f1_score, accuracy_score
 
 def save_task(generator):
     """
@@ -49,15 +50,15 @@ def save_task(generator):
 
 class TaskGen(DefaultTaskGen):
     def __init__(self, dist_id, num_clients = 1, skewness = 0.5, local_hld_rate=0.2, seed= 0, percentages=None):
-        super(TaskGen, self).__init__(benchmark='mhd_classification',
+        super(TaskGen, self).__init__(benchmark='mosei_classification',
                                       dist_id=dist_id,
                                       num_clients=num_clients,
                                       skewness=skewness,
-                                      rawdata_path='./benchmark/RAW_DATA/MHD',
+                                      rawdata_path='./benchmark/RAW_DATA/MOSEI',
                                       local_hld_rate=local_hld_rate,
                                       seed = seed
                                       )
-        self.modalities = ["image", "trajectory"]
+        self.modalities = ["text", "vision"]
         self.num_classes = 10
         if len(percentages) != 2 or sum(percentages) > 1.0:
             self.percentages = [0.0, 0.0]
@@ -74,29 +75,10 @@ class TaskGen(DefaultTaskGen):
         random.shuffle(self.all_cases)
         self.save_task = save_task
         self.visualize = self.visualize_by_class
-        # self.source_dict = {
-        #     'class_path': 'benchmark.mhd_classification.dataset',
-        #     'class_name': 'MHDDataset',
-        #     'train_args': {
-        #         'root': '"'+self.rawdata_path+'"',
-        #         'download': 'True',
-        #         'image_transform': 'transforms.Compose([transforms.Normalize((0.0841,), (0.2487,))])',
-        #         'trajectory_transform': 'transforms.Compose([transforms.Normalize((0.5347,), (0.1003,))])',
-        #         'sound_transform': 'transforms.Compose([transforms.Normalize((0.4860,), (0.1292,))])',
-        #         'train':'True'
-        #     },
-        #     'test_args': {
-        #         'root': '"'+self.rawdata_path+'"',
-        #         'download': 'True',
-        #         'image_transform': 'transforms.Compose([transforms.Normalize((0.0841,), (0.2487,))])',
-        #         'trajectory_transform': 'transforms.Compose([transforms.Normalize((0.5347,), (0.1003,))])',
-        #         'sound_transform': 'transforms.Compose([transforms.Normalize((0.4860,), (0.1292,))])',
-        #         'train': 'False'
-        #     }
-        # }
+        
         self.source_dict = {
-            'class_path': 'benchmark.mhd_classification.dataset',
-            'class_name': 'MHDDataset',
+            'class_path': 'benchmark.mosei_classification.dataset',
+            'class_name': 'MOSEIDataset',
             'train_args': {
                 'root': '"'+self.rawdata_path+'"',
                 'download': 'True',
@@ -123,28 +105,12 @@ class TaskGen(DefaultTaskGen):
         return taskname
 
     def load_data(self):
-        # self.train_data = MHDDataset(
-        #     root=self.rawdata_path,
-        #     train=True,
-        #     download=True,
-        #     image_transform=transforms.Compose([transforms.Normalize((0.0841,), (0.2487,))]),
-        #     trajectory_transform=transforms.Compose([transforms.Normalize((0.5347,), (0.1003,))]),
-        #     sound_transform=transforms.Compose([transforms.Normalize((0.4860,), (0.1292,))]),
-        # )
-        # self.test_data = MHDDataset(
-        #     root=self.rawdata_path,
-        #     train=False,
-        #     download=True,
-        #     image_transform=transforms.Compose([transforms.Normalize((0.0841,), (0.2487,))]),
-        #     trajectory_transform=transforms.Compose([transforms.Normalize((0.5347,), (0.1003,))]),
-        #     sound_transform=transforms.Compose([transforms.Normalize((0.4860,), (0.1292,))]),
-        # )
-        self.train_data = MHDDataset(
+        self.train_data = MOSEIDataset(
             root=self.rawdata_path,
             train=True,
             download=True,
         )
-        self.test_data = MHDDataset(
+        self.test_data = MOSEIDataset(
             root=self.rawdata_path,
             train=False,
             download=True,
@@ -211,14 +177,29 @@ class TaskCalculator(ClassificationCalculator):
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
         total_loss = 0.0
         total_count = 0
-        num_correct = 0
+        labels = list()
+        preds = list()
         for data in data_loader:        
             tdata = self.data_to_device(data)
+            total_count += tdata[1].shape[0]
+            labels.extend(tdata[1].cpu().tolist())
             loss, outputs = model(tdata[0], tdata[1], contrastive_weight, temperature)
             total_loss += loss * tdata[1].shape[0]
-            num_correct += torch.sum(torch.softmax(outputs, dim=1).argmax(dim=1) == tdata[1]).item()
-            total_count += tdata[1].shape[0]
-        return {'loss': total_loss.item() / total_count, 'accuracy': 1.0 * num_correct / total_count}
+            preds.extend(outputs.cpu().tolist())
+        truth = np.array(labels)
+        truth_a7 = np.clip(truth, a_min=-3.0, a_max=3.0)
+        preds = np.array(preds)
+        preds_a7 = np.clip(preds, a_min=-3.0, a_max=3.0)
+        binary_truth = (truth > 0)
+        binary_preds = (preds > 0)
+        return {
+            'loss': total_loss.item() / total_count,
+            'mae': np.mean(np.absolute(preds - truth)),
+            'corr': np.corrcoef(preds, truth)[0, 1],
+            'acc7': np.sum(np.round(preds_a7) == np.round(truth_a7)) / total_count,
+            'acc2': accuracy_score(binary_truth, binary_preds),
+            'f1': f1_score(binary_truth, binary_preds, average='weighted'),
+        }
 
     @torch.no_grad()
     def custom_test(self, model, dataset, contrastive_weight, temperature, batch_size=64, num_workers=0, all_modal_combin_list=[]):
@@ -234,26 +215,37 @@ class TaskCalculator(ClassificationCalculator):
             batch_size = len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
         total_count = 0
+        labels = list()
         eval_dict = dict()
         for combin_list in all_modal_combin_list:
             combin = "+".join(combin_list)
-            eval_dict[combin + '_total_loss'] = 0.0
-            eval_dict[combin + '_num_correct'] = 0.0
+            eval_dict[combin + "_total_loss"] = 0.0
+            eval_dict[combin + "_outputs"] = list()
         for data in data_loader:        
             tdata = self.data_to_device(data)
             total_count += tdata[1].shape[0]
+            labels.extend(tdata[1].cpu().tolist())
             for combin_list in all_modal_combin_list:
                 combin = "+".join(combin_list)
                 samples = dict()
                 for modal in combin_list:
                     samples[modal] = tdata[0][modal].contiguous()
-                # import pdb; pdb.set_trace()
                 loss, outputs = model(samples, tdata[1], contrastive_weight, temperature)
-                eval_dict[combin + '_total_loss'] += loss * tdata[1].shape[0]
-                eval_dict[combin + '_num_correct'] += torch.sum(torch.softmax(outputs, dim=1).argmax(dim=1) == tdata[1]).item()
+                eval_dict[combin + "_total_loss"] += loss.item() * tdata[1].shape[0]
+                eval_dict[combin + "_outputs"].extend(outputs.cpu().tolist())
         result = dict()
+        truth = np.array(labels)
+        truth_a7 = np.clip(truth, a_min=-3.0, a_max=3.0)
         for combin_list in all_modal_combin_list:
             combin = "+".join(combin_list)
-            result[combin + '_loss'] = eval_dict[combin + '_total_loss'].item() / total_count
-            result[combin + '_accuracy'] = 1.0 * eval_dict[combin + '_num_correct'] / total_count
+            result[combin + "_loss"] = eval_dict[combin + "_total_loss"] / total_count
+            preds = np.array(eval_dict[combin + "_outputs"])
+            preds_a7 = np.clip(preds, a_min=-3.0, a_max=3.0)
+            result[combin + "_mae"] = np.mean(np.absolute(preds - truth))
+            result[combin + "_corr"] = np.corrcoef(preds, truth)[0, 1]
+            result[combin + "_acc7"] = np.sum(np.round(preds_a7) == np.round(truth_a7)) / total_count
+            binary_truth = (truth > 0)
+            binary_preds = (preds > 0)
+            result[combin + "_acc2"] = accuracy_score(binary_truth, binary_preds)
+            result[combin + "_f1"] = f1_score(binary_truth, binary_preds, average='weighted')
         return result

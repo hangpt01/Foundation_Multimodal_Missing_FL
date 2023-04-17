@@ -12,6 +12,7 @@ def main():
     # initialize server, clients and fedtask
     server = flw.initialize(option)
     # start federated optimization
+    # import pdb; pdb.set_trace()
     try:
         server.run()
     except Exception as e:

@@ -15,10 +15,14 @@ class Server(BasicServer):
         self.contrastive_weight = option['contrastive_weight']
         self.temperature = option['temperature']
         self.all_modalities = self.model.modalities
-        self.all_modal_combin_list = list()
-        for combin_tuple in chain.from_iterable(combinations(self.all_modalities, r) for r in range(1, len(self.all_modalities) + 1)):
-            self.all_modal_combin_list.append(list(combin_tuple))
-        print(self.all_modal_combin_list)
+        # self.all_modal_combin_list = list()
+        # for combin_tuple in chain.from_iterable(combinations(self.all_modalities, r) for r in range(1, len(self.all_modalities) + 1)):
+        #     self.all_modal_combin_list.append(list(combin_tuple))
+        # print(self.all_modal_combin_list)
+        self.all_modal_combin_list = [
+            ["vision"],
+            ["text", "vision"]
+        ]
         self.feature_extractors_cnt = dict()
         for modal in self.all_modalities:
             self.feature_extractors_cnt[modal] = {
@@ -117,7 +121,7 @@ class Server(BasicServer):
             p = [1.0 * self.local_data_vols[cid] / self.total_data_vol for cid in self.received_clients]
             K = len(models)
             N = self.num_clients
-            new_model.classifier = fmodule._model_sum([model_k.classifier * pk for model_k, pk in zip(models, p)]) * N / K
+            new_model.regressor = fmodule._model_sum([model_k.regressor * pk for model_k, pk in zip(models, p)]) * N / K
             # if hasattr(new_model, 'encoder'):
             #     new_model.encoder = fmodule._model_sum([model_k.encoder * pk for model_k, pk in zip(models, p)]) * N / K
             # feature extractors
@@ -151,7 +155,7 @@ class Server(BasicServer):
                 new_model.projectors[combin] = fmodule._model_sum([model_k.projectors[combin] * pk for model_k, pk in zip(chosen_models, p)]) * N / K
                 
         elif self.aggregation_option == 'uniform':
-            new_model.classifier = fmodule._model_average([model_k.classifier for model_k in models])
+            new_model.regressor = fmodule._model_average([model_k.regressor for model_k in models])
             # if hasattr(new_model, 'encoder'):
             #     new_model.encoder = fmodule._model_average([model_k.encoder for model_k in models])
             for modal in self.all_modalities:
@@ -177,8 +181,8 @@ class Server(BasicServer):
 
         elif self.aggregation_option == 'weighted_com':
             p = [1.0 * self.local_data_vols[cid] / self.total_data_vol for cid in self.received_clients]
-            w_classifier = fmodule._model_sum([model_k.classifier * pk for model_k, pk in zip(models, p)])
-            new_model.classifier = (1.0 - sum(p)) * new_model.classifier + w_classifier
+            w_regressor = fmodule._model_sum([model_k.regressor * pk for model_k, pk in zip(models, p)])
+            new_model.regressor = (1.0 - sum(p)) * new_model.regressor + w_regressor
             # if hasattr(new_model, 'encoder'):
             #     w_encoder = fmodule._model_sum([model_k.encoder * pk for model_k, pk in zip(models, p)])
             #     new_model.encoder = (1.0 - sum(p)) * new_model.encoder + w_encoder
@@ -213,7 +217,7 @@ class Server(BasicServer):
             p = [self.local_data_vols[cid] for cid in self.received_clients]
             sump = sum(p)
             p = [1.0 * pk / sump for pk in p]
-            new_model.classifier = fmodule._model_sum([model_k.classifier * pk for model_k, pk in zip(models, p)])
+            new_model.regressor = fmodule._model_sum([model_k.regressor * pk for model_k, pk in zip(models, p)])
             # if hasattr(new_model, 'encoder'):
             #     new_model.encoder = fmodule._model_sum([model_k.encoder * pk for model_k, pk in zip(models, p)])
             for modal in self.all_modalities:
@@ -281,7 +285,7 @@ class Server(BasicServer):
         else:
             return None
         
-    def test_on_clients(self, dataflag='valid'):
+    def test_on_clients(self, dataflag='train'):
         """
         Validate accuracies and losses on clients' local datasets
         :param
@@ -289,13 +293,13 @@ class Server(BasicServer):
         :return
             metrics: a dict contains the lists of each metric_value of the clients
         """
-        return dict()
-        # all_metrics = collections.defaultdict(list)
-        # for c in self.clients:
-        #     client_metrics = c.test(self.model, dataflag)
-        #     for met_name, met_val in client_metrics.items():
-        #         all_metrics[met_name].append(met_val)
-        # return all_metrics
+        # return dict()
+        all_metrics = collections.defaultdict(list)
+        for c in self.clients:
+            client_metrics = c.test(self.model, dataflag)
+            for met_name, met_val in client_metrics.items():
+                all_metrics[met_name].append(met_val)
+        return all_metrics
 
 
 class Client(BasicClient):
@@ -344,7 +348,7 @@ class Client(BasicClient):
         return
 
     @fmodule.with_multi_gpus
-    def test(self, model, dataflag='valid'):
+    def test(self, model, dataflag='train'):
         """
         Evaluate the model with local data (e.g. training data or validating data).
         :param

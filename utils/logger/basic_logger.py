@@ -91,6 +91,9 @@ class Logger(logging.Logger):
                     original_record[k] = self.output[k]
                 self.output = original_record
         try:
+            if os.path.exists(filepath):
+                if 'R{}_S{}'.format(self.meta['num_rounds'], self.meta['start_round']) not in filepath:
+                    filepath = filepath.replace('R{}'.format(self.meta['num_rounds']), 'R{}_S{}'.format(self.meta['num_rounds'], self.meta['start_round']))
             with open(filepath, 'w') as outf:
                 json.dump(dict(self.output), outf)
         except:
@@ -211,13 +214,13 @@ class Logger(logging.Logger):
         for met_name, met_val in train_metrics.items():
             self.output['train_' + met_name + '_dist'].append(met_val)
             self.output['train_' + met_name].append(1.0 * sum([client_vol * client_met for client_vol, client_met in zip(self.server.local_data_vols, met_val)]) / self.server.total_data_vol)
-        # calculate weighted averaging and other statistics of metrics on validation datasets across clients
-        valid_metrics = self.server.test_on_clients('valid')
-        for met_name, met_val in valid_metrics.items():
-            self.output['valid_'+met_name+'_dist'].append(met_val)
-            self.output['valid_' + met_name].append(1.0 * sum([client_vol * client_met for client_vol, client_met in zip(self.server.local_data_vols, met_val)]) / self.server.total_data_vol)
-            self.output['mean_valid_' + met_name].append(np.mean(met_val))
-            self.output['std_valid_' + met_name].append(np.std(met_val))
+        # # calculate weighted averaging and other statistics of metrics on validation datasets across clients
+        # valid_metrics = self.server.test_on_clients('valid')
+        # for met_name, met_val in valid_metrics.items():
+        #     self.output['valid_'+met_name+'_dist'].append(met_val)
+        #     self.output['valid_' + met_name].append(1.0 * sum([client_vol * client_met for client_vol, client_met in zip(self.server.local_data_vols, met_val)]) / self.server.total_data_vol)
+        #     self.output['mean_valid_' + met_name].append(np.mean(met_val))
+        #     self.output['std_valid_' + met_name].append(np.std(met_val))
         # output to stdout
         self.show_current_output()
 
