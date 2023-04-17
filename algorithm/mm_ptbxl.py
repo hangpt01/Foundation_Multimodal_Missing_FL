@@ -34,7 +34,8 @@ class Server(BasicServer):
         models = conmmunitcation_result['model']
         modalities_list = conmmunitcation_result['modalities']
         # aggregate: pk = 1/K as default where K=len(selected_clients)
-        self.model = self.aggregate(models, modalities_list)
+        # self.model = self.aggregate(models, modalities_list)
+        self.model = models[0]
         return
 
     def aggregate(self, models: list, modalities_list: list):

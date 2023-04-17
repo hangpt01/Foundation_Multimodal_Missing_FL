@@ -3,7 +3,7 @@ from torch import nn
 import torch.nn.functional as F
 from utils.fmodule import FModule
 from itertools import chain, combinations
-from transformer_networks import TransformerEncoder
+from benchmark.mosei_classification.model.transformer_networks import TransformerEncoder
 
 # 1-modality Extractor
 class TextExtractor(FModule):
@@ -167,11 +167,11 @@ class MultimodalTransformer(FModule):
         self.trans_v_mem = get_affect_network(self_type='v_mem', layers=5)
 
         # Projector
-        self.projector = nn.Linear(60*2, self.common_dim)
+        # self.projector = nn.Linear(60*2, self.common_dim)
         
 
     def forward(self, x):
-        x_l, x_a, x_v = x[0], x[1], x[2]
+        x_l, x_v = x[:,:60], x[:,60:]
 
         """
         text, audio, and vision should have dimension [batch_size, seq_len, n_features]
@@ -206,13 +206,13 @@ class MultimodalTransformer(FModule):
 
         last_hs_proj = self.proj2(F.dropout(F.relu(self.proj1(last_hs)), p=0.0, training=self.training))
         last_hs_proj += last_hs
-
+        import pdb; pdb.set_trace()
         # Project
         return last_hs_proj
 
 class MultimodalProjector(FModule):     # (text+vision)
     def __init__(self):
-        super(VisionProjector, self).__init__()
+        super(MultimodalProjector, self).__init__()
         self.ln = nn.Linear(60*2, 60)
     def forward(self, x):
         return self.ln(x)
@@ -242,14 +242,16 @@ class Model(FModule):
         # projectors
         self.projectors = nn.ModuleDict({
             "text": TextProjector(),
-            "audio": AudioProjector(),
+            # "audio": AudioProjector(),
             "vision": VisionProjector(),
-            "text+audio": TextAudioProjector(),
-            "text+vision": TextVisionProjector(),
-            "audio+vision": AudioVisionProjector(),
+            # "text+audio": TextAudioProjector(),
+            # "text+vision": TextVisionProjector(),
+            "text+vision": MultimodalProjector(),
+            # "audio+vision": AudioVisionProjector(),
             # "text+audio+vision": TextAudioVisionProjector()
         })
 
+        self.multimodal_transformer = MultimodalTransformer()
         # regressor
         self.regressor = Regressor()
 
@@ -270,8 +272,8 @@ class Model(FModule):
             modal = current_modalities[0]
             features = self.feature_extractors[modal](samples[modal])
             representations = F.normalize(F.relu(self.projectors[modal](features)), p=2, dim=1)
-            outputimestep = self.regressor(representations)
-            loss = self.L1Loss(outputimestep, labels)
+            outputs = self.regressor(representations)
+            loss = self.L1Loss(outputs, labels)
         elif current_modalities == self.modalities:
             representations_dict = dict()
             features_dict = dict()
@@ -279,13 +281,16 @@ class Model(FModule):
                 features = self.feature_extractors[modal](samples[modal])
                 features_dict[modal] = features
                 representations_dict[modal] = F.normalize(F.relu(self.projectors[modal](features)), p=2, dim=1)
-            joint_representations = F.normalize(F.relu(self.projectors[self.combin](torch.concat(tuple(features_dict.values()), dim=1))), p=2, dim=1)
-            outputimestep = self.regressor(joint_representations)
-            loss = self.L1Loss(outputimestep, labels)
+            joint_representations = torch.concat(tuple(representations_dict.values()), dim=1)
+            joint_representations = F.normalize(F.relu(self.projectors[self.combin](joint_representations)), p=2, dim=1)
+            # import pdb; pdb.set_trace()
+            outputs = self.regressor(joint_representations)
+            loss = self.L1Loss(outputs, labels)
             if batch_size > 1 and contrastive_weight > 0.0:
                 contrastive_loss = 0.0
                 # for modal in self.modalities:
                 for modal in ["vision"]:
+                    import pdb; pdb.set_trace()
                     concat_reprs = torch.concat((joint_representations, representations_dict[modal]), dim=0)
                     exp_sim_matrix = torch.exp(torch.mm(concat_reprs, concat_reprs.t().contiguous()) / temperature)
                     mask = (torch.ones_like(exp_sim_matrix) - torch.eye(2 * batch_size, device=device)).bool()
@@ -294,7 +299,9 @@ class Model(FModule):
                     positive_exp_sim = torch.concat((positive_exp_sim, positive_exp_sim), dim=0)
                     contrastive_loss += - torch.log(positive_exp_sim / exp_sim_matrix.sum(dim=-1))
                 loss += contrastive_weight * contrastive_loss.mean()
-        return loss, outputimestep
+            # import pdb; pdb.set_trace()
+            
+        return loss, outputs
 
 if __name__ == '__main__':
     model = Model()

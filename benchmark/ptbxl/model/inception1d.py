@@ -84,7 +84,6 @@ class Inception1DBase(FModule):
         x = self.relu(x)
         x = self.bn_2(x)
         x = self.dropout_2(x)
-        # x = F.normalize(x, p=2, dim=1)
         return x
         
 class Inception1D2Leads(Inception1DBase):
@@ -131,13 +130,14 @@ class Model(FModule):
         self.criterion = torch.nn.BCEWithLogitsLoss()
     def forward(self, x, y, leads='all', contrastive_weight=1.0, temperature=1.0):
         if leads == 'all':
-            x2leads = self.branch2leads(x[:, self.lead_idx['2']])
             xallleads = self.branchallleads(x)
             outputs = self.classifier(xallleads)
             loss = self.criterion(outputs, y)
             # contrastive loss
-            if contrastive_weight > 0.0:
-                batch_size = y.shape[0]
+            batch_size = y.shape[0]
+            if contrastive_weight > 0.0 and batch_size > 1:
+                xallleads = F.normalize(xallleads, p=2, dim=1)
+                x2leads = F.normalize(self.branch2leads(x[:, self.lead_idx['2']]), p=2, dim=1)
                 device = y.device
                 concat_reprs = torch.concat((xallleads, x2leads), dim=0)
                 exp_sim_matrix = torch.exp(torch.mm(concat_reprs, concat_reprs.t().contiguous()) / temperature)
