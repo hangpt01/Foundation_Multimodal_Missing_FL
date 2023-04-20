@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from torch.nn import Parameter
 import torch.nn.functional as F
+import numpy as np
 
 
 # Code adapted from the fairseq repo.
@@ -279,7 +280,7 @@ class TransformerEncoder(nn.Module):
         if self.normalize:
             self.layer_norm = LayerNorm(embed_dim)
 
-    def forward(self, x_in, x_in_k=None, x_in_v=None):
+    def forward(self, x_in, x_in_k=None, x_in_v=None, name=None, iter=None):
         """
         Args:
             x_in (FloatTensor): embedded input of shape `(src_len, batch, embed_dim)`
@@ -312,7 +313,7 @@ class TransformerEncoder(nn.Module):
         intermediates = [x]
         for layer in self.layers:
             if x_in_k is not None and x_in_v is not None:
-                x = layer(x, x_k, x_v)
+                x = layer(x, x_k, x_v, name, iter)
             else:
                 x = layer(x)
             intermediates.append(x)
@@ -363,7 +364,7 @@ class TransformerEncoderLayer(nn.Module):
         self.fc2 = Linear(4 * self.embed_dim, self.embed_dim)
         self.layer_norms = nn.ModuleList([LayerNorm(self.embed_dim) for _ in range(2)])
 
-    def forward(self, x, x_k=None, x_v=None):
+    def forward(self, x, x_k=None, x_v=None, name=None, iter=None):
         """
         Args:
             x (Tensor): input to the layer of shape `(seq_len, batch, embed_dim)`
@@ -375,7 +376,7 @@ class TransformerEncoderLayer(nn.Module):
             encoded output of shape `(batch, src_len, embed_dim)`
         """
         residual = x
-        x = self.maybe_layer_norm(0, x, before=True)
+        x = self.maybe_layer_norm(0, x, before=True, name=name, iter=iter)
         mask = buffered_future_mask(x, x_k) if self.attn_mask else None
         if x_k is None and x_v is None:
             x, _ = self.self_attn(query=x, key=x, value=x, attn_mask=mask)
@@ -397,7 +398,7 @@ class TransformerEncoderLayer(nn.Module):
         x = self.maybe_layer_norm(1, x, after=True)
         return x
 
-    def maybe_layer_norm(self, i, x, before=False, after=False):
+    def maybe_layer_norm(self, i, x, before=False, after=False, name=None, iter=None):
         assert before ^ after
         if after ^ self.normalize_before:
             return self.layer_norms[i](x)
@@ -415,8 +416,9 @@ def buffered_future_mask(tensor, tensor2=None):
     if tensor2 is not None:
         dim2 = tensor2.size(0)
     future_mask = torch.triu(fill_with_neg_inf(torch.ones(dim1, dim2)), 1 + abs(dim2 - dim1))
-    if tensor.is_cuda:
-        future_mask = future_mask.cuda()
+    # if tensor.is_cuda:
+    #     future_mask = future_mask.cuda()
+    future_mask = future_mask.to(tensor.device)
     return future_mask[:dim1, :dim2]
 
 
@@ -431,3 +433,7 @@ def Linear(in_features, out_features, bias=True):
 def LayerNorm(embedding_dim):
     m = nn.LayerNorm(embedding_dim)
     return m
+
+
+def check(x):
+    return np.any(torch.isnan(x).numpy())

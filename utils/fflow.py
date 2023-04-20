@@ -65,9 +65,9 @@ def read_option():
     parser.add_argument('--no_log_console', help='bool controls whether log to screen and default value is True', action="store_true", default=False)
     parser.add_argument('--no_overwrite', help='bool controls whether to overwrite the old result', action="store_true", default=False)
     # multimodal setting
-    parser.add_argument('--contrastive_weight', help='Sample-based contrastive loss weight;', type=float, default=1.0)
-    parser.add_argument('--temperature', help='Sample-based contrastive loss temperature;', type=float, default=1.0)
-    parser.add_argument('--start_round', help='Continue training;', type=int, default=0)
+    parser.add_argument('--contrastive_weight', help='Sample-based contrastive loss weight;', type=float, default=0.0)
+    parser.add_argument('--temperature', help='Sample-based contrastive loss temperature;', type=float, default=0.0)
+    parser.add_argument('--margin', help='Contrastive loss margin;', type=float, default=0.0)
     try: option = vars(parser.parse_args())
     except IOError as msg: parser.error(str(msg))
     return option

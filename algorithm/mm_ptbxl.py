@@ -9,6 +9,7 @@ class Server(BasicServer):
         super(Server, self).__init__(option, model, clients, test_data)
         self.contrastive_weight = option['contrastive_weight']
         self.temperature = option['temperature']
+        self.margin = option['margin']
         self.leads_cnt = {
             "all": {
                 "n_clients": sum([1 for client in self.clients if client.modalities == "all"]),
@@ -34,8 +35,8 @@ class Server(BasicServer):
         models = conmmunitcation_result['model']
         modalities_list = conmmunitcation_result['modalities']
         # aggregate: pk = 1/K as default where K=len(selected_clients)
-        # self.model = self.aggregate(models, modalities_list)
-        self.model = models[0]
+        self.model = self.aggregate(models, modalities_list)
+        # self.model = models[0]
         return
 
     def aggregate(self, models: list, modalities_list: list):
@@ -90,6 +91,7 @@ class Server(BasicServer):
                 dataset=self.test_data,
                 contrastive_weight=self.contrastive_weight,
                 temperature=self.temperature,
+                margin=self.margin,
                 batch_size=self.option['test_batch_size']
             )
         else:
@@ -116,6 +118,7 @@ class Client(BasicClient):
         self.modalities = modalities
         self.contrastive_weight = option['contrastive_weight']
         self.temperature = option['temperature']
+        self.margin = option['margin']
 
     def pack(self, model):
         """
@@ -159,7 +162,8 @@ class Client(BasicClient):
                 data=batch_data,
                 leads=self.modalities,
                 contrastive_weight=self.contrastive_weight,
-                temperature=self.temperature
+                temperature=self.temperature,
+                margin=self.margin,
             )['loss']
             loss.backward()
             optimizer.step()
@@ -182,5 +186,6 @@ class Client(BasicClient):
             leads=self.modalities,
             contrastive_weight=self.contrastive_weight,
             temperature=self.temperature,
+            margin=self.margin,
             batch_size=self.test_batch_size
         )

@@ -91,9 +91,6 @@ class Logger(logging.Logger):
                     original_record[k] = self.output[k]
                 self.output = original_record
         try:
-            if os.path.exists(filepath):
-                if 'R{}_S{}'.format(self.meta['num_rounds'], self.meta['start_round']) not in filepath:
-                    filepath = filepath.replace('R{}'.format(self.meta['num_rounds']), 'R{}_S{}'.format(self.meta['num_rounds'], self.meta['start_round']))
             with open(filepath, 'w') as outf:
                 json.dump(dict(self.output), outf)
         except:
@@ -152,9 +149,10 @@ class Logger(logging.Logger):
         else:
             output_name = output_name + ("K{}_".format(self.meta['num_steps']))
 
-        output_name = output_name + "CW{:.2f}_CT{:.2f}_LR{:.4f}_P{:.2f}_S{}_LD{:.3f}_WD{:.3f}_AVL{}_CN{}_CP{}_T{}".format(
+        output_name = output_name + "CW{:.2f}_CT{:.2f}_MG{:.2f}_LR{:.4f}_P{:.2f}_S{}_LD{:.3f}_WD{:.3f}_AVL{}_CN{}_CP{}_T{}".format(
                           self.meta['contrastive_weight'],
                           self.meta['temperature'],
+                          self.meta['margin'],
                           self.meta['learning_rate'],
                           self.meta['proportion'],
                           self.meta['seed'],

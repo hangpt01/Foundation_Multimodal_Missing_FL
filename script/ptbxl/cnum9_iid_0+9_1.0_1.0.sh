@@ -1,5 +1,5 @@
 python main.py \
-    --task ptbxl_cnum9_iid_6+3 \
+    --task ptbxl_cnum9_iid_0+9 \
     --model inception1d \
     --algorithm mm_ptbxl \
     --sample full \
@@ -11,8 +11,8 @@ python main.py \
     --lr_scheduler 0 \
     --learning_rate_decay 1.0 \
     --batch_size 128 \
-    --gpu 1 \
+    --gpu 0 \
     --seed 1234 \
     --test_batch_size 128 \
-    --contrastive_weight 0.0 \
-    --temperature 0.0
+    --contrastive_weight 1.0 \
+    --temperature 1.0

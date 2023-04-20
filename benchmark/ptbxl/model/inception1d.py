@@ -128,7 +128,7 @@ class Model(FModule):
         # self.branchallleads_classifier = Classifier()
         # self.branch2leads_classifier = Classifier()
         self.criterion = torch.nn.BCEWithLogitsLoss()
-    def forward(self, x, y, leads='all', contrastive_weight=1.0, temperature=1.0):
+    def forward(self, x, y, leads='all', contrastive_weight=1.0, temperature=1.0, margin=0.0):
         if leads == 'all':
             xallleads = self.branchallleads(x)
             outputs = self.classifier(xallleads)

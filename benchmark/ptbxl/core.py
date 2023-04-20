@@ -46,18 +46,18 @@ class TaskCalculator(ClassificationCalculator):
         super(TaskCalculator, self).__init__(device, optimizer_name)
         self.DataLoader = DataLoader
 
-    def train_one_step(self, model, data, leads, contrastive_weight, temperature):
+    def train_one_step(self, model, data, leads, contrastive_weight, temperature, margin):
         """
         :param model: the model to train
         :param data: the training dataset
         :return: dict of train-one-step's result, which should at least contains the key 'loss'
         """
         tdata = self.data_to_device(data)
-        loss, _ = model(tdata[0], tdata[-1], leads, contrastive_weight, temperature)
+        loss, _ = model(tdata[0], tdata[-1], leads, contrastive_weight, temperature, margin)
         return {'loss': loss}
 
     @torch.no_grad()
-    def test(self, model, dataset, leads, contrastive_weight, temperature, batch_size=64, num_workers=0):
+    def test(self, model, dataset, leads, contrastive_weight, temperature, margin, batch_size=64, num_workers=0):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -74,7 +74,7 @@ class TaskCalculator(ClassificationCalculator):
         predicts = list()
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
-            loss, outputs = model(batch_data[0], batch_data[-1], leads, contrastive_weight, temperature)
+            loss, outputs = model(batch_data[0], batch_data[-1], leads, contrastive_weight, temperature, margin)
             batch_mean_loss = loss.item()
             predicts.extend(torch.sigmoid(outputs).cpu().tolist())
             labels.extend(batch_data[1].cpu().tolist())
@@ -88,7 +88,7 @@ class TaskCalculator(ClassificationCalculator):
         }
 
     @torch.no_grad()
-    def custom_test(self, model, dataset, contrastive_weight, temperature, batch_size=64, num_workers=0):
+    def custom_test(self, model, dataset, contrastive_weight, temperature, margin, batch_size=64, num_workers=0):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -111,7 +111,7 @@ class TaskCalculator(ClassificationCalculator):
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             for leads in ['all', '2']:
-                loss, outputs = model(batch_data[0], batch_data[-1], leads, contrastive_weight, temperature)
+                loss, outputs = model(batch_data[0], batch_data[-1], leads, contrastive_weight, temperature, margin)
                 batch_mean_loss = loss.item()
                 predicts[leads].extend(torch.sigmoid(outputs).cpu().tolist())
                 total_loss[leads] += batch_mean_loss * len(batch_data[-1])

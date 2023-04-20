@@ -39,12 +39,6 @@ class Server(BasicServer):
             }
         print(self.feature_extractors_cnt)
         print(self.projectors_cnt)
-        self.chkpt_dir = os.path.join('fedtask', self.option['task'], 'checkpoints', flw.logger.get_output_name(suffix=''))
-        if self.option['start_round']:
-            self.current_round = self.option['start_round'] + 1
-            print("Load weight to keep training")
-            self.model.load_state_dict(torch.load(os.path.join(self.chkpt_dir, 'Round{}.pt'.format(self.option['start_round']))))
-        os.makedirs(self.chkpt_dir, exist_ok=True)
 
     def run(self, prefix_log_filename=None):
         """
@@ -94,10 +88,10 @@ class Server(BasicServer):
         modalities_list = conmmunitcation_result['modalities']
         modal_combins = conmmunitcation_result['modal_combin']
         # aggregate: pk = 1/K as default where K=len(selected_clients)
-        self.model = self.aggregate(models, modalities_list, modal_combins)
-        # self.model = models[0]
-        if self.current_round % 5 == 0:
-            torch.save(self.model.state_dict(), os.path.join(self.chkpt_dir, 'Round{}.pt'.format(self.current_round)))
+        # self.model = self.aggregate(models, modalities_list, modal_combins)
+        self.model = models[0]
+        # if self.current_round % 5 == 0:
+        #     torch.save(self.model.state_dict(), os.path.join(self.chkpt_dir, 'Round{}.pt'.format(self.current_round)))
         return
 
     def aggregate(self, models: list, modalities_list: list, modal_combins: list):
@@ -272,6 +266,7 @@ class Server(BasicServer):
         :return:
             metrics: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
+        # return dict()
         if model is None: model=self.model
         if self.test_data:
             return self.calculator.custom_test(
@@ -342,8 +337,11 @@ class Client(BasicClient):
             batch_data = self.get_batch_data()
             model.zero_grad()
             # calculate the loss of the model on batched dataset through task-specified calculator
-            loss = self.calculator.train_one_step(model, batch_data, self.contrastive_weight, self.temperature)['loss']
+            loss = self.calculator.train_one_step(model, batch_data, self.contrastive_weight, self.temperature, self.name, iter)['loss']
+            # if torch.isnan(loss1):
+            #     import pdb; pdb.set_trace()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=0.8, norm_type=2)
             optimizer.step()
         return
 

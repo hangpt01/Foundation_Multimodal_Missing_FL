@@ -4,6 +4,7 @@ import torch.nn.functional as F
 from utils.fmodule import FModule
 from itertools import chain, combinations
 from benchmark.mosei_classification.model.transformer_networks import TransformerEncoder
+import numpy as np
 
 # 1-modality Extractor
 class TextExtractor(FModule):
@@ -24,6 +25,7 @@ class TextExtractor(FModule):
         input = x.reshape(batch, self.timestep, self.input_dim).transpose(0, 1)
         output = self.gru(input)[0].transpose(0, 1)
         return output.flatten(start_dim=1)
+    
     
 class AudioExtractor(FModule):
     def __init__(self):
@@ -130,11 +132,11 @@ def get_affect_network(self_type='l', layers=1):
     elif self_type in ['v', 'lv', 'av']:
         embed_dim, attn_dropout = 30, 0.0
     elif self_type == 'l_mem':
-        embed_dim, attn_dropout = 2 * 30, 0.1
+        embed_dim, attn_dropout =  30, 0.1
     elif self_type == 'a_mem':
-        embed_dim, attn_dropout = 2 * 30, 0.1
+        embed_dim, attn_dropout =  30, 0.1
     elif self_type == 'v_mem':
-        embed_dim, attn_dropout = 2 * 30, 0.1
+        embed_dim, attn_dropout =  30, 0.1
     else:
         raise ValueError("Unknown network type")
 
@@ -153,6 +155,7 @@ class MultimodalTransformer(FModule):
         self.common_dim = 60
         
         # language
+        self.proj_l = nn.Conv1d(300, 30, kernel_size=1, padding=0, bias=False)
         self.trans_l_with_v = get_affect_network(self_type='lv', layers=5)
         self.trans_l_mem = get_affect_network(self_type='l_mem', layers=5)
 
@@ -163,19 +166,25 @@ class MultimodalTransformer(FModule):
         # self.trans_a_mem = get_affect_network(self_type='a_mem', layers=5)
 
         # Vision
+        self.proj_v = nn.Conv1d(35, 30, kernel_size=1, padding=0, bias=False)
         self.trans_v_with_l = get_affect_network(self_type='vl', layers=5)
         self.trans_v_mem = get_affect_network(self_type='v_mem', layers=5)
 
         # Projector
-        # self.projector = nn.Linear(60*2, self.common_dim)
+        self.proj1 = nn.Linear(60, 60)
+        self.proj2 = nn.Linear(60, 60)
+        # self.projector = nn.Linear(60, self.common_dim)
         
 
-    def forward(self, x):
-        x_l, x_v = x[:,:60], x[:,60:]
+    def forward(self, x_l, x_v, name, iter):
+        # x_l, x_v = x[:,:60], x[:,60:]
+        # x_l, x_v = x[:,:1500], x[:,1500:]
 
         """
         text, audio, and vision should have dimension [batch_size, seq_len, n_features]
         """
+        # if name == 'Client00' and iter == 3:
+        #     import pdb; pdb.set_trace()
         x_l = F.dropout(x_l.transpose(1, 2), p=0.25, training=self.training)
         # x_a = x_a.transpose(1, 2)
         x_v = x_v.transpose(1, 2)
@@ -183,12 +192,11 @@ class MultimodalTransformer(FModule):
         # Project the textual/visual/audio features
         proj_x_l = self.proj_l(x_l)
         proj_x_v = self.proj_v(x_v)
-        
         proj_x_v = proj_x_v.permute(2, 0, 1)
         proj_x_l = proj_x_l.permute(2, 0, 1)
 
         # (V) --> L
-        h_l_with_vs = self.trans_l_with_v(proj_x_l, proj_x_v, proj_x_v)  # Dimension (L, N, d_l)
+        h_l_with_vs = self.trans_l_with_v(proj_x_l, proj_x_v, proj_x_v, name, iter)  # Dimension (L, N, d_l)
         h_ls = self.trans_l_mem(h_l_with_vs)
         if type(h_ls) == tuple:
             h_ls = h_ls[0]
@@ -203,17 +211,17 @@ class MultimodalTransformer(FModule):
 
         # Concatenate
         last_hs = torch.cat([last_h_l, last_h_v], dim=1)
-
-        last_hs_proj = self.proj2(F.dropout(F.relu(self.proj1(last_hs)), p=0.0, training=self.training))
-        last_hs_proj += last_hs
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
+        last_hs = self.proj2(F.dropout(F.relu(self.proj1(last_hs)), p=0.0, training=self.training))
+        # last_hs_proj += last_hs
+        # import pdb; pdb.set_trace()
         # Project
-        return last_hs_proj
+        return last_hs      # (64,60)
 
 class MultimodalProjector(FModule):     # (text+vision)
     def __init__(self):
         super(MultimodalProjector, self).__init__()
-        self.ln = nn.Linear(60*2, 60)
+        self.ln = nn.Linear(60, 60)
     def forward(self, x):
         return self.ln(x)
     
@@ -234,14 +242,14 @@ class Model(FModule):
 
         # feature extractors
         self.feature_extractors = nn.ModuleDict({
-            "text": TextExtractor(),
-            "audio": AudioExtractor(),
+            # "text": TextExtractor(),
+            # "audio": AudioExtractor(),
             "vision": VisionExtractor()
         })
         
         # projectors
         self.projectors = nn.ModuleDict({
-            "text": TextProjector(),
+            # "text": TextProjector(),
             # "audio": AudioProjector(),
             "vision": VisionProjector(),
             # "text+audio": TextAudioProjector(),
@@ -258,52 +266,43 @@ class Model(FModule):
         # criterion
         self.L1Loss = nn.L1Loss()
 
-    def forward(self, samples, labels, contrastive_weight=0.0, temperature=1.0):
-        current_modalities = list()
-        batch_size = None
-        device = None
-        for modal in self.modalities:
-            if modal in samples.keys():
-                batch_size = samples[modal].shape[0]
-                device = samples[modal].device
-                current_modalities.append(modal)
-        # import pdb; pdb.set_trace()
-        if len(current_modalities) == 1:
-            modal = current_modalities[0]
-            features = self.feature_extractors[modal](samples[modal])
-            representations = F.normalize(F.relu(self.projectors[modal](features)), p=2, dim=1)
+    def forward(self, samples, labels, contrastive_weight=0.0, temperature=1.0, name=None, iter=None):
+        current_modalities = samples.keys()
+        if len(current_modalities) == 1 and 'vision' in current_modalities:
+            features = self.feature_extractors['vision'](samples['vision'])
+            representations = F.normalize(F.relu(self.projectors['vision'](features)), p=2, dim=1)
             outputs = self.regressor(representations)
             loss = self.L1Loss(outputs, labels)
-        elif current_modalities == self.modalities:
-            representations_dict = dict()
-            features_dict = dict()
-            for modal in self.modalities:
-                features = self.feature_extractors[modal](samples[modal])
-                features_dict[modal] = features
-                representations_dict[modal] = F.normalize(F.relu(self.projectors[modal](features)), p=2, dim=1)
-            joint_representations = torch.concat(tuple(representations_dict.values()), dim=1)
-            joint_representations = F.normalize(F.relu(self.projectors[self.combin](joint_representations)), p=2, dim=1)
-            # import pdb; pdb.set_trace()
+        else:
+            vision_features = self.feature_extractors['vision'](samples['vision'])
+            # vision_representations = F.normalize(F.relu(self.projectors['vision'](vision_features)), p=2, dim=1)
+            vision_representations = F.relu(self.projectors['vision'](vision_features))
+            joint_representations = self.multimodal_transformer(samples['text'], samples['vision'], name, iter)
+            joint_representations = F.relu(self.projectors['text+vision'](joint_representations))
             outputs = self.regressor(joint_representations)
             loss = self.L1Loss(outputs, labels)
+            batch_size = labels.shape[0]
+            device = labels.device
             if batch_size > 1 and contrastive_weight > 0.0:
                 contrastive_loss = 0.0
-                # for modal in self.modalities:
-                for modal in ["vision"]:
-                    import pdb; pdb.set_trace()
-                    concat_reprs = torch.concat((joint_representations, representations_dict[modal]), dim=0)
-                    exp_sim_matrix = torch.exp(torch.mm(concat_reprs, concat_reprs.t().contiguous()) / temperature)
-                    mask = (torch.ones_like(exp_sim_matrix) - torch.eye(2 * batch_size, device=device)).bool()
-                    exp_sim_matrix = exp_sim_matrix.masked_select(mask=mask).view(2 * batch_size, -1)
-                    positive_exp_sim = torch.exp(torch.sum(joint_representations * representations_dict[modal], dim=-1) / temperature)
-                    positive_exp_sim = torch.concat((positive_exp_sim, positive_exp_sim), dim=0)
-                    contrastive_loss += - torch.log(positive_exp_sim / exp_sim_matrix.sum(dim=-1))
+                concat_reprs = torch.concat((joint_representations, vision_representations), dim=0)
+                exp_sim_matrix = torch.exp(torch.mm(concat_reprs, concat_reprs.t().contiguous()) / temperature)
+                mask = (torch.ones_like(exp_sim_matrix) - torch.eye(2 * batch_size, device=device)).bool()
+                exp_sim_matrix = exp_sim_matrix.masked_select(mask=mask).view(2 * batch_size, -1)
+                positive_exp_sim = torch.exp(torch.sum(joint_representations * vision_representations, dim=-1) / temperature)
+                positive_exp_sim = torch.concat((positive_exp_sim, positive_exp_sim), dim=0)
+                contrastive_loss += - torch.log(positive_exp_sim / exp_sim_matrix.sum(dim=-1))
                 loss += contrastive_weight * contrastive_loss.mean()
-            # import pdb; pdb.set_trace()
-            
         return loss, outputs
 
 if __name__ == '__main__':
     model = Model()
-    print(sum(p.numel() for p in model.parameters()), sum(p.numel() for p in model.parameters() if p.requires_grad))
+    # with open("./model.txt","w") as f:
+    #     f.write(str(model))
+    # print(sum(p.numel() for p in model.parameters()), sum(p.numel() for p in model.parameters() if p.requires_grad))
     import pdb; pdb.set_trace()
+    samples = {
+        'text': torch.rand(size=(64, 50, 300)),
+        'vision': torch.rand(size=(64, 50, 35))
+    }
+    labels = torch.rand(size=(64,))

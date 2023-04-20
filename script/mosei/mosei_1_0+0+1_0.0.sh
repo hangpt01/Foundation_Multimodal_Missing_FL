@@ -6,10 +6,10 @@ python main.py \
     --aggregate weighted_scale \
     --num_rounds 500 \
     --proportion 1.0 \
-    --num_epochs 5 \
-    --learning_rate 0.01 \
+    --num_epochs 2 \
+    --learning_rate 0.05 \
     --lr_scheduler 0 \
-    --learning_rate_decay 0.9 \
+    --learning_rate_decay 1.0 \
     --batch_size 64 \
     --gpu 0 \
     --seed 1234 \

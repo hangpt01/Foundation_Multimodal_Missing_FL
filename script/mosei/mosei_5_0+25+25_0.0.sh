@@ -15,7 +15,7 @@ python main.py \
     --num_rounds 500 \
     --proportion 1.0 \
     --num_epochs 2 \
-    --learning_rate 0.05 \
+    --learning_rate 0.5 \
     --batch_size 64 \
     --gpu 0 \
     --seed 1234 \
