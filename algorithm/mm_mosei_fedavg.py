@@ -83,7 +83,9 @@ class Server(BasicServer):
         # sample clients: MD sampling as default
         self.selected_clients = self.sample()
         # training
+        print("TRAININGGGGGGG")
         conmmunitcation_result = self.communicate(self.selected_clients)
+        print("DONEEEEE")
         models = conmmunitcation_result['model']
         modalities_list = conmmunitcation_result['modalities']
         modal_combins = conmmunitcation_result['modal_combin']
@@ -266,7 +268,7 @@ class Server(BasicServer):
         :return:
             metrics: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
-        # return dict()
+        return dict()
         if model is None: model=self.model
         if self.test_data:
             return self.calculator.custom_test(
@@ -288,7 +290,7 @@ class Server(BasicServer):
         :return
             metrics: a dict contains the lists of each metric_value of the clients
         """
-        # return dict()
+        return dict()
         all_metrics = collections.defaultdict(list)
         for c in self.clients:
             client_metrics = c.test(self.model, dataflag)

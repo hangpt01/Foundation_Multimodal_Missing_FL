@@ -9,10 +9,10 @@ python main.py \
     --num_epochs 2 \
     --learning_rate 0.05 \
     --lr_scheduler 0 \
-    --learning_rate_decay 1.0 \
+    --learning_rate_decay 0.9 \
     --batch_size 64 \
     --gpu 0 \
     --seed 1234 \
     --test_batch_size 64 \
-    --contrastive_weight 0.0 \
-    --temperature 0.0
+    --contrastive_weight 1.0 \
+    --temperature 1.0

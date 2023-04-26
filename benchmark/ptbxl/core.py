@@ -53,42 +53,14 @@ class TaskCalculator(ClassificationCalculator):
         :return: dict of train-one-step's result, which should at least contains the key 'loss'
         """
         tdata = self.data_to_device(data)
-        loss, _ = model(tdata[0], tdata[-1], leads, contrastive_weight, temperature, margin)
-        return {'loss': loss}
+        loss_allleads, outputs_allleads, loss_2leads, outputs_2leads = model(tdata[0], tdata[-1], leads, contrastive_weight, temperature, margin)
+        if leads == 'all':
+            return {'loss': loss_allleads + loss_2leads}
+        else:
+            return {'loss': loss_2leads}
 
     @torch.no_grad()
     def test(self, model, dataset, leads, contrastive_weight, temperature, margin, batch_size=64, num_workers=0):
-        """
-        Metric = [mean_accuracy, mean_loss]
-        :param model:
-        :param dataset:
-        :param batch_size:
-        :return: [mean_accuracy, mean_loss]
-        """
-        model.eval()
-        # print("TYPEEEEEEEEEEEE", model.ln_1.weight.data.dtype)
-        if batch_size==-1:batch_size=len(dataset)
-        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
-        total_loss = 0.0
-        labels = list()
-        predicts = list()
-        for batch_id, batch_data in enumerate(data_loader):
-            batch_data = self.data_to_device(batch_data)
-            loss, outputs = model(batch_data[0], batch_data[-1], leads, contrastive_weight, temperature, margin)
-            batch_mean_loss = loss.item()
-            predicts.extend(torch.sigmoid(outputs).cpu().tolist())
-            labels.extend(batch_data[1].cpu().tolist())
-            total_loss += batch_mean_loss * len(batch_data[-1])
-        labels = np.array(labels)
-        predicts = np.array(predicts)
-        auc = roc_auc_score(labels, predicts, average='macro')
-        return {
-            'loss': total_loss/len(dataset),
-            'mean_auc': auc,
-        }
-
-    @torch.no_grad()
-    def custom_test(self, model, dataset, contrastive_weight, temperature, margin, batch_size=64, num_workers=0):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -110,12 +82,60 @@ class TaskCalculator(ClassificationCalculator):
         }
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
-            for leads in ['all', '2']:
-                loss, outputs = model(batch_data[0], batch_data[-1], leads, contrastive_weight, temperature, margin)
-                batch_mean_loss = loss.item()
-                predicts[leads].extend(torch.sigmoid(outputs).cpu().tolist())
-                total_loss[leads] += batch_mean_loss * len(batch_data[-1])
             labels.extend(batch_data[1].cpu().tolist())
+            loss_allleads, outputs_allleads, loss_2leads, outputs_2leads = model(batch_data[0], batch_data[-1], leads, contrastive_weight, temperature, margin)
+            total_loss['2'] += loss_2leads.item() * len(batch_data[-1])
+            predicts['2'].extend(torch.sigmoid(outputs_2leads).cpu().tolist())
+            if leads == 'all':
+                total_loss['all'] += loss_allleads.item() * len(batch_data[-1])
+                predicts['all'].extend(torch.sigmoid(outputs_allleads).cpu().tolist())
+        labels = np.array(labels)
+        auc = dict()
+        for leads_ in ['all', '2']:
+            predicts[leads_] = np.array(predicts[leads_])
+            auc[leads_] = roc_auc_score(labels, predicts[leads_], average='macro')
+        if leads == 'all':
+            return {
+                'all_loss': total_loss['all'] / len(dataset),
+                'all_mean_auc': auc['all'],
+                '2_loss': total_loss['2'] / len(dataset),
+                '2_mean_auc': auc['2'],
+            }
+        else:
+            return {
+                '2_loss': total_loss['2'] / len(dataset),
+                '2_mean_auc': auc['2'],
+            }
+
+    @torch.no_grad()
+    def server_test(self, model, dataset, contrastive_weight, temperature, margin, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        total_loss = {
+            'all': 0.0,
+            '2': 0.0
+        }
+        labels = list()
+        predicts = {
+            'all': list(),
+            '2': list()
+        }
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data[1].cpu().tolist())
+            loss_allleads, outputs_allleads, loss_2leads, outputs_2leads = model(batch_data[0], batch_data[-1], 'all', contrastive_weight, temperature, margin)
+            total_loss['2'] += loss_2leads.item() * len(batch_data[-1])
+            predicts['2'].extend(torch.sigmoid(outputs_2leads).cpu().tolist())
+            total_loss['all'] += loss_allleads.item() * len(batch_data[-1])
+            predicts['all'].extend(torch.sigmoid(outputs_allleads).cpu().tolist())
         labels = np.array(labels)
         auc = dict()
         for leads in ['all', '2']:

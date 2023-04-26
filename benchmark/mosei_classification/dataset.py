@@ -1,10 +1,8 @@
 import os
-from typing import Any, Callable, Dict, List, Optional, Tuple
+from typing import Callable, Optional
 import torch
 import sys
 sys.path.append("benchmark/mosei_classification/")
-import data_modules
-from torchvision import transforms
 from torch.utils.data import Dataset
 
 
@@ -40,11 +38,10 @@ class MOSEIDataset(Dataset):
                 raise RuntimeError('Dataset not found. You can use download=True to download it')
 
         # Load data
-        # import pdb; pdb.set_trace()
+        # data_mosei = torch.load(self.data_file)
+        # (_, self.texts, self.audios, self.visions), self.labels = data_mosei[:][0], data_mosei[:][1]
         data_mosei = torch.load(self.data_file)
-        (_, self.texts, self.audios, self.visions), self.labels = data_mosei[:][0], data_mosei[:][1]
-
-        # self.labels = torch.add((torch.round(labels)), 3)        # float->int labels: 7 labels: 0->6
+        (_, self.texts, __, self.visions), self.labels = data_mosei[:][0], data_mosei[:][1]
 
     def __getitem__(self, index):
         """
@@ -57,24 +54,23 @@ class MOSEIDataset(Dataset):
         if self.text_transform is not None:
             text = self.text_transform(text)
 
-        audio = self.audios[index]
-        if self.audio_transform is not None:
-            audio = self.audio_transform(audio)
+        # audio = self.audios[index]
+        # if self.audio_transform is not None:
+        #     audio = self.audio_transform(audio)
 
         vision = self.visions[index]
         if self.vision_transform is not None:
             vision = self.vision_transform(vision)
-
-        # label = int(self.labels[index])
+            
         label = self.labels[index].item()
         if self.target_transform is not None:
             label = self.target_transform(label)
 
         # return (text, audio, audio), label
         return {
-            "text": text,       # (50,300)
-            "audio": audio,     # (50,74)
-            "vision": vision    # (50,35)
+            "text": text,       # (50, 300)
+            # "audio": audio,     # (50, 74)
+            "vision": vision    # (50, 35)
         }, label
 
 
@@ -89,6 +85,9 @@ if __name__ == '__main__':
     )
     from torch.utils.data import DataLoader
     loader = DataLoader(dataset, batch_size=5)
-    a = next(iter(loader))
-    print(a)
-    import pdb; pdb.set_trace()
+    # a = next(iter(loader))
+    # print(a)
+    import time
+    for batch in loader:
+        time.sleep(50)
+    # import pdb; pdb.set_trace()
