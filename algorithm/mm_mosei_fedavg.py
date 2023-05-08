@@ -15,6 +15,7 @@ class Server(BasicServer):
         self.contrastive_weight = option['contrastive_weight']
         self.temperature = option['temperature']
         self.all_modalities = self.model.modalities
+        self.kl_weight = option['kl_weight']
         # self.all_modal_combin_list = list()
         # for combin_tuple in chain.from_iterable(combinations(self.all_modalities, r) for r in range(1, len(self.all_modalities) + 1)):
         #     self.all_modal_combin_list.append(list(combin_tuple))
@@ -83,9 +84,9 @@ class Server(BasicServer):
         # sample clients: MD sampling as default
         self.selected_clients = self.sample()
         # training
-        print("TRAININGGGGGGG")
+        # print("TRAININGGGGGGG")
         conmmunitcation_result = self.communicate(self.selected_clients)
-        print("DONEEEEE")
+        # print("DONEEEEE")
         models = conmmunitcation_result['model']
         modalities_list = conmmunitcation_result['modalities']
         modal_combins = conmmunitcation_result['modal_combin']
@@ -268,7 +269,7 @@ class Server(BasicServer):
         :return:
             metrics: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
-        return dict()
+        # return dict()
         if model is None: model=self.model
         if self.test_data:
             return self.calculator.custom_test(
@@ -276,6 +277,7 @@ class Server(BasicServer):
                 self.test_data,
                 self.contrastive_weight,
                 self.temperature,
+                self.kl_weight,
                 batch_size=self.option['test_batch_size'],
                 all_modal_combin_list=self.all_modal_combin_list
             )
@@ -290,7 +292,7 @@ class Server(BasicServer):
         :return
             metrics: a dict contains the lists of each metric_value of the clients
         """
-        return dict()
+        # return dict()
         all_metrics = collections.defaultdict(list)
         for c in self.clients:
             client_metrics = c.test(self.model, dataflag)
@@ -307,6 +309,7 @@ class Client(BasicClient):
         self.modal_combin = "+".join(self.modalities)
         self.contrastive_weight = option['contrastive_weight']
         self.temperature = option['temperature']
+        self.kl_weight = option['kl_weight']
 
     def pack(self, model):
         """
@@ -339,7 +342,7 @@ class Client(BasicClient):
             batch_data = self.get_batch_data()
             model.zero_grad()
             # calculate the loss of the model on batched dataset through task-specified calculator
-            loss = self.calculator.train_one_step(model, batch_data, self.contrastive_weight, self.temperature, self.name, iter)['loss']
+            loss = self.calculator.train_one_step(model, batch_data, self.contrastive_weight, self.temperature, self.kl_weight, self.name, iter)['loss']
             # if torch.isnan(loss1):
             #     import pdb; pdb.set_trace()
             loss.backward()
@@ -358,7 +361,7 @@ class Client(BasicClient):
             metric: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
         dataset = self.train_data if dataflag=='train' else self.valid_data
-        return self.calculator.test(model, dataset, self.contrastive_weight, self.temperature, batch_size=self.test_batch_size)
+        return self.calculator.test(model, dataset, self.contrastive_weight, self.temperature, self.kl_weight, batch_size=self.test_batch_size)
 
     def get_batch_data(self):
         """

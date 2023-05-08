@@ -1,12 +1,19 @@
-import os
-import importlib
 import utils.fflow as flw
 import torch
+import wandb
 
 def main():
     # read options
     option = flw.read_option()
     print(option)
+    wandb.init(
+        entity="aiotlab",
+        project='FLMultimodal',
+        name="{}_CW{:.2f}_CT{:.2f}_KL{:.2f}_P{:.2f}".format(option['task'], option['contrastive_weight'], option['temperature'], option['kl_weight'], option['proportion']),
+        group=option['task'],
+        tags=[],
+        config=option
+    )
     # set random seed
     flw.setup_seed(option['seed'])
     # initialize server, clients and fedtask

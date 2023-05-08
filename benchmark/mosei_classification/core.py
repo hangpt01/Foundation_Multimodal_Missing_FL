@@ -159,18 +159,18 @@ class TaskCalculator(ClassificationCalculator):
             sample_to_device[modal] = modal_data.to(self.device)
         return sample_to_device, data[1].to(self.device)
     
-    def train_one_step(self, model, data, contrastive_weight, temperature, name, iter):
+    def train_one_step(self, model, data, contrastive_weight, temperature, kl_weight, name, iter):
         """
         :param model: the model to train
         :param data: the training dataset
         :return: dict of train-one-step's result, which should at least contains the key 'loss'
         """
         tdata = self.data_to_device(data)
-        loss, _ = model(tdata[0], tdata[1], contrastive_weight, temperature, name, iter)
+        loss, _ = model(tdata[0], tdata[1], contrastive_weight, temperature, kl_weight, name, iter)
         return {'loss': loss}
     
     @torch.no_grad()
-    def test(self, model, dataset, contrastive_weight, temperature, batch_size=64, num_workers=0):
+    def test(self, model, dataset, contrastive_weight, temperature, kl_weight, batch_size=64, num_workers=0):
         model.eval()
         if batch_size == -1:
             batch_size = len(dataset)
@@ -184,7 +184,7 @@ class TaskCalculator(ClassificationCalculator):
             tdata = self.data_to_device(data)
             total_count += tdata[1].shape[0]
             labels.extend(tdata[1].cpu().tolist())
-            loss, outputs = model(tdata[0], tdata[1], contrastive_weight, temperature)
+            loss, outputs = model(tdata[0], tdata[1], contrastive_weight, temperature, kl_weight)
             total_loss += loss * tdata[1].shape[0]
             preds.extend(outputs.cpu().tolist())
         truth = np.array(labels)
@@ -203,7 +203,7 @@ class TaskCalculator(ClassificationCalculator):
         }
 
     @torch.no_grad()
-    def custom_test(self, model, dataset, contrastive_weight, temperature, batch_size=64, num_workers=0, all_modal_combin_list=[]):
+    def custom_test(self, model, dataset, contrastive_weight, temperature, kl_weight, batch_size=64, num_workers=0, all_modal_combin_list=[]):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -231,7 +231,7 @@ class TaskCalculator(ClassificationCalculator):
                 samples = dict()
                 for modal in combin_list:
                     samples[modal] = tdata[0][modal].contiguous()
-                loss, outputs = model(samples, tdata[1], contrastive_weight, temperature)
+                loss, outputs = model(samples, tdata[1], contrastive_weight, temperature, kl_weight)
                 eval_dict[combin + "_total_loss"] += loss.item() * tdata[1].shape[0]
                 eval_dict[combin + "_outputs"].extend(outputs.cpu().tolist())
         result = dict()

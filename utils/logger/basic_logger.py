@@ -3,6 +3,7 @@ import collections
 import time
 import numpy as np
 import os
+import wandb
 try:
     import ujson as json
 except:
@@ -132,6 +133,7 @@ class Logger(logging.Logger):
             nf = [(nk not in key) for nk in no_key]
             if np.all(nf) and np.any(a):
                 self.info(self.temp.format(key, val[-1]))
+                wandb.log({key: val[-1]})
 
     def get_output_name(self, suffix='.json', prefix_log_filename=None):
         if not hasattr(self, 'meta'): raise NotImplementedError('logger has no attr named "meta"')
@@ -149,9 +151,10 @@ class Logger(logging.Logger):
         else:
             output_name = output_name + ("K{}_".format(self.meta['num_steps']))
 
-        output_name = output_name + "CW{:.2f}_CT{:.2f}_MG{:.2f}_LR{:.4f}_P{:.2f}_S{}_LD{:.3f}_WD{:.3f}_AVL{}_CN{}_CP{}_T{}".format(
+        output_name = output_name + "CW{:.2f}_CT{:.2f}_KL{:.2f}_MG{:.2f}_LR{:.4f}_P{:.2f}_S{}_LD{:.3f}_WD{:.3f}_AVL{}_CN{}_CP{}_T{}".format(
                           self.meta['contrastive_weight'],
                           self.meta['temperature'],
+                          self.meta['kl_weight'],
                           self.meta['margin'],
                           self.meta['learning_rate'],
                           self.meta['proportion'],

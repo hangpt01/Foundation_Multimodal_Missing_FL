@@ -11,6 +11,7 @@ import torch
 import numpy as np
 from itertools import combinations
 from tqdm.auto import tqdm
+from sklearn.metrics import accuracy_score
 
 def save_task(generator):
     """
@@ -48,7 +49,7 @@ def save_task(generator):
     return
 
 class TaskGen(DefaultTaskGen):
-    def __init__(self, dist_id, num_clients = 1, skewness = 0.5, local_hld_rate=0.2, seed= 0, percentages=None):
+    def __init__(self, dist_id, num_clients = 1, skewness = 0.5, local_hld_rate=0.0, seed= 0, percentages=None):
         super(TaskGen, self).__init__(benchmark='mhd_classification',
                                       dist_id=dist_id,
                                       num_clients=num_clients,
@@ -57,7 +58,7 @@ class TaskGen(DefaultTaskGen):
                                       local_hld_rate=local_hld_rate,
                                       seed = seed
                                       )
-        self.modalities = ["image", "trajectory"]
+        self.modalities = ["image", "sound"]
         self.num_classes = 10
         if len(percentages) != 2 or sum(percentages) > 1.0:
             self.percentages = [0.0, 0.0]
@@ -193,67 +194,95 @@ class TaskCalculator(ClassificationCalculator):
             sample_to_device[modal] = modal_data.to(self.device)
         return sample_to_device, data[1].to(self.device)
     
-    def train_one_step(self, model, data, contrastive_weight, temperature):
+    def train_one_step(self, model, data, modalities, contrastive_weight=0.0, temperature=0.0, margin=0.0, kl_weight=0.0):
         """
         :param model: the model to train
         :param data: the training dataset
         :return: dict of train-one-step's result, which should at least contains the key 'loss'
         """
         tdata = self.data_to_device(data)
-        loss, _ = model(tdata[0], tdata[1], contrastive_weight, temperature)
-        return {'loss': loss}
+        joint_loss, joint_outputs, sound_loss, sound_outputs = model(tdata[0], tdata[1], modalities, 
+                                                                     contrastive_weight, temperature, margin, kl_weight)
+        if modalities == ["image", "sound"]:
+            return {'loss': joint_loss + sound_loss}
+        elif modalities == ["sound"]:
+            return {'loss': sound_loss}
     
     @torch.no_grad()
-    def test(self, model, dataset, contrastive_weight, temperature, batch_size=64, num_workers=0):
+    def test(self, model, dataset, modalities, contrastive_weight=0.0, temperature=0.0, margin=0.0, kl_weight=0.0, batch_size=64, num_workers=0):
         model.eval()
         if batch_size == -1:
             batch_size = len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-        total_loss = 0.0
-        total_count = 0
-        num_correct = 0
-        for data in data_loader:        
-            tdata = self.data_to_device(data)
-            loss, outputs = model(tdata[0], tdata[1], contrastive_weight, temperature)
-            total_loss += loss * tdata[1].shape[0]
-            num_correct += torch.sum(torch.softmax(outputs, dim=1).argmax(dim=1) == tdata[1]).item()
-            total_count += tdata[1].shape[0]
-        return {'loss': total_loss.item() / total_count, 'accuracy': 1.0 * num_correct / total_count}
+        total_loss = {
+            'image+sound': 0.0,
+            'sound': 0.0
+        }
+        labels = list()
+        predicts = {
+            'image+sound': list(),
+            'sound': list()
+        }
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data[1].cpu().tolist())
+            joint_loss, joint_outputs, sound_loss, sound_outputs = model({modal: batch_data[0][modal] for modal in modalities}, batch_data[-1], modalities, 
+                                                                         contrastive_weight, temperature, margin, kl_weight)
+            total_loss['sound'] += sound_loss.item() * len(batch_data[-1])
+            predicts['sound'].extend(torch.argmax(torch.softmax(sound_outputs, dim=1), dim=1).cpu().tolist())
+            if modalities == ["image", "sound"]:
+                total_loss['image+sound'] += joint_loss.item() * len(batch_data[-1])
+                predicts['image+sound'].extend(torch.argmax(torch.softmax(joint_outputs, dim=1), dim=1).cpu().tolist())
+        labels = np.array(labels)
+        acc = dict()
+        for combin in ['image+sound', 'sound']:
+            predicts[combin] = np.array(predicts[combin])
+            acc[combin] = accuracy_score(labels, predicts[combin])
+        if modalities == ["image", "sound"]:
+            return {
+                'image+sound_loss': total_loss['image+sound'] / len(dataset),
+                'image+sound_acc': acc['image+sound'],
+                'sound_loss': total_loss['sound'] / len(dataset),
+                'sound_acc': acc['sound'],
+            }
+        elif modalities == ["sound"]:
+            return {
+                'sound_loss': total_loss['sound'] / len(dataset),
+                'sound_acc': acc['sound'],
+            }
 
     @torch.no_grad()
-    def custom_test(self, model, dataset, contrastive_weight, temperature, batch_size=64, num_workers=0, all_modal_combin_list=[]):
-        """
-        Metric = [mean_accuracy, mean_loss]
-        :param model:
-        :param dataset:
-        :param batch_size:
-        :return: [mean_accuracy, mean_loss]
-        """
+    def server_test(self, model, dataset, contrastive_weight=0.0, temperature=0.0, margin=0.0, kl_weight=0.0, batch_size=64, num_workers=0):
         model.eval()
         if batch_size == -1:
             batch_size = len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-        total_count = 0
-        eval_dict = dict()
-        for combin_list in all_modal_combin_list:
-            combin = "+".join(combin_list)
-            eval_dict[combin + '_total_loss'] = 0.0
-            eval_dict[combin + '_num_correct'] = 0.0
-        for data in data_loader:        
-            tdata = self.data_to_device(data)
-            total_count += tdata[1].shape[0]
-            for combin_list in all_modal_combin_list:
-                combin = "+".join(combin_list)
-                samples = dict()
-                for modal in combin_list:
-                    samples[modal] = tdata[0][modal].contiguous()
-                # import pdb; pdb.set_trace()
-                loss, outputs = model(samples, tdata[1], contrastive_weight, temperature)
-                eval_dict[combin + '_total_loss'] += loss * tdata[1].shape[0]
-                eval_dict[combin + '_num_correct'] += torch.sum(torch.softmax(outputs, dim=1).argmax(dim=1) == tdata[1]).item()
-        result = dict()
-        for combin_list in all_modal_combin_list:
-            combin = "+".join(combin_list)
-            result[combin + '_loss'] = eval_dict[combin + '_total_loss'].item() / total_count
-            result[combin + '_accuracy'] = 1.0 * eval_dict[combin + '_num_correct'] / total_count
-        return result
+        total_loss = {
+            'image+sound': 0.0,
+            'sound': 0.0
+        }
+        labels = list()
+        predicts = {
+            'image+sound': list(),
+            'sound': list()
+        }
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data[1].cpu().tolist())
+            joint_loss, joint_outputs, sound_loss, sound_outputs = model(batch_data[0], batch_data[-1], ["image", "sound"], 
+                                                                         contrastive_weight, temperature, margin, kl_weight)
+            total_loss['sound'] += sound_loss.item() * len(batch_data[-1])
+            predicts['sound'].extend(torch.argmax(torch.softmax(sound_outputs, dim=1), dim=1).cpu().tolist())
+            total_loss['image+sound'] += joint_loss.item() * len(batch_data[-1])
+            predicts['image+sound'].extend(torch.argmax(torch.softmax(joint_outputs, dim=1), dim=1).cpu().tolist())
+        labels = np.array(labels)
+        acc = dict()
+        for combin in ['image+sound', 'sound']:
+            predicts[combin] = np.array(predicts[combin])
+            acc[combin] = accuracy_score(labels, predicts[combin])
+        return {
+            'image+sound_loss': total_loss['image+sound'] / len(dataset),
+            'image+sound_acc': acc['image+sound'],
+            'sound_loss': total_loss['sound'] / len(dataset),
+            'sound_acc': acc['sound'],
+        }
