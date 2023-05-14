@@ -1,19 +1,17 @@
 python main.py \
     --task mosei_classification_cnum1_dist0_skew0_seed0_text+vision_0+0+1 \
-    --model mm_kl \
+    --model mm \
     --algorithm mm_mosei_fedavg \
     --sample full \
     --aggregate weighted_scale \
-    --num_rounds 500 \
+    --num_rounds 1 \
     --proportion 1.0 \
-    --num_epochs 2 \
-    --learning_rate 0.05 \
-    --lr_scheduler 0 \
-    --learning_rate_decay 0.9 \
+    --num_epochs 40 \
+    --learning_rate 0.001 \
     --batch_size 64 \
-    --gpu 0 \
+    --num_workers 8 \
+    --gpu 1 \
     --seed 1234 \
     --test_batch_size 64 \
-    --contrastive_weight 0.0 \
-    --temperature 0.0\
-    --kl_weight 1.0
+    --contrastive_weight 1.0 \
+    --temperature 0.3

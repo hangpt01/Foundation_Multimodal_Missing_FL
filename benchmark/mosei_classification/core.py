@@ -159,14 +159,14 @@ class TaskCalculator(ClassificationCalculator):
             sample_to_device[modal] = modal_data.to(self.device)
         return sample_to_device, data[1].to(self.device)
     
-    def train_one_step(self, model, data, contrastive_weight, temperature, kl_weight, name, iter):
+    def train_one_step(self, model, data, contrastive_weight, temperature, kl_weight):
         """
         :param model: the model to train
         :param data: the training dataset
         :return: dict of train-one-step's result, which should at least contains the key 'loss'
         """
         tdata = self.data_to_device(data)
-        loss, _ = model(tdata[0], tdata[1], contrastive_weight, temperature, kl_weight, name, iter)
+        loss, _ = model(tdata[0], tdata[1], contrastive_weight, temperature, kl_weight)
         return {'loss': loss}
     
     @torch.no_grad()

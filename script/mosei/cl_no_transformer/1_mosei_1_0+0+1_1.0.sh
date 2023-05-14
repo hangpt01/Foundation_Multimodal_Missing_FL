@@ -1,6 +1,6 @@
 python main.py \
     --task mosei_classification_cnum1_dist0_skew0_seed0_text+vision_0+0+1 \
-    --model mm_kl \
+    --model mm_no_transformer \
     --algorithm mm_mosei_fedavg \
     --sample full \
     --aggregate weighted_scale \
@@ -14,6 +14,5 @@ python main.py \
     --gpu 0 \
     --seed 1234 \
     --test_batch_size 64 \
-    --contrastive_weight 0.0 \
-    --temperature 0.0\
-    --kl_weight 1.0
+    --contrastive_weight 1.0 \
+    --temperature 0.3

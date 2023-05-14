@@ -233,6 +233,36 @@ class Regressor(FModule):
     def forward(self, x):
         return torch.squeeze(self.ln(x))
 
+def multivariate_KL_divergence(teacher_batch_input, student_batch_input, device):
+    batch_student, _ = student_batch_input.shape
+    batch_teacher, _ = teacher_batch_input.shape
+    
+    assert batch_teacher == batch_student, "Unmatched batch size"
+    
+    teacher_batch_input = teacher_batch_input.to(device).unsqueeze(1)
+    student_batch_input = student_batch_input.to(device).unsqueeze(1)
+    
+    sub_s = student_batch_input - student_batch_input.transpose(0,1)
+    sub_s_norm = torch.norm(sub_s, dim=2)
+    sub_s_norm = sub_s_norm.flatten()[1:].view(batch_student-1, batch_student+1)[:,:-1].reshape(batch_student, batch_student-1)
+    std_s = torch.std(sub_s_norm)
+    mean_s = torch.mean(sub_s_norm)
+    kernel_mtx_s = torch.pow(sub_s_norm - mean_s, 2) / (torch.pow(std_s, 2) + 0.001)
+    kernel_mtx_s = torch.exp(-1/2 * kernel_mtx_s)
+    kernel_mtx_s = kernel_mtx_s/torch.sum(kernel_mtx_s, dim=1, keepdim=True)
+    
+    sub_t = teacher_batch_input - teacher_batch_input.transpose(0,1)
+    sub_t_norm = torch.norm(sub_t, dim=2)
+    sub_t_norm = sub_t_norm.flatten()[1:].view(batch_teacher-1, batch_teacher+1)[:,:-1].reshape(batch_teacher, batch_teacher-1)
+    std_t = torch.std(sub_t_norm)
+    mean_t = torch.mean(sub_t_norm)
+    kernel_mtx_t = torch.pow(sub_t_norm - mean_t, 2) / (torch.pow(std_t, 2) + 0.001)
+    kernel_mtx_t = torch.exp(-1/2 * kernel_mtx_t)
+    kernel_mtx_t = kernel_mtx_t/torch.sum(kernel_mtx_t, dim=1, keepdim=True)
+    
+    kl = torch.sum(kernel_mtx_t * torch.log(kernel_mtx_t/kernel_mtx_s))
+    return kl
+
 class Model(FModule):
     def __init__(self):
         super(Model, self).__init__()
@@ -266,7 +296,7 @@ class Model(FModule):
         # criterion
         self.L1Loss = nn.L1Loss()
 
-    def forward(self, samples, labels, contrastive_weight=0.0, temperature=1.0, name=None, iter=None):
+    def forward(self, samples, labels, contrastive_weight=0.0, temperature=1.0, kl_weight=0, name=None, iter=None):
         current_modalities = samples.keys()
         if len(current_modalities) == 1 and 'vision' in current_modalities:
             features = self.feature_extractors['vision'](samples['vision'])
@@ -285,16 +315,20 @@ class Model(FModule):
             loss = self.L1Loss(outputs, labels)
             batch_size = labels.shape[0]
             device = labels.device
-            if batch_size > 1 and contrastive_weight > 0.0:
-                contrastive_loss = 0.0
-                concat_reprs = torch.concat((joint_representations, representations_dict['vision']), dim=0)
-                exp_sim_matrix = torch.exp(torch.mm(concat_reprs, concat_reprs.t().contiguous()) / temperature)
-                mask = (torch.ones_like(exp_sim_matrix) - torch.eye(2 * batch_size, device=device)).bool()
-                exp_sim_matrix = exp_sim_matrix.masked_select(mask=mask).view(2 * batch_size, -1)
-                positive_exp_sim = torch.exp(torch.sum(joint_representations * representations_dict['vision'], dim=-1) / temperature)
-                positive_exp_sim = torch.concat((positive_exp_sim, positive_exp_sim), dim=0)
-                contrastive_loss += - torch.log(positive_exp_sim / exp_sim_matrix.sum(dim=-1))
-                loss += contrastive_weight * contrastive_loss.mean()
+            # if batch_size > 1 and contrastive_weight > 0.0:
+            #     contrastive_loss = 0.0
+            #     concat_reprs = torch.concat((joint_representations, vision_representations), dim=0)
+            #     exp_sim_matrix = torch.exp(torch.mm(concat_reprs, concat_reprs.t().contiguous()) / temperature)
+            #     mask = (torch.ones_like(exp_sim_matrix) - torch.eye(2 * batch_size, device=device)).bool()
+            #     exp_sim_matrix = exp_sim_matrix.masked_select(mask=mask).view(2 * batch_size, -1)
+            #     positive_exp_sim = torch.exp(torch.sum(joint_representations * vision_representations, dim=-1) / temperature)
+            #     positive_exp_sim = torch.concat((positive_exp_sim, positive_exp_sim), dim=0)
+            #     contrastive_loss += - torch.log(positive_exp_sim / exp_sim_matrix.sum(dim=-1))
+            #     loss += contrastive_weight * contrastive_loss.mean()
+
+            if kl_weight>0:
+                kl_loss = multivariate_KL_divergence(joint_representations, representations_dict['vision'], joint_representations.device)
+                loss += kl_weight*kl_loss
         return loss, outputs
 
 if __name__ == '__main__':

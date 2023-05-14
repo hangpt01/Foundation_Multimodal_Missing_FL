@@ -128,12 +128,14 @@ class Logger(logging.Logger):
         return
 
     def show_current_output(self, yes_key=['train', 'test', 'valid'], no_key=['dist']):
+        tmp = dict()
         for key, val in self.output.items():
             a = [(yk in key) for yk in yes_key]
             nf = [(nk not in key) for nk in no_key]
             if np.all(nf) and np.any(a):
                 self.info(self.temp.format(key, val[-1]))
-                wandb.log({key: val[-1]})
+                tmp[key] = val[-1]
+        wandb.log(tmp)
 
     def get_output_name(self, suffix='.json', prefix_log_filename=None):
         if not hasattr(self, 'meta'): raise NotImplementedError('logger has no attr named "meta"')

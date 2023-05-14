@@ -3,6 +3,9 @@ import utils.system_simulator as ss
 from utils import fmodule
 import copy
 import collections
+import utils.fflow as flw
+import os
+import torch
 
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
@@ -10,6 +13,7 @@ class Server(BasicServer):
         self.contrastive_weight = option['contrastive_weight']
         self.temperature = option['temperature']
         self.margin = option['margin']
+        self.kl_weight = option['kl_weight']
         self.leads_cnt = {
             "all": {
                 "n_clients": sum([1 for client in self.clients if client.modalities == "all"]),
@@ -20,6 +24,51 @@ class Server(BasicServer):
                 "n_data": sum([client.datavol for client in self.clients if client.modalities == "2"])
             }
         }
+        self.checkpoints_dir = os.path.join('fedtask', option['task'], 'checkpoints')
+        os.makedirs(self.checkpoints_dir, exist_ok=True)
+
+    def run(self):
+        """
+        Start the federated learning symtem where the global model is trained iteratively.
+        """
+        flw.logger.time_start('Total Time Cost')
+        for round in range(1, self.num_rounds+1):
+            self.current_round = round
+            ss.clock.step()
+            # using logger to evaluate the model
+            flw.logger.info("--------------Round {}--------------".format(round))
+            flw.logger.time_start('Time Cost')
+            if flw.logger.check_if_log(round, self.eval_interval):
+                flw.logger.time_start('Eval Time Cost')
+                flw.logger.log_once()
+                flw.logger.time_end('Eval Time Cost')
+                # save checkpoints
+                if flw.logger.output['test_all_loss'][-1] == min(flw.logger.output['test_all_loss']):
+                    print("Saving full-modal model checkpoints!")
+                    os.makedirs(os.path.join(self.checkpoints_dir, 'full-modal'), exist_ok=True)
+                    torch.save(self.model.branchallleads.state_dict(), os.path.join(self.checkpoints_dir, 'full-modal', 'feature_extractor.pt'))
+                    torch.save(self.model.branchallleads_classifier.state_dict(), os.path.join(self.checkpoints_dir, 'full-modal', 'classifier.pt'))
+                if flw.logger.output['test_2_loss'][-1] == min(flw.logger.output['test_2_loss']):
+                    os.makedirs(os.path.join(self.checkpoints_dir, 'missing-modal'), exist_ok=True)
+                    print("Saving missing-modal model checkpoints!")
+                    torch.save(self.model.branch2leads.state_dict(), os.path.join(self.checkpoints_dir, 'missing-modal', 'feature_extractor.pt'))
+                    torch.save(self.model.branch2leads_classifier.state_dict(), os.path.join(self.checkpoints_dir, 'missing-modal', 'classifier.pt'))
+            # check if early stopping
+            if flw.logger.early_stop(): break
+            # federated train
+            self.iterate()
+            # decay learning rate
+            self.global_lr_scheduler(round)
+            flw.logger.time_end('Time Cost')
+        flw.logger.info("--------------Final Evaluation--------------")
+        flw.logger.time_start('Eval Time Cost')
+        flw.logger.log_once()
+        flw.logger.time_end('Eval Time Cost')
+        flw.logger.info("=================End==================")
+        flw.logger.time_end('Total Time Cost')
+        # save results as .json file
+        flw.logger.save_output_as_json()
+        return
 
     def iterate(self):
         """
@@ -93,6 +142,7 @@ class Server(BasicServer):
                 contrastive_weight=self.contrastive_weight,
                 temperature=self.temperature,
                 margin=self.margin,
+                kl_weight=self.kl_weight,
                 batch_size=self.option['test_batch_size']
             )
         else:
@@ -120,6 +170,7 @@ class Client(BasicClient):
         self.contrastive_weight = option['contrastive_weight']
         self.temperature = option['temperature']
         self.margin = option['margin']
+        self.kl_weight = option['kl_weight']
 
     def pack(self, model):
         """
@@ -165,6 +216,7 @@ class Client(BasicClient):
                 contrastive_weight=self.contrastive_weight,
                 temperature=self.temperature,
                 margin=self.margin,
+                kl_weight=self.kl_weight,
             )['loss']
             loss.backward()
             optimizer.step()
@@ -188,5 +240,6 @@ class Client(BasicClient):
             contrastive_weight=self.contrastive_weight,
             temperature=self.temperature,
             margin=self.margin,
+            kl_weight=self.kl_weight,
             batch_size=self.test_batch_size
         )

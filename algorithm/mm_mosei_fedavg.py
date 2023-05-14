@@ -342,7 +342,7 @@ class Client(BasicClient):
             batch_data = self.get_batch_data()
             model.zero_grad()
             # calculate the loss of the model on batched dataset through task-specified calculator
-            loss = self.calculator.train_one_step(model, batch_data, self.contrastive_weight, self.temperature, self.kl_weight, self.name, iter)['loss']
+            loss = self.calculator.train_one_step(model, batch_data, self.contrastive_weight, self.temperature, self.kl_weight)['loss']
             # if torch.isnan(loss1):
             #     import pdb; pdb.set_trace()
             loss.backward()

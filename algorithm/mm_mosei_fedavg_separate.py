@@ -1,26 +1,36 @@
-from .fedbase import BasicServer, BasicClient
-import utils.system_simulator as ss
 from utils import fmodule
 import copy
+import utils.fflow as flw
+import utils.system_simulator as ss
+from .fedbase import BasicServer, BasicClient
 import collections
+from tqdm.auto import tqdm
+import os
+import torch
+from itertools import chain, combinations
 
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
         self.contrastive_weight = option['contrastive_weight']
         self.temperature = option['temperature']
-        self.margin = option['margin']
+        self.all_modalities = self.model.modalities
         self.kl_weight = option['kl_weight']
-        self.leads_cnt = {
-            "all": {
-                "n_clients": sum([1 for client in self.clients if client.modalities == "all"]),
-                "n_data": sum([client.datavol for client in self.clients if client.modalities == "all"])
+        # self.all_modal_combin_list = list()
+        # for combin_tuple in chain.from_iterable(combinations(self.all_modalities, r) for r in range(1, len(self.all_modalities) + 1)):
+        #     self.all_modal_combin_list.append(list(combin_tuple))
+        # print(self.all_modal_combin_list)
+        self.combin_cnt = {
+            "text+vision": {
+                "n_clients": sum([1 for client in self.clients if client.modal_combin == "text+vision"]),
+                "n_data": sum([client.datavol for client in self.clients if client.modal_combin == "text+vision"])
             },
-            "2": {
-                "n_clients": sum([1 for client in self.clients if client.modalities == "2"]),
-                "n_data": sum([client.datavol for client in self.clients if client.modalities == "2"])
+            "vision": {
+                "n_clients": sum([1 for client in self.clients if client.modal_combin == "vision"]),
+                "n_data": sum([client.datavol for client in self.clients if client.modal_combin == "vision"])
             }
         }
+        print(self.combin_cnt)
 
     def iterate(self):
         """
@@ -32,15 +42,21 @@ class Server(BasicServer):
         # sample clients: MD sampling as default
         self.selected_clients = self.sample()
         # training
+        # print("TRAININGGGGGGG")
         conmmunitcation_result = self.communicate(self.selected_clients)
+        # print("DONEEEEE")
         models = conmmunitcation_result['model']
-        modalities_list = conmmunitcation_result['modalities']
+        # modalities_list = conmmunitcation_result['modalities']
+        modal_combins = conmmunitcation_result['modal_combin']
         # aggregate: pk = 1/K as default where K=len(selected_clients)
-        self.model = self.aggregate(models, modalities_list)
+        # self.model = self.aggregate(models, modalities_list, modal_combins)
         # self.model = models[0]
+        self.model = self.aggregate(models, modal_combins)
+        # if self.current_round % 5 == 0:
+        #     torch.save(self.model.state_dict(), os.path.join(self.chkpt_dir, 'Round{}.pt'.format(self.current_round)))
         return
 
-    def aggregate(self, models: list, modalities_list: list):
+    def aggregate(self, models: list, modal_combins: list):
         """
         Aggregate the locally improved models.
         :param
@@ -57,27 +73,26 @@ class Server(BasicServer):
         """
         if len(models) == 0: return self.model
         new_model = copy.deepcopy(self.model)
+
         p = [self.local_data_vols[cid] for cid in self.received_clients]
         sump = sum(p)
         p = [1.0 * pk / sump for pk in p]
-        new_model.branch2leads = fmodule._model_sum([model_k.branch2leads * pk for model_k, pk in zip(models, p)])
-        new_model.branch2leads_classifier = fmodule._model_sum([model_k.branch2leads_classifier * pk for model_k, pk in zip(models, p)])
-        if self.leads_cnt["all"]["n_clients"] == 0:
-            return new_model
-        p = list()
-        chosen_models = list()
-        for cid, model, modalities in zip(self.received_clients, models, modalities_list):
-            if modalities == "all":
-                p.append(self.local_data_vols[cid])
-                chosen_models.append(model)
-        if len(chosen_models) == 0:
-            return new_model
-        sump = sum(p)
-        p = [1.0 * pk / sump for pk in p]
-        new_model.branchallleads = fmodule._model_sum([model_k.branchallleads * pk for model_k, pk in zip(chosen_models, p)])
-        new_model.branchallleads_classifier = fmodule._model_sum([model_k.branchallleads_classifier * pk for model_k, pk in zip(chosen_models, p)])
+        new_model.vision_encoder = fmodule._model_sum([model_k.vision_encoder * pk for model_k, pk in zip(models, p)])
+        new_model.vision_regressor = fmodule._model_sum([model_k.vision_regressor * pk for model_k, pk in zip(models, p)])
+        if self.combin_cnt["text+vision"]["n_clients"] > 0:
+            p = list()
+            chosen_models = list()
+            for cid, model, combin in zip(self.received_clients, models, modal_combins):
+                if combin == "text+vision":
+                    p.append(self.local_data_vols[cid])
+                    chosen_models.append(model)
+            if len(chosen_models) > 0:
+                sump = sum(p)
+                p = [1.0 * pk / sump for pk in p]
+                new_model.joint_encoder = fmodule._model_sum([model_k.joint_encoder * pk for model_k, pk in zip(models, p)])
+                new_model.joint_regressor = fmodule._model_sum([model_k.joint_regressor * pk for model_k, pk in zip(models, p)])
         return new_model
-    
+
     def test(self, model=None):
         """
         Evaluate the model on the test dataset owned by the server.
@@ -88,7 +103,8 @@ class Server(BasicServer):
         """
         if model is None: model=self.model
         if self.test_data:
-            return self.calculator.server_test(
+            import pdb; pdb.set_trace()
+            return self.calculator.custom_test(
                 model=model,
                 dataset=self.test_data,
                 contrastive_weight=self.contrastive_weight,
@@ -99,7 +115,7 @@ class Server(BasicServer):
             )
         else:
             return None
-
+        
     def test_on_clients(self, dataflag='train'):
         """
         Validate accuracies and losses on clients' local datasets
@@ -108,6 +124,7 @@ class Server(BasicServer):
         :return
             metrics: a dict contains the lists of each metric_value of the clients
         """
+        # return dict()
         all_metrics = collections.defaultdict(list)
         for c in self.clients:
             client_metrics = c.test(self.model, dataflag)
@@ -115,10 +132,13 @@ class Server(BasicServer):
                 all_metrics[met_name].append(met_val)
         return all_metrics
 
+
 class Client(BasicClient):
-    def __init__(self, option, modalities, name='', train_data=None, valid_data=None):
+    def __init__(self,
+    option, name='', train_data=None, valid_data=None, modalities=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.modalities = modalities
+        self.modal_combin = "+".join(self.modalities)
         self.contrastive_weight = option['contrastive_weight']
         self.temperature = option['temperature']
         self.margin = option['margin']
@@ -135,7 +155,7 @@ class Client(BasicClient):
         """
         return {
             "model" : model,
-            "modalities": self.modalities
+            "modal_combin": self.modal_combin
         }
 
     @ss.with_completeness
@@ -148,27 +168,20 @@ class Client(BasicClient):
         :return
         """
         model.train()
-        optimizer = self.calculator.get_optimizer(
-            model=model,
-            lr=self.learning_rate,
-            weight_decay=self.weight_decay,
-            momentum=self.momentum
-        )
+        optimizer = self.calculator.get_optimizer(model, lr = self.learning_rate, weight_decay=self.weight_decay, momentum=self.momentum)
         for iter in range(self.num_steps):
             # get a batch of data
             batch_data = self.get_batch_data()
-            if batch_data[-1].shape[0] == 1:
-                continue
             model.zero_grad()
             # calculate the loss of the model on batched dataset through task-specified calculator
             loss = self.calculator.train_one_step(
                 model=model,
                 data=batch_data,
-                leads=self.modalities,
+                modalities=self.modalities,
                 contrastive_weight=self.contrastive_weight,
                 temperature=self.temperature,
                 margin=self.margin,
-                kl_weight=self.kl_weight,
+                kl_weight=self.kl_weight
             )['loss']
             loss.backward()
             optimizer.step()
@@ -188,10 +201,29 @@ class Client(BasicClient):
         return self.calculator.test(
             model=model,
             dataset=dataset,
-            leads=self.modalities,
+            modalities=self.modalities,
             contrastive_weight=self.contrastive_weight,
             temperature=self.temperature,
             margin=self.margin,
             kl_weight=self.kl_weight,
             batch_size=self.test_batch_size
         )
+
+    def get_batch_data(self):
+        """
+        Get the batch of data
+        :return:
+            a batch of data
+        """
+        try:
+            batch_data = next(self.data_loader)
+        except:
+            self.data_loader = iter(self.calculator.get_data_loader(self.train_data, batch_size=self.batch_size, num_workers=self.loader_num_workers))
+            batch_data = next(self.data_loader)
+        # clear local DataLoader when finishing local training
+        self.current_steps = (self.current_steps+1) % self.num_steps
+        if self.current_steps == 0:self.data_loader = None
+        batch_sample = dict()
+        for modal in self.modalities:
+            batch_sample[modal] = batch_data[0][modal]
+        return batch_sample, batch_data[1]
