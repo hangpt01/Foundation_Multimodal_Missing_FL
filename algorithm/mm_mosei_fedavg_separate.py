@@ -103,13 +103,13 @@ class Server(BasicServer):
         """
         if model is None: model=self.model
         if self.test_data:
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
             return self.calculator.custom_test(
                 model=model,
                 dataset=self.test_data,
                 contrastive_weight=self.contrastive_weight,
                 temperature=self.temperature,
-                margin=self.margin,
+                # margin=self.margin,
                 kl_weight=self.kl_weight,
                 batch_size=self.option['test_batch_size']
             )
@@ -180,7 +180,7 @@ class Client(BasicClient):
                 modalities=self.modalities,
                 contrastive_weight=self.contrastive_weight,
                 temperature=self.temperature,
-                margin=self.margin,
+                # margin=self.margin,
                 kl_weight=self.kl_weight
             )['loss']
             loss.backward()
@@ -204,7 +204,7 @@ class Client(BasicClient):
             modalities=self.modalities,
             contrastive_weight=self.contrastive_weight,
             temperature=self.temperature,
-            margin=self.margin,
+            # margin=self.margin,
             kl_weight=self.kl_weight,
             batch_size=self.test_batch_size
         )
