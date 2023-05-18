@@ -159,48 +159,88 @@ class TaskCalculator(ClassificationCalculator):
             sample_to_device[modal] = modal_data.to(self.device)
         return sample_to_device, data[1].to(self.device)
     
-    def train_one_step(self, model, data, contrastive_weight, temperature, kl_weight):
+    def train_one_step(self, model, data, modalities, contrastive_weight, temperature, kl_weight):
         """
         :param model: the model to train
         :param data: the training dataset
         :return: dict of train-one-step's result, which should at least contains the key 'loss'
         """
         tdata = self.data_to_device(data)
-        loss, _ = model(tdata[0], tdata[1], contrastive_weight, temperature, kl_weight)
-        return {'loss': loss}
+        joint_loss, joint_outputs, vision_loss, vision_outputs = model(tdata[0], tdata[1], modalities, 
+                                                                     contrastive_weight, temperature, kl_weight)
+        if modalities == ["text", "vision"]:
+            return {'loss': joint_loss + vision_loss}
+        elif modalities == ["vision"]:
+            return {'loss': vision_loss}
     
     @torch.no_grad()
-    def test(self, model, dataset, contrastive_weight, temperature, kl_weight, batch_size=64, num_workers=0):
+    def test(self, model, dataset, modalities, contrastive_weight, temperature, kl_weight, batch_size=64, num_workers=0):
         model.eval()
         if batch_size == -1:
             batch_size = len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-        total_loss = 0.0
-        total_count = 0
-        labels = list()
-        preds = list()
-        losses = list()
-        for data in data_loader:        
-            tdata = self.data_to_device(data)
-            total_count += tdata[1].shape[0]
-            labels.extend(tdata[1].cpu().tolist())
-            loss, outputs = model(tdata[0], tdata[1], contrastive_weight, temperature, kl_weight)
-            total_loss += loss * tdata[1].shape[0]
-            preds.extend(outputs.cpu().tolist())
-        truth = np.array(labels)
-        truth_a7 = np.clip(truth, a_min=-3.0, a_max=3.0)
-        preds = np.array(preds)
-        preds_a7 = np.clip(preds, a_min=-3.0, a_max=3.0)
-        binary_truth = (truth > 0)
-        binary_preds = (preds > 0)
-        return {
-            'loss': total_loss.item() / total_count,
-            'mae': np.mean(np.absolute(preds - truth)),
-            'corr': np.corrcoef(preds, truth)[0, 1],
-            'acc7': np.sum(np.round(preds_a7) == np.round(truth_a7)) / total_count,
-            'acc2': accuracy_score(binary_truth, binary_preds),
-            'f1': f1_score(binary_truth, binary_preds, average='weighted'),
+        # total_loss = 0.0
+        # total_count = 0
+        # labels = list()
+        # preds = list()
+        # losses = list()
+        # for data in data_loader:        
+        #     tdata = self.data_to_device(data)
+        #     total_count += tdata[1].shape[0]
+        #     labels.extend(tdata[1].cpu().tolist())
+        #     loss, outputs = model(tdata[0], tdata[1], contrastive_weight, temperature, kl_weight)
+        #     total_loss += loss * tdata[1].shape[0]
+        #     preds.extend(outputs.cpu().tolist())
+        # truth = np.array(labels)
+        # truth_a7 = np.clip(truth, a_min=-3.0, a_max=3.0)
+        # preds = np.array(preds)
+        # preds_a7 = np.clip(preds, a_min=-3.0, a_max=3.0)
+        # binary_truth = (truth > 0)
+        # binary_preds = (preds > 0)
+        # return {
+        #     'loss': total_loss.item() / total_count,
+        #     'mae': np.mean(np.absolute(preds - truth)),
+        #     'corr': np.corrcoef(preds, truth)[0, 1],
+        #     'acc7': np.sum(np.round(preds_a7) == np.round(truth_a7)) / total_count,
+        #     'acc2': accuracy_score(binary_truth, binary_preds),
+        #     'f1': f1_score(binary_truth, binary_preds, average='weighted'),
+        # }
+        total_loss = {
+            'text+vision': 0.0,
+            'vision': 0.0
         }
+        labels = list()
+        predicts = {
+            'text+vision': list(),
+            'vision': list()
+        }
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data[1].cpu().tolist())
+            joint_loss, joint_outputs, vision_loss, vision_outputs = model({modal: batch_data[0][modal] for modal in modalities}, batch_data[-1], modalities, 
+                                                                         contrastive_weight, temperature, kl_weight)
+            total_loss['vision'] += vision_loss.item() * len(batch_data[-1])
+            predicts['vision'].extend(vision_outputs.cpu().tolist())
+            if modalities == ["text", "vision"]:
+                total_loss['text+vision'] += joint_loss.item() * len(batch_data[-1])
+                predicts['text+vision'].extend(joint_outputs.cpu().tolist())
+        labels = np.array(labels)
+        acc = dict()
+        for combin in ['text+vision', 'vision']:
+            predicts[combin] = np.array(predicts[combin])
+            acc[combin] = accuracy_score((labels>0), (predicts[combin]>0))
+        if modalities == ["text", "vision"]:
+            return {
+                'text+vision_loss': total_loss['text+vision'] / len(dataset),
+                'text+vision_acc': acc['text+vision'],
+                'vision_loss': total_loss['vision'] / len(dataset),
+                'vision_acc': acc['vision'],
+            }
+        elif modalities == ["vision"]:
+            return {
+                'vision_loss': total_loss['vision'] / len(dataset),
+                'vision_acc': acc['vision'],
+            }
 
     @torch.no_grad()
     def custom_test(self, model, dataset, contrastive_weight, temperature, kl_weight, batch_size=64, num_workers=0, all_modal_combin_list=[]):
@@ -215,38 +255,67 @@ class TaskCalculator(ClassificationCalculator):
         if batch_size == -1:
             batch_size = len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-        total_count = 0
+        # total_count = 0
+        # labels = list()
+        # eval_dict = dict()
+        # for combin_list in all_modal_combin_list:
+        #     combin = "+".join(combin_list)
+        #     eval_dict[combin + "_total_loss"] = 0.0
+        #     eval_dict[combin + "_outputs"] = list()
+        # for data in data_loader:        
+        #     tdata = self.data_to_device(data)
+        #     total_count += tdata[1].shape[0]
+        #     labels.extend(tdata[1].cpu().tolist())
+        #     for combin_list in all_modal_combin_list:
+        #         combin = "+".join(combin_list)
+        #         samples = dict()
+        #         for modal in combin_list:
+        #             samples[modal] = tdata[0][modal].contiguous()
+        #         loss, outputs = model(samples, tdata[1], contrastive_weight, temperature, kl_weight)
+        #         eval_dict[combin + "_total_loss"] += loss.item() * tdata[1].shape[0]
+        #         eval_dict[combin + "_outputs"].extend(outputs.cpu().tolist())
+        # result = dict()
+        # truth = np.array(labels)
+        # truth_a7 = np.clip(truth, a_min=-3.0, a_max=3.0)
+        # for combin_list in all_modal_combin_list:
+        #     combin = "+".join(combin_list)
+        #     result[combin + "_loss"] = eval_dict[combin + "_total_loss"] / total_count
+        #     preds = np.array(eval_dict[combin + "_outputs"])
+        #     preds_a7 = np.clip(preds, a_min=-3.0, a_max=3.0)
+        #     result[combin + "_mae"] = np.mean(np.absolute(preds - truth))
+        #     result[combin + "_corr"] = np.corrcoef(preds, truth)[0, 1]
+        #     result[combin + "_acc7"] = np.sum(np.round(preds_a7) == np.round(truth_a7)) / total_count
+        #     binary_truth = (truth > 0)
+        #     binary_preds = (preds > 0)
+        #     result[combin + "_acc2"] = accuracy_score(binary_truth, binary_preds)
+        #     result[combin + "_f1"] = f1_score(binary_truth, binary_preds, average='weighted')
+        # return result
+        total_loss = {
+            'text+vision': 0.0,
+            'vision': 0.0
+        }
         labels = list()
-        eval_dict = dict()
-        for combin_list in all_modal_combin_list:
-            combin = "+".join(combin_list)
-            eval_dict[combin + "_total_loss"] = 0.0
-            eval_dict[combin + "_outputs"] = list()
-        for data in data_loader:        
-            tdata = self.data_to_device(data)
-            total_count += tdata[1].shape[0]
-            labels.extend(tdata[1].cpu().tolist())
-            for combin_list in all_modal_combin_list:
-                combin = "+".join(combin_list)
-                samples = dict()
-                for modal in combin_list:
-                    samples[modal] = tdata[0][modal].contiguous()
-                loss, outputs = model(samples, tdata[1], contrastive_weight, temperature, kl_weight)
-                eval_dict[combin + "_total_loss"] += loss.item() * tdata[1].shape[0]
-                eval_dict[combin + "_outputs"].extend(outputs.cpu().tolist())
-        result = dict()
-        truth = np.array(labels)
-        truth_a7 = np.clip(truth, a_min=-3.0, a_max=3.0)
-        for combin_list in all_modal_combin_list:
-            combin = "+".join(combin_list)
-            result[combin + "_loss"] = eval_dict[combin + "_total_loss"] / total_count
-            preds = np.array(eval_dict[combin + "_outputs"])
-            preds_a7 = np.clip(preds, a_min=-3.0, a_max=3.0)
-            result[combin + "_mae"] = np.mean(np.absolute(preds - truth))
-            result[combin + "_corr"] = np.corrcoef(preds, truth)[0, 1]
-            result[combin + "_acc7"] = np.sum(np.round(preds_a7) == np.round(truth_a7)) / total_count
-            binary_truth = (truth > 0)
-            binary_preds = (preds > 0)
-            result[combin + "_acc2"] = accuracy_score(binary_truth, binary_preds)
-            result[combin + "_f1"] = f1_score(binary_truth, binary_preds, average='weighted')
-        return result
+        predicts = {
+            'text+vision': list(),
+            'vision': list()
+        }
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data[1].cpu().tolist())
+            joint_loss, joint_outputs, vision_loss, vision_outputs = model(batch_data[0], batch_data[-1], ["text", "vision"], 
+                                                                         contrastive_weight, temperature, kl_weight)
+            total_loss['vision'] += vision_loss.item() * len(batch_data[-1])
+            predicts['vision'].extend(vision_outputs.cpu().tolist())
+            total_loss['text+vision'] += joint_loss.item() * len(batch_data[-1])
+            predicts['text+vision'].extend(joint_outputs.cpu().tolist())
+        labels = np.array(labels)
+        acc = dict()
+        for combin in ['text+vision', 'vision']:
+            predicts[combin] = np.array(predicts[combin])
+            acc[combin] = accuracy_score((labels>0), (predicts[combin]>0))
+        return {
+            'text+vision_loss': total_loss['text+vision'] / len(dataset),
+            'text+vision_acc': acc['text+vision'],
+            'vision_loss': total_loss['vision'] / len(dataset),
+            'vision_acc': acc['vision'],
+        }

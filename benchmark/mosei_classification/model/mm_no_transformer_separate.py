@@ -96,17 +96,17 @@ class Model(FModule):
         if modalities == ["text", "vision"]:
             joint_encoding = self.joint_encoder(samples["text"], samples["vision"])
             joint_outputs = self.joint_regressor(joint_encoding)
-            joint_loss = self.CELoss(joint_outputs, labels)
+            joint_loss = self.L1Loss(joint_outputs, labels)
 
             vision_encoding = self.vision_encoder(samples["vision"])
             vision_outputs = self.vision_regressor(vision_encoding)
-            vision_loss = self.CELoss(vision_outputs, labels)
+            vision_loss = self.L1Loss(vision_outputs, labels)
 
             return joint_loss, joint_outputs, vision_loss, vision_outputs
         elif modalities == ["vision"]:
             vision_encoding = self.vision_encoder(samples["vision"])
             vision_outputs = self.vision_regressor(vision_encoding)
-            vision_loss = self.CELoss(vision_outputs, labels)
+            vision_loss = self.L1Loss(vision_outputs, labels)
 
             return None, None, vision_loss, vision_outputs
 
