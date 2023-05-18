@@ -88,9 +88,13 @@ class TaskCalculator(ClassificationCalculator):
             loss_allleads, outputs_allleads, loss_2leads, outputs_2leads = model(batch_data[0], batch_data[-1], leads, contrastive_weight, temperature, margin, kl_weight)
             total_loss['2'] += loss_2leads.item() * len(batch_data[-1])
             predicts['2'].extend(torch.sigmoid(outputs_2leads).cpu().tolist())
+            if np.any(np.isnan(torch.sigmoid(outputs_2leads).cpu().numpy())):
+                import pdb; pdb.set_trace()
             if leads == 'all':
                 total_loss['all'] += loss_allleads.item() * len(batch_data[-1])
                 predicts['all'].extend(torch.sigmoid(outputs_allleads).cpu().tolist())
+                if np.any(np.isnan(torch.sigmoid(outputs_allleads).cpu().numpy())):
+                    import pdb; pdb.set_trace()
         labels = np.array(labels)
         auprc = dict()
         for leads_ in ['all', '2']:
@@ -136,8 +140,12 @@ class TaskCalculator(ClassificationCalculator):
             loss_allleads, outputs_allleads, loss_2leads, outputs_2leads = model(batch_data[0], batch_data[-1], 'all', contrastive_weight, temperature, margin, kl_weight)
             total_loss['2'] += loss_2leads.item() * len(batch_data[-1])
             predicts['2'].extend(torch.sigmoid(outputs_2leads).cpu().tolist())
+            if np.any(np.isnan(torch.sigmoid(outputs_2leads).cpu().numpy())):
+                import pdb; pdb.set_trace()
             total_loss['all'] += loss_allleads.item() * len(batch_data[-1])
             predicts['all'].extend(torch.sigmoid(outputs_allleads).cpu().tolist())
+            if np.any(np.isnan(torch.sigmoid(outputs_allleads).cpu().numpy())):
+                import pdb; pdb.set_trace()
         labels = np.array(labels)
         auprc = dict()
         for leads in ['all', '2']:
