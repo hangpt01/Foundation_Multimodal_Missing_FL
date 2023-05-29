@@ -11,7 +11,7 @@ python main.py \
     --lr_scheduler 0 \
     --learning_rate_decay 1.0 \
     --batch_size 128 \
-    --gpu 0 \
+    --gpu 1 \
     --seed 1234 \
     --test_batch_size 128 \
     --contrastive_weight 0.0 \

@@ -167,6 +167,8 @@ class Model(FModule):
         self.criterion = torch.nn.BCEWithLogitsLoss()
         self.kl_div = torch.nn.KLDivLoss()
     def forward(self, x, y, leads='all', contrastive_weight=0.0, temperature=0.0, margin=0.0, kl_weight=0.0):
+        self.branchallleads.eval()
+        self.branchallleads_classifier.eval()
         if leads == 'all':
             xallleads = self.branchallleads(x)
             outputs_allleads = self.branchallleads_classifier(xallleads)
@@ -176,18 +178,20 @@ class Model(FModule):
             outputs_2leads = self.branch2leads_classifier(x2leads)
             loss_2leads = self.criterion(outputs_2leads, y)
             if kl_weight > 0.0:
-                tmp_p = outputs_allleads.clone().detach().view(-1) / temperature
+                tmp_p = outputs_allleads.clone().detach().view(-1)
                 tmp_p = torch.unsqueeze(torch.sigmoid(tmp_p), dim=1)
                 p = torch.cat((tmp_p, 1.0 - tmp_p), dim=1)
 
-                tmp_q = outputs_2leads.view(-1) / temperature
+                tmp_q = outputs_2leads.view(-1)
                 tmp_q = torch.unsqueeze(torch.sigmoid(tmp_q), dim=1)
                 q = torch.cat((tmp_q, 1.0 - tmp_q), dim=1)
 
                 kl_loss = self.kl_div(torch.log(q), p)
+                if torch.isnan(kl_loss):
+                    import pdb; pdb.set_trace()
                 loss_2leads += kl_weight * kl_loss
 
-            return loss_allleads, outputs_allleads, loss_2leads, outputs_2leads
+            return loss_allleads.detach(), outputs_allleads, loss_2leads, outputs_2leads
         else:
             x2leads = self.branch2leads(x[:, self.lead_idx['2']])
             outputs_2leads = self.branch2leads_classifier(x2leads)

@@ -198,6 +198,9 @@ class Client(BasicClient):
             if batch_data[-1].shape[0] == 1:
                 continue
             model.zero_grad()
+            tmp = [name for name, param in model.branch2leads.named_parameters() if torch.any(torch.isnan(param))]
+            if len(tmp) > 0:
+                import pdb; pdb.set_trace()
             # calculate the loss of the model on batched dataset through task-specified calculator
             loss = self.calculator.train_one_step(
                 model=model,
@@ -210,6 +213,9 @@ class Client(BasicClient):
             )['loss']
             loss.backward()
             optimizer.step()
+            tmp = [name for name, param in model.branch2leads.named_parameters() if torch.any(torch.isnan(param))]
+            if len(tmp) > 0:
+                import pdb; pdb.set_trace()
         return
 
     @fmodule.with_multi_gpus

@@ -15,6 +15,6 @@ python main.py \
     --seed 1234 \
     --test_batch_size 128 \
     --contrastive_weight 0.0 \
-    --temperature 0.0 \
+    --temperature 10.0 \
     --margin 0.0 \
     --kl_weight 1.0

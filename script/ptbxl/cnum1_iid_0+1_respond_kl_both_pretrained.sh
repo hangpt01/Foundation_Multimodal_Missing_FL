@@ -1,7 +1,7 @@
 python main.py \
     --task ptbxl_cnum1_iid_0+1 \
-    --model respond_kl_one_pretrained \
-    --algorithm mm_ptbxl_kl_one_pretrained \
+    --model respond_kl_both_pretrained \
+    --algorithm mm_ptbxl_kl_both_pretrained \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \

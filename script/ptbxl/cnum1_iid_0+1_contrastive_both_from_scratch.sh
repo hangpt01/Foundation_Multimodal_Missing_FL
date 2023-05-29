@@ -1,7 +1,7 @@
 python main.py \
     --task ptbxl_cnum1_iid_0+1 \
-    --model respond_kl_one_pretrained \
-    --algorithm mm_ptbxl_kl_one_pretrained \
+    --model contrastive_from_scratch \
+    --algorithm mm_ptbxl_contrastive \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \
@@ -14,7 +14,7 @@ python main.py \
     --gpu 0 \
     --seed 1234 \
     --test_batch_size 128 \
-    --contrastive_weight 0.0 \
-    --temperature 10.0 \
+    --contrastive_weight 1.0 \
+    --temperature 1.0 \
     --margin 0.0 \
-    --kl_weight 1.0
+    --kl_weight 0.0
