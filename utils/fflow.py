@@ -64,11 +64,14 @@ def read_option():
     parser.add_argument('--log_file', help='bool controls whether log to file and default value is False', action="store_true", default=False)
     parser.add_argument('--no_log_console', help='bool controls whether log to screen and default value is True', action="store_true", default=False)
     parser.add_argument('--no_overwrite', help='bool controls whether to overwrite the old result', action="store_true", default=False)
+    # wandb
+    parser.add_argument('--wandb', help='Enable WANDB;', action='store_true', default=False)
     # multimodal setting
     parser.add_argument('--contrastive_weight', help='Sample-based contrastive loss weight;', type=float, default=0.0)
     parser.add_argument('--temperature', help='Sample-based contrastive loss temperature;', type=float, default=0.0)
     parser.add_argument('--margin', help='Contrastive loss margin;', type=float, default=0.0)
     parser.add_argument('--kl_weight', help='KL loss weight;', type=float, default=0.0)
+    parser.add_argument('--fedmsplit_prox_lambda', help='FedMSplit prox lambda;', type=float, default=0.0)
     try: option = vars(parser.parse_args())
     except IOError as msg: parser.error(str(msg))
     return option

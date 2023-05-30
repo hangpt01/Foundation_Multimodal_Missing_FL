@@ -255,6 +255,7 @@ def _model_norm(m, power=2):
 
 def _model_dot(m1, m2):
     op_with_graph = m1.ingraph or m2.ingraph
+    import pdb; pdb.set_trace()
     if op_with_graph:
         res = torch.tensor(0.).to(m1.get_device())
         ml1 = get_module_from_model(m1)

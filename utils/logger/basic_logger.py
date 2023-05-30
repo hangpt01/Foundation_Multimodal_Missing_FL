@@ -135,7 +135,8 @@ class Logger(logging.Logger):
             if np.all(nf) and np.any(a):
                 self.info(self.temp.format(key, val[-1]))
                 tmp[key] = val[-1]
-        wandb.log(tmp)
+        if self.meta['wandb']:
+            wandb.log(tmp)
 
     def get_output_name(self, suffix='.json', prefix_log_filename=None):
         if not hasattr(self, 'meta'): raise NotImplementedError('logger has no attr named "meta"')
@@ -216,7 +217,12 @@ class Logger(logging.Logger):
         train_metrics = self.server.test_on_clients('train')
         for met_name, met_val in train_metrics.items():
             self.output['train_' + met_name + '_dist'].append(met_val)
-            self.output['train_' + met_name].append(1.0 * sum([client_vol * client_met for client_vol, client_met in zip(self.server.local_data_vols, met_val)]) / self.server.total_data_vol)
+            # self.output['train_' + met_name].append(1.0 * sum([client_vol * client_met for client_vol, client_met in zip(self.server.local_data_vols, met_val)]) / self.server.total_data_vol)
+            self.output['train_' + met_name].append(
+                1.0 * sum([
+                    self.server.clients[client_id].datavol * client_met for client_id, client_met in zip(self.server.selected_clients, met_val)
+                ]) / sum([self.server.clients[client_id].datavol for client_id in self.server.selected_clients])
+            )
         # # calculate weighted averaging and other statistics of metrics on validation datasets across clients
         # valid_metrics = self.server.test_on_clients('valid')
         # for met_name, met_val in valid_metrics.items():
