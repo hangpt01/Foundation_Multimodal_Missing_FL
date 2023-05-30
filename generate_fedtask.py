@@ -9,6 +9,7 @@ def read_option():
     parser.add_argument('--num_clients', help='the number of clients;', type=int, default=100)
     parser.add_argument('--seed', help='random seed;', type=int, default=0)
     parser.add_argument('--percentages', help='percentages of each mono-modality clients;', type=float, nargs='+', default=[0.0, 0.0])
+    parser.add_argument('--missing', help='missing-modality clients;', action='store_true', default=False)
     try: option = vars(parser.parse_args())
     except IOError as msg: parser.error(str(msg))
     return option
@@ -22,6 +23,7 @@ if __name__ == '__main__':
         skewness = option['skew'],
         num_clients=option['num_clients'],
         seed = option['seed'],
-        percentages=option['percentages']
+        percentages=option['percentages'],
+        missing=option['missing']
     )
     generator.run()

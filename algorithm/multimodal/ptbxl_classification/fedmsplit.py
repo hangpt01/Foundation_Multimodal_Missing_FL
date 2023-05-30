@@ -12,6 +12,7 @@ class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 12
+        self.specific_leads = [2, 6, 10]
 
     def run(self):
         """
@@ -58,7 +59,7 @@ class Server(BasicServer):
         conmmunitcation_result = self.communicate(self.selected_clients)
         models = conmmunitcation_result['model']
         modalities_list = conmmunitcation_result['modalities']
-        self.aggregate(models, modalities_list)
+        self.model = self.aggregate(models, modalities_list)
         return
 
     @torch.no_grad()
@@ -119,8 +120,16 @@ class Server(BasicServer):
             ]) / sum([
                 A[-1, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in range(n_models)
             ])
-        # import pdb; pdb.set_trace()
-        return
+        
+        new_model = copy.deepcopy(self.model)
+        for m in self.specific_leads:
+            new_model.feature_extractors[m] = fmodule._model_average([
+                self.clients[self.selected_clients[l]].local_model.feature_extractors[m] for l in modal_dict[m]
+            ])
+        new_model.classifier = fmodule._model_average([
+            self.clients[self.selected_clients[l]].local_model.classifier for l in range(n_models)
+        ])
+        return new_model
     
     def test(self, model=None):
         """
@@ -137,7 +146,7 @@ class Server(BasicServer):
                 model=model,
                 dataset=self.test_data,
                 batch_size=self.option['test_batch_size'],
-                leads=list(range(self.n_leads))
+                leads=self.specific_leads
             )
         else:
             return None
