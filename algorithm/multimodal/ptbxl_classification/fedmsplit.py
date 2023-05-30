@@ -90,9 +90,9 @@ class Server(BasicServer):
             ])
             dim = params.shape[1]
             att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
-            for k in modal_dict[m]:
-                for l in modal_dict[m]:
-                    A[m, k, l] = att_mat[k, l]
+            for idk, k in enumerate(modal_dict[m]):
+                for idl, l in enumerate(modal_dict[m]):
+                    A[m, k, l] = att_mat[idk, idl]
         # classifier
         params = torch.stack([
             torch.cat([
