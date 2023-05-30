@@ -41,8 +41,8 @@ class TaskPipe(IDXTaskPipe):
                 train_data.extend(valid_data)
             train_datas.append(cls.TaskDataset(origin_train_data, train_data))
             valid_datas.append(cls.TaskDataset(origin_train_data, valid_data))
-            # modalities_list.append(feddata[name]['modalities'])
-            modalities_list.append(list(range(12)))
+            modalities_list.append(feddata[name]['modalities'])
+            # modalities_list.append(list(range(12)))
         return train_datas, valid_datas, test_data, feddata['client_names'], modalities_list
 
 def save_task(generator):

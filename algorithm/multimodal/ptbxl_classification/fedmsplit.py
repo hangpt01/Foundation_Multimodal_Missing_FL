@@ -13,6 +13,7 @@ class Server(BasicServer):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 12
         self.specific_leads = [2, 6, 10]
+        import pdb; pdb.set_trace()
 
     def run(self):
         """
