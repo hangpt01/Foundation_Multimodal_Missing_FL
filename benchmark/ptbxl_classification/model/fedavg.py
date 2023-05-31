@@ -3,7 +3,6 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from utils.fmodule import FModule
-import numpy as np
 
 class InceptionBlock1D(FModule):
     def __init__(self, input_channels):
@@ -109,33 +108,10 @@ class Model(FModule):
     def forward(self, x, y, leads):
         batch_size = y.shape[0]
         features = torch.zeros(size=(batch_size, 128), dtype=torch.float32, device=y.device)
-        leads_features = list()
         for lead in leads:
-            tmp = self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
-            features += tmp
-            leads_features.append(tmp)
+            features += self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
         outputs = self.classifier(features)
         loss = self.criterion(outputs, y.type(torch.int64))
-        labels = y.cpu().numpy().astype(np.int64)
-        unique_labels = np.unique(labels)
-        norm_features = F.normalize(features, p=2, dim=1)
-        contrative_loss = 0.0
-        count = 0
-        for lead_features in leads_features:
-            norm_lead_features = F.normalize(lead_features, p=2, dim=1)
-            simi_mat = norm_features.matmul(norm_lead_features.T)
-            exp_simi_mat = torch.exp(simi_mat / 1.0)
-            for label in unique_labels:
-                positive_idx = np.where(labels == label)[0]
-                negative_idx = np.where(labels != label)[0]
-                positive = exp_simi_mat.diagonal()[positive_idx]
-                negative = exp_simi_mat[positive_idx, :][:, negative_idx].sum(dim=1)
-                contrative_loss -= torch.log(positive / (positive + negative)).sum()
-                negative = exp_simi_mat[negative_idx, :][:, positive_idx].sum(dim=0)
-                contrative_loss -= torch.log(positive / (positive + negative)).sum()
-                count += positive_idx.shape[0] * 2
-        if count > 0:
-            loss += contrative_loss / count
         return loss, outputs
 
 if __name__ == '__main__':

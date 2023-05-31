@@ -8,7 +8,7 @@ python generate_fedtask.py \
 
 python main.py \
     --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing \
-    --model fedmsplit_contrastive \
+    --model fedmsplit_contrastive5 \
     --algorithm multimodal.ptbxl_classification.fedmsplit \
     --sample full \
     --aggregate other \

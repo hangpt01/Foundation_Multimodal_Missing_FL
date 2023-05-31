@@ -135,7 +135,7 @@ class Model(FModule):
                 contrative_loss -= torch.log(positive / (positive + negative)).sum()
                 count += positive_idx.shape[0] * 2
         if count > 0:
-            loss += contrative_loss / count
+            loss += 5.0 * contrative_loss / count
         return loss, outputs
 
 if __name__ == '__main__':
