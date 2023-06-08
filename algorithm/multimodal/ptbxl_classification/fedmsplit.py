@@ -162,7 +162,7 @@ class Server(BasicServer):
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
-            client_metrics = c.test(self.model, dataflag)
+            client_metrics = c.test(c.local_model, dataflag)
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
         return all_metrics

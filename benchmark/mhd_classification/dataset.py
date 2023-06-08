@@ -61,6 +61,7 @@ class MHDDataset(Dataset):
         image = self.images[index]
         if self.image_transform is not None:
             image = self.image_transform(image)
+        # import pdb; pdb.set_trace()
 
         audio = unstack_tensor(self.sounds[index]).unsqueeze(0)
         audio_perm = audio.permute(0, 2, 1)
@@ -92,8 +93,9 @@ if __name__ == '__main__':
         train=False,
         download=True
     )
-    from torch.utils.data import DataLoader
-    loader = DataLoader(dataset, batch_size=5)
-    for batch in loader:
-        import pdb; pdb.set_trace()
-        break
+    dataset[0]
+    # from torch.utils.data import DataLoader
+    # loader = DataLoader(dataset, batch_size=5)
+    # for batch in loader:
+    #     import pdb; pdb.set_trace()
+    #     break
