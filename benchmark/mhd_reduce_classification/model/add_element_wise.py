@@ -3,6 +3,14 @@ from torch import nn
 import torch.nn.functional as F
 from utils.fmodule import FModule
 
+# IMAGE_LATENT_DIM = 64
+# SOUND_LATENT_DIM = 128
+# TRAJECTORY_LATENT_DIM = 16
+# IMAGE_LATENT_DIM = 32
+# SOUND_LATENT_DIM = 32
+# TRAJECTORY_LATENT_DIM = 32
+COMMON_DIM = 32
+
 class ImageExtractor(FModule):
     def __init__(self):
         super(ImageExtractor, self).__init__()
@@ -10,8 +18,7 @@ class ImageExtractor(FModule):
         self.conv2 = nn.Conv2d(32, 64, 4, 2, 1, bias=False)
         self.ln1 = nn.Linear(3136, 128, True)
         self.ln2 = nn.Linear(128, 128, True)
-        # self.ln3 = nn.Linear(128, 64, True)
-        self.ln3 = nn.Linear(128, 128, True)
+        self.ln3 = nn.Linear(128, COMMON_DIM, True)
     def forward(self, x):
         x = self.conv1(x)
         x = x * torch.sigmoid(x)
@@ -34,7 +41,7 @@ class SoundExtractor(FModule):
         self.bn2 = nn.BatchNorm2d(128)
         self.conv3 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(4, 1), stride=(2, 1), padding=(1, 0), bias=False)
         self.bn3 = nn.BatchNorm2d(256)
-        self.ln1 = nn.Linear(2048, 128, True)
+        self.ln1 = nn.Linear(2048, COMMON_DIM, True)
 
     def forward(self, x):
         x = F.relu(self.bn1(self.conv1(x)))
@@ -56,8 +63,7 @@ class TrajectoryExtractor(FModule):
         self.ln3 = nn.Linear(512, 512, True)
         self.bn3 = nn.BatchNorm1d(512)
         self.lrl3 = nn.LeakyReLU(0.01)
-        # self.ln4 = nn.Linear(512, 16, True)
-        self.ln4 = nn.Linear(512, 128, True)
+        self.ln4 = nn.Linear(512, COMMON_DIM, True)
     def forward(self, x):
         x = self.ln1(x)
         x = self.bn1(x)
@@ -70,66 +76,11 @@ class TrajectoryExtractor(FModule):
         x = self.lrl3(x)
         x = self.ln4(x)
         return x
-    
-class ImageProjector(FModule):
-    def __init__(self):
-        super(ImageProjector, self).__init__()
-        # self.ln = nn.Linear(64, 64, True)
-        self.ln = nn.Linear(128, 64, True)
-    def forward(self, x):
-        return self.ln(x)
-    
-class SoundProjector(FModule):
-    def __init__(self):
-        super(SoundProjector, self).__init__()
-        self.ln = nn.Linear(128, 64, True)
-    def forward(self, x):
-        return self.ln(x)
-    
-class TrajectoryProjector(FModule):
-    def __init__(self):
-        super(TrajectoryProjector, self).__init__()
-        # self.ln = nn.Linear(16, 64, True)
-        self.ln = nn.Linear(128, 64, True)
-    def forward(self, x):
-        return self.ln(x)
-    
-class ImageSoundProjector(FModule):
-    def __init__(self):
-        super(ImageSoundProjector, self).__init__()
-        # self.ln = nn.Linear(64 + 128, 64, True)
-        self.ln = nn.Linear(128 + 128, 64, True)
-    def forward(self, x):
-        return self.ln(x)
-    
-class ImageTrajectoryProjector(FModule):
-    def __init__(self):
-        super(ImageTrajectoryProjector, self).__init__()
-        # self.ln = nn.Linear(64 + 16, 64, True)
-        self.ln = nn.Linear(128 + 128, 64, True)
-    def forward(self, x):
-        return self.ln(x)
-    
-class SoundTrajectoryProjector(FModule):
-    def __init__(self):
-        super(SoundTrajectoryProjector, self).__init__()
-        # self.ln = nn.Linear(128 + 16, 64, True)
-        self.ln = nn.Linear(128 + 128, 64, True)
-    def forward(self, x):
-        return self.ln(x)
-    
-class ImageSoundTrajectoryProjector(FModule):
-    def __init__(self):
-        super(ImageSoundTrajectoryProjector, self).__init__()
-        # self.ln = nn.Linear(64 + 128 + 16, 64, True)
-        self.ln = nn.Linear(128 + 128 + 128, 64, True)
-    def forward(self, x):
-        return self.ln(x)
 
 class Classifier(FModule):
     def __init__(self):
         super(Classifier, self).__init__()
-        self.ln = nn.Linear(64, 10, True)
+        self.ln = nn.Linear(COMMON_DIM, 10, True)
     def forward(self, x):
         return self.ln(x)
 
@@ -145,17 +96,6 @@ class Model(FModule):
             "image": ImageExtractor(),
             "sound": SoundExtractor(),
             "trajectory": TrajectoryExtractor()
-        })
-        
-        # projectors
-        self.projectors = nn.ModuleDict({
-            "image": ImageProjector(),
-            "sound": SoundProjector(),
-            "trajectory": TrajectoryProjector(),
-            "image+sound": ImageSoundProjector(),
-            "image+trajectory": ImageTrajectoryProjector(),
-            "sound+trajectory": SoundTrajectoryProjector(),
-            "image+sound+trajectory": ImageSoundTrajectoryProjector()
         })
 
         # classifier

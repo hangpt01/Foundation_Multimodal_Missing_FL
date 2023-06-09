@@ -4,6 +4,14 @@ from torch.autograd import Variable
 import torch.nn.functional as F
 from utils.fmodule import FModule
 
+# IMAGE_LATENT_DIM = 64
+# SOUND_LATENT_DIM = 128
+# TRAJECTORY_LATENT_DIM = 16
+IMAGE_LATENT_DIM = 32
+SOUND_LATENT_DIM = 32
+TRAJECTORY_LATENT_DIM = 32
+# COMMON_DIM = 32
+
 class ImageEncoder(FModule):
     def __init__(self):
         super(ImageEncoder, self).__init__()
@@ -11,8 +19,8 @@ class ImageEncoder(FModule):
         self.conv2 = nn.Conv2d(32, 64, 4, 2, 1, bias=False)
         self.ln1 = nn.Linear(3136, 128, True)
         self.ln2 = nn.Linear(128, 128, True)
-        self.ln_mu = nn.Linear(128, 64, True)
-        self.ln_logvar = nn.Linear(128, 64, True)
+        self.ln_mu = nn.Linear(128, IMAGE_LATENT_DIM, True)
+        self.ln_logvar = nn.Linear(128, IMAGE_LATENT_DIM, True)
     def forward(self, x):
         x = self.conv1(x)
         x = x * torch.sigmoid(x)
@@ -30,7 +38,7 @@ class ImageEncoder(FModule):
 class ImageDecoder(FModule):
     def __init__(self):
         super(ImageDecoder, self).__init__()
-        self.ln1 = nn.Linear(64, 128, True)
+        self.ln1 = nn.Linear(IMAGE_LATENT_DIM, 128, True)
         self.ln2 = nn.Linear(128, 128, True)
         self.ln3 = nn.Linear(128, 3136, True)
         self.deconv1 = nn.ConvTranspose2d(64, 32, 4, 2, 1, bias=False)
@@ -58,8 +66,8 @@ class SoundEncoder(FModule):
         self.bn2 = nn.BatchNorm2d(128)
         self.conv3 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(4, 1), stride=(2, 1), padding=(1, 0), bias=False)
         self.bn3 = nn.BatchNorm2d(256)
-        self.ln_mu = nn.Linear(2048, 128, True)
-        self.ln_logvar = nn.Linear(2048, 128, True)
+        self.ln_mu = nn.Linear(2048, SOUND_LATENT_DIM, True)
+        self.ln_logvar = nn.Linear(2048, SOUND_LATENT_DIM, True)
     def forward(self, x):
         x = F.relu(self.bn1(self.conv1(x)))
         x = F.relu(self.bn2(self.conv2(x)))
@@ -72,7 +80,7 @@ class SoundEncoder(FModule):
 class SoundDecoder(FModule):
     def __init__(self):
         super(SoundDecoder, self).__init__()
-        self.ln = nn.Linear(128, 2048, True)
+        self.ln = nn.Linear(SOUND_LATENT_DIM, 2048, True)
         self.bn1 = nn.BatchNorm1d(2048)
         self.deconv1 = nn.ConvTranspose2d(in_channels=256, out_channels=128, kernel_size=(4, 1), stride=(2, 1), padding=(1, 0), bias=False)
         self.bn2 = nn.BatchNorm2d(128)
@@ -106,8 +114,8 @@ class TrajectoryEncoder(FModule):
         self.ln3 = nn.Linear(512, 512, True)
         self.bn3 = nn.BatchNorm1d(512)
         self.lrl3 = nn.LeakyReLU(0.01)
-        self.ln_mu = nn.Linear(512, 16, True)
-        self.ln_logvar = nn.Linear(512, 16, True)
+        self.ln_mu = nn.Linear(512, TRAJECTORY_LATENT_DIM, True)
+        self.ln_logvar = nn.Linear(512, TRAJECTORY_LATENT_DIM, True)
     def forward(self, x):
         x = self.ln1(x)
         x = self.bn1(x)
@@ -125,7 +133,7 @@ class TrajectoryEncoder(FModule):
 class TrajectoryDecoder(FModule):
     def __init__(self):
         super(TrajectoryDecoder, self).__init__()
-        self.ln1 = nn.Linear(16, 512, True)
+        self.ln1 = nn.Linear(TRAJECTORY_LATENT_DIM, 512, True)
         self.bn1 = nn.BatchNorm1d(512)
         self.lrl1 = nn.LeakyReLU(0.01)
         self.ln2 = nn.Linear(512, 512, True)

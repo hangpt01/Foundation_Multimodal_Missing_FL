@@ -9,6 +9,7 @@ from utils.fflow import setup_seed
 import numpy as np
 from tqdm.auto import tqdm
 import wandb
+from sklearn.metrics import accuracy_score
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--lr', help='learning rate;', type=float)
@@ -44,73 +45,66 @@ elif option['lr_scheduler_type'] == 'cosine':
 else:
     scheduler = None
 
-key = "+".join(option['modalities']) if option['modalities'] else "image+sound+trajectory"
+experiment_key = "+".join(option['modalities']) if option['modalities'] else "image+sound+trajectory"
 
 if option['wandb']:
     wandb.init(
         entity="aiotlab",
         project='FLMultimodal',
-        name=key,
+        name=experiment_key,
         group='mhd_cvae_centralized',
         tags=[],
         config=option
     )
-
-model.eval()
-train_image_recon_loss = 0.0
-train_image_kl_div = 0.0
-train_sound_recon_loss = 0.0
-train_sound_kl_div = 0.0
-train_trajectory_recon_loss = 0.0
-train_trajectory_kl_div = 0.0
-test_image_recon_loss = 0.0
-test_image_kl_div = 0.0
-test_sound_recon_loss = 0.0
-test_sound_kl_div = 0.0
-test_trajectory_recon_loss = 0.0
-test_trajectory_kl_div = 0.0
-with torch.no_grad():
-    for batch in train_loader:
-        if option['modalities']:
-            x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
-        else:
+    model.eval()
+    step_log = {
+        'train_image_recon_loss': 0.0,
+        'train_image_kl_div': 0.0,
+        'train_sound_recon_loss': 0.0,
+        'train_sound_kl_div': 0.0,
+        'train_trajectory_recon_loss': 0.0,
+        'train_trajectory_kl_div': 0.0,
+        'test_image_recon_loss': 0.0,
+        'test_image_kl_div': 0.0,
+        'test_sound_recon_loss': 0.0,
+        'test_sound_kl_div': 0.0,
+        'test_trajectory_recon_loss': 0.0,
+        'test_trajectory_kl_div': 0.0
+    }
+    test_predict = dict()
+    with torch.no_grad():
+        for batch in train_loader:
+            if option['modalities']:
+                x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
+            else:
+                x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
+            y = batch[1].to(device)
+            loss = model(x, y)
+            for key, value in loss.items():
+                step_log['train_{}'.format(key)] += value * batch[1].shape[0]
+        for batch in test_loader:
+            if option['modalities']:
+                x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
+            else:
+                x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
+            y = batch[1].to(device)
+            loss = model(x, y)
+            for key, value in loss.items():
+                step_log['test_{}'.format(key)] += value * batch[1].shape[0]
             x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
-        y = batch[1].to(device)
-        loss = model(x, y)
-        train_image_recon_loss += loss['image_recon_loss'] * batch[1].shape[0]
-        train_image_kl_div += loss['image_kl_div'] * batch[1].shape[0]
-        train_sound_recon_loss += loss['sound_recon_loss'] * batch[1].shape[0]
-        train_sound_kl_div += loss['sound_kl_div'] * batch[1].shape[0]
-        train_trajectory_recon_loss += loss['trajectory_recon_loss'] * batch[1].shape[0]
-        train_trajectory_kl_div += loss['trajectory_kl_div'] * batch[1].shape[0]
-    for batch in test_loader:
-        if option['modalities']:
-            x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
+            predict = model.predict(x, mean=True, mc_n_list=[1])
+            for key, value in predict.items():
+                if key not in test_predict.keys():
+                    test_predict[key] = list()
+                test_predict[key].extend(value.cpu().tolist())
+    for key, value in step_log.items():
+        if key.startswith('train'):
+            step_log[key] = value / len(trainset)
         else:
-            x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
-        y = batch[1].to(device)
-        loss = model(x, y)
-        test_image_recon_loss += loss['image_recon_loss'] * batch[1].shape[0]
-        test_image_kl_div += loss['image_kl_div'] * batch[1].shape[0]
-        test_sound_recon_loss += loss['sound_recon_loss'] * batch[1].shape[0]
-        test_sound_kl_div += loss['sound_kl_div'] * batch[1].shape[0]
-        test_trajectory_recon_loss += loss['trajectory_recon_loss'] * batch[1].shape[0]
-        test_trajectory_kl_div += loss['trajectory_kl_div'] * batch[1].shape[0]
-if option['wandb']:
-    wandb.log({
-        'train_image_recon_loss': train_image_recon_loss / len(trainset),
-        'train_image_kl_div': train_image_kl_div / len(trainset),
-        'train_sound_recon_loss': train_sound_recon_loss / len(trainset),
-        'train_sound_kl_div': train_sound_kl_div / len(trainset),
-        'train_trajectory_recon_loss': train_trajectory_recon_loss / len(trainset),
-        'train_trajectory_kl_div': train_trajectory_kl_div / len(trainset),
-        'test_image_recon_loss': test_image_recon_loss / len(testset),
-        'test_image_kl_div': test_image_kl_div / len(testset),
-        'test_sound_recon_loss': test_sound_recon_loss / len(testset),
-        'test_sound_kl_div': test_sound_kl_div / len(testset),
-        'test_trajectory_recon_loss': test_trajectory_recon_loss / len(testset),
-        'test_trajectory_kl_div': test_trajectory_kl_div / len(testset),
-    })
+            step_log[key] = value / len(testset)
+    for key, value in test_predict.items():
+        step_log['test_{}_acc'.format(key)] = accuracy_score(testset.labels, np.array(value))
+    wandb.log(step_log)
 for epoch in tqdm(range(option['epochs'])):
     model.train()
     for index, batch in enumerate(train_loader):
@@ -128,60 +122,55 @@ for epoch in tqdm(range(option['epochs'])):
         optimizer.step()
         if option['lr_scheduler_type'] == 'cosine':
             scheduler.step()
-    model.eval()
-    train_image_recon_loss = 0.0
-    train_image_kl_div = 0.0
-    train_sound_recon_loss = 0.0
-    train_sound_kl_div = 0.0
-    train_trajectory_recon_loss = 0.0
-    train_trajectory_kl_div = 0.0
-    test_image_recon_loss = 0.0
-    test_image_kl_div = 0.0
-    test_sound_recon_loss = 0.0
-    test_sound_kl_div = 0.0
-    test_trajectory_recon_loss = 0.0
-    test_trajectory_kl_div = 0.0
-    with torch.no_grad():
-        for batch in train_loader:
-            if option['modalities']:
-                x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
-            else:
-                x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
-            y = batch[1].to(device)
-            loss = model(x, y)
-            train_image_recon_loss += loss['image_recon_loss'] * batch[1].shape[0]
-            train_image_kl_div += loss['image_kl_div'] * batch[1].shape[0]
-            train_sound_recon_loss += loss['sound_recon_loss'] * batch[1].shape[0]
-            train_sound_kl_div += loss['sound_kl_div'] * batch[1].shape[0]
-            train_trajectory_recon_loss += loss['trajectory_recon_loss'] * batch[1].shape[0]
-            train_trajectory_kl_div += loss['trajectory_kl_div'] * batch[1].shape[0]
-        for batch in test_loader:
-            if option['modalities']:
-                x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
-            else:
-                x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
-            y = batch[1].to(device)
-            loss = model(x, y)
-            test_image_recon_loss += loss['image_recon_loss'] * batch[1].shape[0]
-            test_image_kl_div += loss['image_kl_div'] * batch[1].shape[0]
-            test_sound_recon_loss += loss['sound_recon_loss'] * batch[1].shape[0]
-            test_sound_kl_div += loss['sound_kl_div'] * batch[1].shape[0]
-            test_trajectory_recon_loss += loss['trajectory_recon_loss'] * batch[1].shape[0]
-            test_trajectory_kl_div += loss['trajectory_kl_div'] * batch[1].shape[0]
-    if option['wandb']:
-        wandb.log({
-            'train_image_recon_loss': train_image_recon_loss / len(trainset),
-            'train_image_kl_div': train_image_kl_div / len(trainset),
-            'train_sound_recon_loss': train_sound_recon_loss / len(trainset),
-            'train_sound_kl_div': train_sound_kl_div / len(trainset),
-            'train_trajectory_recon_loss': train_trajectory_recon_loss / len(trainset),
-            'train_trajectory_kl_div': train_trajectory_kl_div / len(trainset),
-            'test_image_recon_loss': test_image_recon_loss / len(testset),
-            'test_image_kl_div': test_image_kl_div / len(testset),
-            'test_sound_recon_loss': test_sound_recon_loss / len(testset),
-            'test_sound_kl_div': test_sound_kl_div / len(testset),
-            'test_trajectory_recon_loss': test_trajectory_recon_loss / len(testset),
-            'test_trajectory_kl_div': test_trajectory_kl_div / len(testset),
-        })
     if scheduler and (option['lr_scheduler_type'] != 'cosine'):
         scheduler.step()
+    if option['wandb']:
+        model.eval()
+        step_log = {
+            'train_image_recon_loss': 0.0,
+            'train_image_kl_div': 0.0,
+            'train_sound_recon_loss': 0.0,
+            'train_sound_kl_div': 0.0,
+            'train_trajectory_recon_loss': 0.0,
+            'train_trajectory_kl_div': 0.0,
+            'test_image_recon_loss': 0.0,
+            'test_image_kl_div': 0.0,
+            'test_sound_recon_loss': 0.0,
+            'test_sound_kl_div': 0.0,
+            'test_trajectory_recon_loss': 0.0,
+            'test_trajectory_kl_div': 0.0
+        }
+        test_predict = dict()
+        with torch.no_grad():
+            for batch in train_loader:
+                if option['modalities']:
+                    x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
+                else:
+                    x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
+                y = batch[1].to(device)
+                loss = model(x, y)
+                for key, value in loss.items():
+                    step_log['train_{}'.format(key)] += value * batch[1].shape[0]
+            for batch in test_loader:
+                if option['modalities']:
+                    x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
+                else:
+                    x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
+                y = batch[1].to(device)
+                loss = model(x, y)
+                for key, value in loss.items():
+                    step_log['test_{}'.format(key)] += value * batch[1].shape[0]
+                x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
+                predict = model.predict(x, mean=True, mc_n_list=[1])
+                for key, value in predict.items():
+                    if key not in test_predict.keys():
+                        test_predict[key] = list()
+                    test_predict[key].extend(value.cpu().tolist())
+        for key, value in step_log.items():
+            if key.startswith('train'):
+                step_log[key] = value / len(trainset)
+            else:
+                step_log[key] = value / len(testset)
+        for key, value in test_predict.items():
+            step_log['test_{}_acc'.format(key)] = accuracy_score(testset.labels, np.array(value))
+        wandb.log(step_log)
