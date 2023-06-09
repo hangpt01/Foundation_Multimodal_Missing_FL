@@ -6,7 +6,6 @@ def unstack_array(array, axis=0):
     array_list = list()
     for i in range(array.shape[axis]):
         array_list.append(array[i])
-    # import pdb; pdb.set_trace()
     array_unstack = np.concatenate(array_list, axis=0)
     return array_unstack
 
@@ -37,7 +36,6 @@ class MHDReduceDataset(Dataset):
         Returns:
             tuple: (image, trajectory, sound), label
         """
-        # import pdb; pdb.set_trace()
         image = self.images[index]
 
         audio = np.expand_dims(unstack_array(self.sounds[index]), axis=0)
