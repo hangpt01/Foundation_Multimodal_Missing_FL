@@ -5,11 +5,20 @@ import pickle
 import random
 
 class PTBXLReduceDataset(Dataset):
-    def __init__(self, root, standard_scaler=True, train=True, crop_length=250):
+    def __init__(self, root, download=True, standard_scaler=True, train=True, crop_length=250):
         self.root = root
         self.standard_scaler = standard_scaler
         self.train = train
         self.crop_length = crop_length
+
+        if not os.path.exists(self.root):
+            if download:
+                print('Downloading MHD Dataset...', end=' ')
+                os.makedirs(root, exist_ok=True)
+                os.system('bash ./benchmark/ptbxl_classification/download.sh')
+                print('done!')
+            else:
+                raise RuntimeError('Dataset not found. You can use download=True to download it')
         if self.train:
             self.x = np.load(os.path.join(self.root, 'x_train.npy'))
             self.y = np.load(os.path.join(self.root, 'y_train.npy'))
@@ -21,7 +30,7 @@ class PTBXLReduceDataset(Dataset):
             x_tmp = list()
             for x in self.x:
                 x_shape = x.shape
-                x_tmp.append(self.ss.transform(x.flatten()[:,np.newaxis]).reshape(x_shape))
+                x_tmp.append(self.ss.transform(x.flatten()[:, np.newaxis]).reshape(x_shape))
             self.x = np.array(x_tmp)
     
     def __len__(self):

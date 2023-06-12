@@ -104,11 +104,13 @@ class TaskGen(DefaultTaskGen):
             'class_name': 'PTBXLReduceDataset',
             'train_args': {
                 'root': '"'+self.rawdata_path+'"',
+                'download': 'True',
                 'standard_scaler': 'True',
                 'train':'True'
             },
             'test_args': {
                 'root': '"'+self.rawdata_path+'"',
+                'download': 'True',
                 'standard_scaler': 'True',
                 'train': 'False'
             }
@@ -144,11 +146,13 @@ class TaskGen(DefaultTaskGen):
     def load_data(self):
         self.train_data = PTBXLReduceDataset(
             root=self.rawdata_path,
+            download=True,
             standard_scaler=True,
             train=True
         )
         self.test_data = PTBXLReduceDataset(
             root=self.rawdata_path,
+            download=True,
             standard_scaler=True,
             train=False
         )
