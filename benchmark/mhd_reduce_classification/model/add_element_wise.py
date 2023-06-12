@@ -2,6 +2,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 from utils.fmodule import FModule
+from itertools import chain, combinations
 
 # IMAGE_LATENT_DIM = 64
 # SOUND_LATENT_DIM = 128
@@ -114,17 +115,33 @@ class Model(FModule):
                 nn.init.zeros_(param.data)
 
     def forward(self, samples, labels):
-        modalities = list()
-        features = list()
+        hidden = None
         for key, value in samples.items():
-            features.append(self.feature_extractors[key](value))
-            modalities.append(key)
-        combin_key = '+'.join(modalities)
-        hidden = self.projectors[combin_key](torch.cat(features, dim=1))
+            feature = self.feature_extractors[key](value)
+            if hidden is None:
+                hidden = feature
+            else:
+                hidden += feature
         outputs = self.classifier(hidden)
         loss = self.CELoss(outputs, labels)
         # import pdb; pdb.set_trace()
-        return loss, outputs
+        return loss
+    
+    def predict(self, samples, modalities):
+        outputs_dict = dict()
+        for modality in modalities:
+            outputs_dict[modality] = self.classifier(
+                self.feature_extractors[modality](samples[modality])
+            )
+        result = dict()
+        for combin in chain.from_iterable(
+            combinations(modalities, r + 1) for r in range(len(modalities))
+        ):
+            combin_key = '+'.join(combin)
+            result[combin_key] = torch.stack(
+                [outputs_dict[modality] for modality in combin], dim=-1
+            ).sum(dim=-1).argmax(dim=-1).cpu().numpy()
+        return result
 
 if __name__ == '__main__':
     model = Model()

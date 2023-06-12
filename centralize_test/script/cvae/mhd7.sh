@@ -6,7 +6,7 @@ python centralize_test/main_cvae.py \
     --lr_decay_rate 1.0 \
     --step_size 2 \
     --batch_size 64 \
-    --epochs 100 \
+    --epochs 1000 \
     --seed 1234 \
     --modalities image sound trajectory \
     --wandb

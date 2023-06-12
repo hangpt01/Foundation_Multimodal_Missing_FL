@@ -19,13 +19,12 @@ class BaseCVAE(FModule):
     def reparameterize(self, mu, logvar):
         # Sample epsilon from a random gaussian with 0 mean and 1 variance
         epsilon = Variable(torch.randn(mu.size()), requires_grad=False)
+        # import pdb; pdb.set_trace()
         # Check if cuda is selected
         if mu.is_cuda:
-            epsilon = epsilon.cuda()
+            epsilon = epsilon.to(self.get_device())
         # std = exp(0.5 * log_var)
         std = logvar.mul(0.5).exp_()
-        if torch.isnan(std.sum()) or torch.isinf(std.sum()):
-            import pdb; pdb.set_trace()
         # z = std * epsilon + mu
         return mu.addcmul(std, epsilon)
     def encode(self, x, y):
@@ -53,12 +52,36 @@ class BaseCVAE(FModule):
             'kl_div': kl_div.mean(dim=-1)
         }
     def monte_carlo_sampling(self, x, y, mu, logvar, n):
-        recon_losses = list()
-        for i in range(n):
-            z = self.reparameterize(mu, logvar)
-            out = self.decode(z, y)
-            recon_losses.append(self.calculate_recon_loss(x, out))
-        recon_losses = torch.stack(recon_losses, dim=1)
+        batch_size = mu.size(0)
+        latent_dim = mu.size(1)
+        # Sample epsilon from a random gaussian with 0 mean and 1 variance
+        epsilon = Variable(torch.randn(batch_size, n, latent_dim), requires_grad=False).flatten(start_dim=0, end_dim=1)
+        # Check if cuda is selected
+        if mu.is_cuda:
+            epsilon = epsilon.to(self.get_device())
+        # std = exp(0.5 * log_var)
+        std = logvar.mul(0.5).exp_()
+        # Expand dim
+        mu = mu[:, None, :].expand(-1, n, -1).flatten(start_dim=0, end_dim=1)
+        std = std[:, None, :].expand(-1, n, -1).flatten(start_dim=0, end_dim=1)
+        if len(x.shape) == 4:
+            x = x[:, None, :, :, :].expand(-1, n, -1, -1, -1).flatten(start_dim=0, end_dim=1)
+        elif len(x.shape) == 3:
+            x = x[:, None, :, :].expand(-1, n, -1, -1).flatten(start_dim=0, end_dim=1)
+        elif len(x.shape) == 2:
+            x = x[:, None, :].expand(-1, n, -1).flatten(start_dim=0, end_dim=1)
+        elif len(x.shape) == 1:
+            x = x[:, None].expand(-1, n).flatten(start_dim=0, end_dim=1)
+        else:
+            raise ValueError("Shape of input has more than 4 dimensions!")
+        y = y[:, None].expand(-1, n).flatten(start_dim=0, end_dim=1)
+        # z = std * epsilon + mu
+        z = mu.addcmul(std, epsilon)
+        # Decode
+        out = self.decode(z, y)
+        # Calculate reconstruct losses
+        recon_losses = self.calculate_recon_loss(x, out)
+        recon_losses = recon_losses.view(batch_size, n)
         return recon_losses
     def approximate_nll(self, x, mean, mc_n_list):
         nll_dict = dict()
@@ -71,7 +94,7 @@ class BaseCVAE(FModule):
             return dict()
         for _y in range(0, 10):
             y = torch.ones(size=(x.size(0),)) * _y
-            y = y.type(torch.int64).to(x.device)
+            y = y.type(torch.int64).to(self.get_device())
             mu, logvar = self.encode(x, y)
             kl_div = self.calculate_kl_div(mu, logvar)
             if mean:
@@ -79,7 +102,7 @@ class BaseCVAE(FModule):
                 recon_loss = self.calculate_recon_loss(x, out)
                 nll_dict['mean'].append(recon_loss + kl_div)
             if mc_n_list:
-                recon_losses = self.monte_carlo_sampling(x, y, mu, logvar, mc_n_list[-1])
+                recon_losses = self.monte_carlo_sampling(x, y, mu, logvar, max(mc_n_list))
                 for n in mc_n_list:
                     nll_dict['mc_{}'.format(n)].append(recon_losses[:, :n].mean(dim=-1) + kl_div)
         for key, value in nll_dict.items():
@@ -262,6 +285,13 @@ class Model(FModule):
             'sound': SoundCVAE(),
             'trajectory': TrajectoryCVAE()
         })
+        for name, param in self.named_parameters():
+            if '_bn' in name:
+                continue
+            if 'weight' in name:
+                nn.init.xavier_uniform_(param.data)
+            elif 'bias' in name:
+                nn.init.zeros_(param.data)
     def forward(self, samples, labels):
         loss_details = dict()
         for modality in self.modalities:
@@ -272,8 +302,34 @@ class Model(FModule):
             else:
                 loss_details['{}_recon_loss'.format(modality)] = 0.0
                 loss_details['{}_kl_div'.format(modality)] = 0.0
+        return sum(loss_details.values())
+    def forward_details(self, samples, labels):
+        loss_details = dict()
+        for modality in self.modalities:
+            if modality in samples.keys():
+                cvae_respond = self.cvae_dict[modality](samples[modality], labels)
+                loss_details['{}_recon_loss'.format(modality)] = cvae_respond['recon_loss']
+                loss_details['{}_kl_div'.format(modality)] = cvae_respond['kl_div']
+            else:
+                loss_details['{}_recon_loss'.format(modality)] = 0.0
+                loss_details['{}_kl_div'.format(modality)] = 0.0
         return loss_details
-    def predict(self, samples, mean=True, mc_n_list=[1]):
+    def predict(self, samples, modalities):
+        nll_dict = dict()
+        for modality in modalities:
+            nll_dict[modality] = self.cvae_dict[modality].approximate_nll(
+                samples[modality], True, []
+            )
+        result = dict()
+        for combin in chain.from_iterable(
+            combinations(modalities, r + 1) for r in range(len(modalities))
+        ):
+            combin_key = '+'.join(combin)
+            result[combin_key] = torch.stack(
+                [nll_dict[modality]['mean'] for modality in combin], dim=-1
+            ).sum(dim=-1).argmin(dim=-1).cpu().numpy()
+        return result
+    def predict_more(self, samples, mean=True, mc_n_list=[1]):
         nll_dict = dict()
         for modality in self.modalities:
             nll_dict[modality] = self.cvae_dict[modality].approximate_nll(
@@ -287,8 +343,8 @@ class Model(FModule):
             combin_key = '+'.join(combin)
             for key in keys:
                 result['{}_{}'.format(combin_key, key)] = torch.stack(
-                    [nll_dict[modality][key] for modality in combin], dim=-1
-                ).sum(dim=-1).argmin(dim=-1)
+                    [nll_dict[modality]['mean'] for modality in combin], dim=-1
+                ).sum(dim=-1).argmin(dim=-1).cpu().numpy()
         return result
 if __name__ == '__main__':
     model = Model()
@@ -302,6 +358,6 @@ if __name__ == '__main__':
         y = torch.randint(low=0, high=10, size=(64,), dtype=torch.int64,requires_grad=False)
         # loss = model(x, y)
         # print(loss)
-        result = model.predict(x, mean=True, mc_n_list=[1, 5, 10])
+        result = model.predict(x, model.modalities)
     import pdb; pdb.set_trace()
     # print(sum(p.numel() for p in model.parameters()), sum(p.numel() for p in model.parameters() if p.requires_grad))

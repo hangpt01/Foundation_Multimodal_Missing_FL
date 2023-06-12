@@ -47,8 +47,8 @@ class TaskGen(DefaultTaskGen):
                     ['image'],
                     ['sound'],
                     ['trajectory'],
-                    ['image', 'sound'],
-                    ['image', 'trajectory']
+                    ['image', 'trajectory'],
+                    ['sound', 'trajectory']
                 ],
                 k=self.num_clients
             )
@@ -125,3 +125,47 @@ class TaskPipe(IDXTaskPipe):
             valid_datas.append(cls.TaskDataset(origin_train_data, valid_data))
             modalities_list.append(feddata[name]['modalities'])
         return train_datas, valid_datas, test_data, feddata['client_names'], modalities_list
+    
+
+class TaskCalculator(ClassificationCalculator):
+    def __init__(self, device, optimizer_name='sgd'):
+        super(TaskCalculator, self).__init__(device, optimizer_name)
+
+    def data_to_device(self, data, modalities):
+        sample_to_device = dict()
+        for modal in modalities:
+            sample_to_device[modal] = data[0][modal].to(self.device)
+        return sample_to_device, data[1].to(self.device)
+    
+    def train_one_step(self, model, data, modalities):
+        """
+        :param model: the model to train
+        :param data: the training dataset
+        :return: dict of train-one-step's result, which should at least contains the key 'loss'
+        """
+        tdata = self.data_to_device(data, modalities)
+        loss = model(tdata[0], tdata[1])
+        return {'loss': loss}
+
+    @torch.no_grad()
+    def server_test(self, model, dataset, modalities, batch_size=64, num_workers=0):
+        model.eval()
+        if batch_size == -1:
+            batch_size = len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+        labels = list()
+        predicts = dict()
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data, modalities)
+            labels.extend(batch_data[1].cpu().tolist())
+            outputs = model.predict(batch_data[0], modalities)
+            for combin_key in outputs.keys():
+                if combin_key not in predicts:
+                    predicts[combin_key] = list()
+                predicts[combin_key].extend(outputs[combin_key])
+        labels = np.array(labels)
+        for combin_key, value in predicts.items():
+            predicts[combin_key] = np.array(value)
+        return {
+            combin_key + '_acc': accuracy_score(labels, value) for combin_key, value in predicts.items()
+        }

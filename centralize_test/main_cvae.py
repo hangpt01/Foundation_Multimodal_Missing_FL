@@ -79,24 +79,24 @@ if option['wandb']:
             else:
                 x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
             y = batch[1].to(device)
-            loss = model(x, y)
+            loss = model.forward_details(x, y)
             for key, value in loss.items():
                 step_log['train_{}'.format(key)] += value * batch[1].shape[0]
-        for batch in test_loader:
+        for batch in tqdm(test_loader, desc='Test epoch 0'):
             if option['modalities']:
                 x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
             else:
                 x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
             y = batch[1].to(device)
-            loss = model(x, y)
+            loss = model.forward_details(x, y)
             for key, value in loss.items():
                 step_log['test_{}'.format(key)] += value * batch[1].shape[0]
             x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
-            predict = model.predict(x, mean=True, mc_n_list=[1])
+            predict = model.predict_more(x, mean=True, mc_n_list=[1, 5, 10])
             for key, value in predict.items():
                 if key not in test_predict.keys():
                     test_predict[key] = list()
-                test_predict[key].extend(value.cpu().tolist())
+                test_predict[key].extend(value.tolist())
     for key, value in step_log.items():
         if key.startswith('train'):
             step_log[key] = value / len(trainset)
@@ -105,16 +105,17 @@ if option['wandb']:
     for key, value in test_predict.items():
         step_log['test_{}_acc'.format(key)] = accuracy_score(testset.labels, np.array(value))
     wandb.log(step_log)
-for epoch in tqdm(range(option['epochs'])):
+# for epoch in tqdm(range(option['epochs'])):
+for epoch in range(option['epochs']):
     model.train()
-    for index, batch in enumerate(train_loader):
+    for batch in tqdm(train_loader, desc='Train epoch {}'.format(epoch + 1)):
         if option['modalities']:
             x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
         else:
             x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
         y = batch[1].to(device)
         optimizer.zero_grad()
-        loss = model(x, y)
+        loss = model.forward_details(x, y)
         total_loss = sum(loss.values())
         if torch.isnan(total_loss):
             import pdb; pdb.set_trace()
@@ -148,24 +149,24 @@ for epoch in tqdm(range(option['epochs'])):
                 else:
                     x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
                 y = batch[1].to(device)
-                loss = model(x, y)
+                loss = model.forward_details(x, y)
                 for key, value in loss.items():
                     step_log['train_{}'.format(key)] += value * batch[1].shape[0]
-            for batch in test_loader:
+            for batch in tqdm(test_loader, desc='Test epoch {}'.format(epoch + 1)):
                 if option['modalities']:
                     x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
                 else:
                     x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
                 y = batch[1].to(device)
-                loss = model(x, y)
+                loss = model.forward_details(x, y)
                 for key, value in loss.items():
                     step_log['test_{}'.format(key)] += value * batch[1].shape[0]
                 x = {modal: tensor.to(device) for modal, tensor in batch[0].items()}
-                predict = model.predict(x, mean=True, mc_n_list=[1])
+                predict = model.predict_more(x, mean=True, mc_n_list=[1, 5, 10])
                 for key, value in predict.items():
                     if key not in test_predict.keys():
                         test_predict[key] = list()
-                    test_predict[key].extend(value.cpu().tolist())
+                    test_predict[key].extend(value.tolist())
         for key, value in step_log.items():
             if key.startswith('train'):
                 step_log[key] = value / len(trainset)
