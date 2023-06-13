@@ -11,16 +11,40 @@ import numpy as np
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
-        self.modalities = ['image', 'sound', 'trajectory']
-        self.specific_modalities = ['sound', 'trajectory']
-        self.count = dict()
-        for c in self.clients:
-            self.count[c.name] = {'datavol': c.datavol}
-            for modality in self.modalities:
-                if modality in c.modalities:
-                    self.count[c.name][modality] = c.datavol
-                else:
-                    self.count[c.name][modality] = 0
+        self.n_leads = 12
+        self.specific_leads = [2, 6, 10]
+
+    def run(self):
+        """
+        Start the federated learning symtem where the global model is trained iteratively.
+        """
+        flw.logger.time_start('Total Time Cost')
+        for round in range(1, self.num_rounds+1):
+            self.current_round = round
+            ss.clock.step()
+            # using logger to evaluate the model
+            flw.logger.info("--------------Round {}--------------".format(round))
+            flw.logger.time_start('Time Cost')
+            if flw.logger.check_if_log(round, self.eval_interval) and round > 1:
+                flw.logger.time_start('Eval Time Cost')
+                flw.logger.log_once()
+                flw.logger.time_end('Eval Time Cost')
+            # check if early stopping
+            if flw.logger.early_stop(): break
+            # federated train
+            self.iterate()
+            # decay learning rate
+            self.global_lr_scheduler(round)
+            flw.logger.time_end('Time Cost')
+        flw.logger.info("--------------Final Evaluation--------------")
+        flw.logger.time_start('Eval Time Cost')
+        flw.logger.log_once()
+        flw.logger.time_end('Eval Time Cost')
+        flw.logger.info("=================End==================")
+        flw.logger.time_end('Total Time Cost')
+        # save results as .json file
+        flw.logger.save_output_as_json()
+        return
 
     def iterate(self):
         """
@@ -30,32 +54,32 @@ class Server(BasicServer):
             t: the number of current round
         """
         # sample clients: MD sampling as default
-        self.selected_clients = self.sample()
+        # self.selected_clients = self.sample()
+        self.selected_clients = self.available_clients
+        # import pdb; pdb.set_trace()
         # training
         conmmunitcation_result = self.communicate(self.selected_clients)
         models = conmmunitcation_result['model']
-        names = conmmunitcation_result['name']
-        self.model = self.aggregate(models, names)
+        modalities_list = conmmunitcation_result['modalities']
+        self.model = self.aggregate(models, modalities_list)
         return
 
     @torch.no_grad()
-    def aggregate(self, models: list, names: list):
-        for model, name in zip(models, names):
-            if self.count[name]['sound'] > 0:
-                if np.any(torch.isnan(model.cvae_dict['sound'].encoder_label_embed.bias).tolist()):
-                    print(name, True)
-                else:
-                    print(name, False)
+    def aggregate(self, models: list, modalities_list: list):
         new_model = copy.deepcopy(self.model)
-        for modality in self.modalities:
-            p = np.array([self.count[name][modality] for name in names])
-            if p.sum() == 0:
+        # feature extractor
+        for m in self.specific_leads:
+            p = list()
+            chosen_models = list()
+            for k, client_id in enumerate(self.selected_clients):
+                if m in modalities_list[k]:
+                    p.append(self.clients[client_id].datavol)
+                    chosen_models.append(models[k])
+            if len(p) == 0:
                 continue
-            p = p / p.sum()
-            new_model.cvae_dict[modality] = fmodule._model_sum([
-                model.cvae_dict[modality] * pk for model, pk in zip(models, p)
-            ])
-        import pdb; pdb.set_trace()
+            new_model.lead_specific[m] = fmodule._model_sum([
+                model.lead_specific[m] * pk for model, pk in zip(models, p)
+            ]) / sum(p)
         return new_model
     
     def test(self, model=None):
@@ -69,11 +93,11 @@ class Server(BasicServer):
         # return dict()
         if model is None: model=self.model
         if self.test_data:
-            return self.calculator.server_test(
+            return self.calculator.independent_test(
                 model=model,
                 dataset=self.test_data,
                 batch_size=self.option['test_batch_size'],
-                modalities=self.modalities
+                leads=self.specific_leads
             )
         else:
             return None
@@ -99,7 +123,19 @@ class Server(BasicServer):
 class Client(BasicClient):
     def __init__(self, option, modalities, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
-        self.modalities = modalities
+        self.n_leads = 12
+        self.modalities = [modal for modal in modalities if modal in [2, 6, 10]]
+        if len(self.modalities) == 0:
+            self.available = False
+
+    def is_available(self):
+        """
+        Check if the client is active to participate training.
+        :param
+        :return
+            True if the client is active according to the active_rate else False
+        """
+        return self.available
 
     def pack(self, model):
         """
@@ -112,7 +148,7 @@ class Client(BasicClient):
         """
         return {
             "model" : model,
-            "name": self.name
+            "modalities": self.modalities
         }
 
     @ss.with_completeness
@@ -141,7 +177,7 @@ class Client(BasicClient):
             loss = self.calculator.train_one_step(
                 model=model,
                 data=batch_data,
-                modalities=self.modalities
+                leads=self.modalities
             )['loss']
             loss.backward()
             optimizer.step()
@@ -161,5 +197,5 @@ class Client(BasicClient):
         return self.calculator.test(
             model=model,
             dataset=dataset,
-            modalities=self.modalities
+            leads=self.modalities
         )

@@ -8,8 +8,8 @@ python generate_fedtask.py \
 
 python main.py \
     --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing \
-    --model full_modal \
-    --algorithm multimodal.ptbxl_classification.full_modal \
+    --model independent \
+    --algorithm multimodal.ptbxl_classification.independent \
     --sample full \
     --aggregate other \
     --num_rounds 500 \
@@ -22,5 +22,5 @@ python main.py \
     --test_batch_size 64 \
     --gpu 1 \
     --seed 1234 \
-    --fedmsplit_prox_lambda 0.01 \
+    --fedmsplit_prox_lambda 0.0 \
     --wandb

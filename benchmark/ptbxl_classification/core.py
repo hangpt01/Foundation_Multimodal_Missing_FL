@@ -229,3 +229,28 @@ class TaskCalculator(ClassificationCalculator):
             'loss': total_loss / len(dataset),
             'acc': accuracy
         }
+
+    @torch.no_grad()
+    def independent_test(self, model, dataset, leads, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        labels = list()
+        predicts = list()
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data[1].cpu().tolist())
+            predict = model.predict(batch_data[0], batch_data[-1], leads)
+            predicts.extend(predict.argmax(dim=1).cpu().tolist())
+        predicts = np.array(predicts)
+        accuracy = accuracy_score(labels, predicts)
+        return {
+            'acc': accuracy
+        }
