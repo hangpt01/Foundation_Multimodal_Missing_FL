@@ -107,6 +107,7 @@ class Model(FModule):
 
     def forward(self, x, y, leads):
         batch_size = y.shape[0]
+        # print(batch_size)
         features = torch.zeros(size=(batch_size, 128), dtype=torch.float32, device=y.device)
         for lead in leads:
             features += self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
