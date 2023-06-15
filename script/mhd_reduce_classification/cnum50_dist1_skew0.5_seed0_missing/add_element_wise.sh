@@ -1,13 +1,13 @@
 python generate_fedtask.py \
     --benchmark mhd_reduce_classification \
-    --dist 0 \
-    --skew 0.0 \
+    --dist 1 \
+    --skew 0.5 \
     --num_clients 50 \
     --seed 0 \
     --missing
 
 python main.py \
-    --task mhd_reduce_classification_cnum50_dist0_skew0_seed0_missing \
+    --task mhd_reduce_classification_cnum50_dist1_skew0.5_seed0_missing \
     --model add_element_wise \
     --algorithm multimodal.mhd_reduce_classification.fedavg_add_element_wise \
     --sample full \
@@ -15,6 +15,7 @@ python main.py \
     --num_rounds 500 \
     --proportion 1.0 \
     --num_epochs 2 \
+    --optimizer Adam \
     --learning_rate 0.005 \
     --lr_scheduler 0 \
     --learning_rate_decay 1.0 \

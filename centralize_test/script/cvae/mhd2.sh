@@ -9,4 +9,4 @@ python centralize_test/main_cvae.py \
     --epochs 100 \
     --seed 1234 \
     --modalities sound \
-    --wandb
+    # --wandb

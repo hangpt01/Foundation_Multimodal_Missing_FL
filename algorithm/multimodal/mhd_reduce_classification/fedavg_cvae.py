@@ -40,12 +40,13 @@ class Server(BasicServer):
 
     @torch.no_grad()
     def aggregate(self, models: list, names: list):
-        for model, name in zip(models, names):
-            if self.count[name]['sound'] > 0:
-                if np.any(torch.isnan(model.cvae_dict['sound'].encoder_label_embed.bias).tolist()):
-                    print(name, True)
-                else:
-                    print(name, False)
+        # for model, name in zip(models, names):
+        #     if self.count[name]['sound'] > 0:
+        #         if np.any(torch.isnan(model.cvae_dict['sound'].encoder_label_embed.bias).tolist()):
+        #             print(name, True)
+        #         else:
+        #             print(name, False)
+        # import pdb; pdb.set_trace()
         new_model = copy.deepcopy(self.model)
         for modality in self.modalities:
             p = np.array([self.count[name][modality] for name in names])
@@ -55,7 +56,6 @@ class Server(BasicServer):
             new_model.cvae_dict[modality] = fmodule._model_sum([
                 model.cvae_dict[modality] * pk for model, pk in zip(models, p)
             ])
-        import pdb; pdb.set_trace()
         return new_model
     
     def test(self, model=None):

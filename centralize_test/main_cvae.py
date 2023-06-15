@@ -10,9 +10,13 @@ import numpy as np
 from tqdm.auto import tqdm
 import wandb
 from sklearn.metrics import accuracy_score
+from torch.utils.data import Subset
+import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument('--lr', help='learning rate;', type=float)
+parser.add_argument('--weight_decay', help='weight decay;', type=float, default=0.0)
+parser.add_argument('--momentum', help='momentum;', type=float, default=0.0)
 parser.add_argument('--lr_scheduler_type', help='learning rate scheduler type;', choices=['milestones', 'by_step', 'cosine'], default=None)
 parser.add_argument('--lr_decay_rate', help='learning rate decay rate;', type=float)
 parser.add_argument('--milestones', help='learning rate scheduler milestones;', nargs='+', type=int)
@@ -26,6 +30,9 @@ option = vars(parser.parse_args())
 print(option)
 setup_seed(option['seed'])
 trainset = MHDReduceDataset(train=True)
+with open('./fedtask/mhd_reduce_classification_cnum50_dist0_skew0_seed0_missing/data.json', 'r') as f:
+    indices = json.load(f)['Client00']['dtrain']
+trainset = Subset(trainset, indices)
 testset = MHDReduceDataset(train=False)
 # trainset = MHDDataset(train=True)
 # testset = MHDDataset(train=False)
@@ -34,7 +41,8 @@ test_loader = DataLoader(testset, batch_size=option['batch_size'], shuffle=False
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 model = Model()
-optimizer = torch.optim.SGD(params=model.parameters(), lr=option['lr'])
+# optimizer = torch.optim.SGD(params=model.parameters(), lr=option['lr'], weight_decay=option['weight_decay'], momentum=option['momentum'])
+optimizer = torch.optim.Adam(params=model.parameters(), lr=option['lr'])
 model.to(device)
 if option['lr_scheduler_type'] == 'milestones':
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=option['milestones'], gamma=option['lr_decay_rate'])
@@ -73,7 +81,7 @@ if option['wandb']:
     }
     test_predict = dict()
     with torch.no_grad():
-        for batch in train_loader:
+        for batch in tqdm(train_loader, desc='Epoch 0: Test on train'):
             if option['modalities']:
                 x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
             else:
@@ -82,7 +90,7 @@ if option['wandb']:
             loss = model.forward_details(x, y)
             for key, value in loss.items():
                 step_log['train_{}'.format(key)] += value * batch[1].shape[0]
-        for batch in tqdm(test_loader, desc='Test epoch 0'):
+        for batch in tqdm(test_loader, desc='Epoch 0: Test on test'):
             if option['modalities']:
                 x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
             else:
@@ -105,10 +113,9 @@ if option['wandb']:
     for key, value in test_predict.items():
         step_log['test_{}_acc'.format(key)] = accuracy_score(testset.labels, np.array(value))
     wandb.log(step_log)
-# for epoch in tqdm(range(option['epochs'])):
 for epoch in range(option['epochs']):
     model.train()
-    for batch in tqdm(train_loader, desc='Train epoch {}'.format(epoch + 1)):
+    for batch in tqdm(train_loader, desc='Epoch {}: Train'.format(epoch + 1)):
         if option['modalities']:
             x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
         else:
@@ -143,7 +150,7 @@ for epoch in range(option['epochs']):
         }
         test_predict = dict()
         with torch.no_grad():
-            for batch in train_loader:
+            for batch in tqdm(train_loader, desc='Epoch {}: Test on train'.format(epoch + 1)):
                 if option['modalities']:
                     x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
                 else:
@@ -152,7 +159,7 @@ for epoch in range(option['epochs']):
                 loss = model.forward_details(x, y)
                 for key, value in loss.items():
                     step_log['train_{}'.format(key)] += value * batch[1].shape[0]
-            for batch in tqdm(test_loader, desc='Test epoch {}'.format(epoch + 1)):
+            for batch in tqdm(test_loader, desc='Epoch {}: Test on test'.format(epoch + 1)):
                 if option['modalities']:
                     x = {modal: batch[0][modal].to(device) for modal in option['modalities']}
                 else:
