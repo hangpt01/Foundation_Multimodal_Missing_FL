@@ -343,7 +343,7 @@ class Model(FModule):
             combin_key = '+'.join(combin)
             for key in keys:
                 result['{}_{}'.format(combin_key, key)] = torch.stack(
-                    [nll_dict[modality]['mean'] for modality in combin], dim=-1
+                    [nll_dict[modality][key] for modality in combin], dim=-1
                 ).sum(dim=-1).argmin(dim=-1).cpu().numpy()
         return result
 if __name__ == '__main__':
