@@ -108,6 +108,34 @@ class BaseCVAE(FModule):
         for key, value in nll_dict.items():
             nll_dict[key] = torch.stack(value, dim=1)
         return nll_dict
+    def approximate_nll_details(self, x, mean, mc_n_list):
+        nll_dict = dict()
+        nll_dict['kl_div'] = list()
+        if mean:
+            nll_dict['mean'] = list()
+        if mc_n_list:
+            for n in mc_n_list:
+                nll_dict['mc_{}'.format(n)] = list()
+        if len(nll_dict) == 0:
+            return dict()
+        for _y in range(0, 10):
+            y = torch.ones(size=(x.size(0),)) * _y
+            y = y.type(torch.int64).to(self.get_device())
+            mu, logvar = self.encode(x, y)
+            kl_div = self.calculate_kl_div(mu, logvar)
+            nll_dict['kl_div'].append(kl_div)
+            if mean:
+                out = self.decode(mu, y)
+                recon_loss = self.calculate_recon_loss(x, out)
+                nll_dict['mean'].append(recon_loss)
+            if mc_n_list:
+                recon_losses = self.monte_carlo_sampling(x, y, mu, logvar, max(mc_n_list))
+                for n in mc_n_list:
+                    nll_dict['mc_{}'.format(n)].append(recon_losses[:, :n].mean(dim=-1))
+        for key, value in nll_dict.items():
+            nll_dict[key] = torch.stack(value, dim=1)
+        # import pdb; pdb.set_trace()
+        return nll_dict
 
 class ImageCVAE(BaseCVAE):
     def __init__(self):
@@ -346,6 +374,13 @@ class Model(FModule):
                     [nll_dict[modality][key] for modality in combin], dim=-1
                 ).sum(dim=-1).argmin(dim=-1).cpu().numpy()
         return result
+    def predict_details(self, samples, mean=True, mc_n_list=[1]):
+        nll_dict = dict()
+        for modality in self.modalities:
+            nll_dict[modality] = self.cvae_dict[modality].approximate_nll_details(
+                samples[modality], mean, mc_n_list
+            )
+        return nll_dict
 if __name__ == '__main__':
     model = Model()
     model.eval()
