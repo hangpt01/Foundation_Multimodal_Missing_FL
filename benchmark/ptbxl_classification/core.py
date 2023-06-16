@@ -254,3 +254,18 @@ class TaskCalculator(ClassificationCalculator):
         return {
             'acc': accuracy
         }
+        
+    @torch.no_grad()
+    def independent_test_detail(self, model, dataset, leads, batch_size=64, num_workers=0):
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=1, num_workers=num_workers)
+        labels = list()
+        
+        fin_output = []
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data[1].cpu().tolist())
+            fin_output.append(model.predict_detail(batch_data[0], batch_data[-1], leads))
+        
+        return fin_output
