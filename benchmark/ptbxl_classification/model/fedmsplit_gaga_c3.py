@@ -92,6 +92,7 @@ class RelationEmbedder(FModule):
         super(RelationEmbedder, self).__init__()
         self.input_channels = 2     # Case 3
         self.relation_embedder = nn.Embedding(self.input_channels,128)
+        nn.init.uniform_(self.relation_embedder.weight, -1.0, 1.0)
 
     def forward(self, device, has_modal=True):
         if has_modal:
@@ -106,7 +107,7 @@ class Classifier(FModule):
         self.ln1 = nn.Linear(128*12, 128, True)
         self.ln2 = nn.Linear(128, 10, True)
     
-    def forward(self, x):
+    def forward(self, x):       #()
         return self.ln2(F.relu(self.ln1(x)))
     
 class Model(FModule):
