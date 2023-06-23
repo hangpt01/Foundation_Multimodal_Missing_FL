@@ -86,8 +86,20 @@ def save_task(generator):
         ujson.dump(feddata, outf)
     return
     
+
+def iid_partition(generator):
+    print(generator)
+    labels = np.unique(generator.train_data.y)
+    local_datas = [[] for _ in range(generator.num_clients)]
+    for label in labels:
+        permutation = np.random.permutation(np.where(generator.train_data.y == label)[0])
+        split = np.array_split(permutation, generator.num_clients)
+        for i, idxs in enumerate(split):
+            local_datas[i] += idxs.tolist()
+    return local_datas
+
 class TaskGen(DefaultTaskGen):
-    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, percentages=None, missing=False):
+    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, percentages=None, missing=False, modal_equality=False):
         super(TaskGen, self).__init__(benchmark='ptbxl_classification',
                                       dist_id=dist_id,
                                       num_clients=num_clients,
@@ -96,6 +108,8 @@ class TaskGen(DefaultTaskGen):
                                       local_hld_rate=local_hld_rate,
                                       seed = seed
                                       )
+        if self.dist_id == 0:
+            self.partition = iid_partition
         self.num_classes = 10
         self.save_task = save_task
         self.visualize = self.visualize_by_class
@@ -116,32 +130,59 @@ class TaskGen(DefaultTaskGen):
             }
         }
         self.missing = missing
+        self.modal_equality = modal_equality
         self.specific_leads = None
         if self.missing and self.num_clients == 20:
-            self.specific_leads = [
-                (4, 5, 8),
-                (4, 5),
-                (2, 3, 5, 9),
-                (1, 3, 7, 8, 11),
-                (5, 6, 8, 9),
-                (0, 2, 3, 5, 8, 9),
-                (0, 2, 3, 5),
-                (0, 1, 3, 5),
-                (0, 3, 5, 10, 11),
-                (1, 4, 6),
-                (8, 9, 11),
-                (0, 3, 5, 6, 7, 11),
-                (2, 3, 4, 5, 7),
-                (0, 4, 7, 8),
-                (0, 3, 4, 6, 7),
-                (1, 5, 6, 7, 8),
-                (0, 1, 3, 4, 10),
-                (2, 4, 5, 7, 9, 11),
-                (3, 4, 5, 8, 10, 11),
-                (0, 1, 3, 7, 9, 11)
-            ]
-            self.taskname = self.taskname + '_missing'
-            self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+            if self.modal_equality:
+                self.specific_leads = [
+                    (4, 7, 8, 9, 10, 11),
+                    (0, 2, 5, 7, 9, 11),
+                    (1, 2, 3, 7, 9, 11),
+                    (1, 3, 4, 6, 7, 9),
+                    (0, 1, 4, 5, 10, 11),
+                    (0, 1, 2, 3, 8, 9),
+                    (0, 1, 3, 6, 7, 8),
+                    (2, 3, 4, 5, 7, 11),
+                    (0, 3, 4, 7, 10, 11),
+                    (1, 3, 4, 5, 7, 10),
+                    (0, 3, 4, 9, 10, 11),
+                    (0, 2, 3, 4, 7, 8),
+                    (1, 3, 5, 6, 7, 8),
+                    (0, 1, 5, 7, 8, 10),
+                    (0, 6, 7, 8, 9, 11),
+                    (0, 4, 5, 6, 7, 8),
+                    (0, 5, 6, 7, 8, 9),
+                    (0, 1, 2, 3, 5, 9),
+                    (3, 4, 5, 7, 8, 9),
+                    (1, 5, 7, 8, 9, 11)
+                ]
+                self.taskname = self.taskname + '_missing_modal_equality'
+                self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+            else:
+                self.specific_leads = [
+                    (4, 5, 8),
+                    (4, 5),
+                    (2, 3, 5, 9),
+                    (1, 3, 7, 8, 11),
+                    (5, 6, 8, 9),
+                    (0, 2, 3, 5, 8, 9),
+                    (0, 2, 3, 5),
+                    (0, 1, 3, 5),
+                    (0, 3, 5, 10, 11),
+                    (1, 4, 6),
+                    (8, 9, 11),
+                    (0, 3, 5, 6, 7, 11),
+                    (2, 3, 4, 5, 7),
+                    (0, 4, 7, 8),
+                    (0, 3, 4, 6, 7),
+                    (1, 5, 6, 7, 8),
+                    (0, 1, 3, 4, 10),
+                    (2, 4, 5, 7, 9, 11),
+                    (3, 4, 5, 8, 10, 11),
+                    (0, 1, 3, 7, 9, 11)
+                ]
+                self.taskname = self.taskname + '_missing'
+                self.taskpath = os.path.join(self.task_rootpath, self.taskname)
 
     def load_data(self):
         self.train_data = PTBXLReduceDataset(
