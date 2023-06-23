@@ -101,15 +101,24 @@ class RelationEmbedder(FModule):
             return self.relation_embedder(torch.tensor(0).to(device))
 
 
+# class Classifier(FModule):
+#     def __init__(self):
+#         super(Classifier, self).__init__()
+#         self.ln1 = nn.Linear(256*12, 128, True)
+#         self.ln2 = nn.Linear(128, 10, True)
+    
+#     def forward(self, x):
+#         return self.ln2(F.relu(self.ln1(x)))
+    
 class Classifier(FModule):
     def __init__(self):
         super(Classifier, self).__init__()
-        self.ln1 = nn.Linear(128*12, 128, True)
-        self.ln2 = nn.Linear(128, 10, True)
+        self.ln = nn.Linear(128, 10, True)
     
     def forward(self, x):
-        return self.ln2(F.relu(self.ln1(x)))
-    
+        return self.ln(x)
+
+
 class Model(FModule):
     def __init__(self):
         super(Model, self).__init__()
@@ -124,18 +133,15 @@ class Model(FModule):
         
     def forward(self, x, y, leads):
         batch_size = y.shape[0]
-        features = torch.zeros(size=(batch_size, 128*12), dtype=torch.float32, device=y.device)
+        features = torch.zeros(size=(batch_size, 128), dtype=torch.float32, device=y.device)
         total_lead_ind = [*range(12)]
         for lead in total_lead_ind:    
             if lead in leads:
-                feature = self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
-                relation_info = self.relation_embedders[lead](y.device, has_modal=True).repeat(batch_size,1)
-                feature = feature + relation_info
-                features[:,lead*128:(lead+1)*128] = feature
+                features += self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))      #128,128
+                features += self.relation_embedders[lead](y.device, has_modal=True).repeat(batch_size,1)    #128,128
             else:
-                feature = self.relation_embedders[lead](y.device, has_modal=False).repeat(batch_size,1)        # 128, 256
-                # import pdb; pdb.set_trace()
-                features[:,lead*128:(lead+1)*128] = feature
+                features += self.relation_embedders[lead](y.device, has_modal=False).repeat(batch_size,1)        # 128, 128
+
         outputs = self.classifier(features)
         loss = self.criterion(outputs, y.type(torch.int64))
         return loss, outputs
