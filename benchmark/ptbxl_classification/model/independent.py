@@ -130,6 +130,16 @@ class Model(FModule):
             # loss, outputs = self.lead_specific[lead](x[:, lead, :].view(batch_size, 1, -1), y)
             predict += F.log_softmax(self.lead_specific[lead](x[:, lead, :].view(batch_size, 1, -1), y)[1])
         return predict
+    
+    def  predict_detail(self, x, y, leads):
+        batch_size = y.shape[0]
+        output = {}
+        for lead in leads:
+            # import pdb; pdb.set_trace()
+            # loss, outputs = self.lead_specific[lead](x[:, lead, :].view(batch_size, 1, -1), y)
+            pred = F.softmax(self.lead_specific[lead](x[:, lead, :].view(batch_size, 1, -1), y)[1], dim=1)
+            output[lead] = (pred[0][int(y.item())].item(), torch.max(pred[0]).item())
+        return output
 
 if __name__ == '__main__':
     model = Model()

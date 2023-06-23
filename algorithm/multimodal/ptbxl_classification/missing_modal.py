@@ -27,7 +27,7 @@ class Server(BasicServer):
             flw.logger.time_start('Time Cost')
             if flw.logger.check_if_log(round, self.eval_interval) and round > 1:
                 flw.logger.time_start('Eval Time Cost')
-                flw.logger.log_once()
+                flw.logger.log_once(t=round)
                 flw.logger.time_end('Eval Time Cost')
             # check if early stopping
             if flw.logger.early_stop(): break

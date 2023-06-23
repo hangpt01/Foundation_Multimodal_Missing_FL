@@ -135,26 +135,26 @@ class TaskGen(DefaultTaskGen):
         if self.missing and self.num_clients == 20:
             if self.modal_equality:
                 self.specific_leads = [
-                    (1, 3, 4, 6, 7, 8),
-                    (0, 2, 3, 4, 5, 9),
-                    (0, 2, 3, 4, 9, 11),
-                    (0, 1, 7, 8, 9, 10),
-                    (1, 2, 3, 4, 9, 11),
-                    (1, 2, 3, 5, 7, 8),
-                    (0, 2, 5, 7, 8, 11),
-                    (0, 2, 3, 5, 7, 11),
-                    (0, 1, 3, 4, 6, 7),
-                    (2, 4, 5, 7, 8, 11),
-                    (3, 4, 7, 9, 10, 11),
-                    (0, 2, 4, 5, 7, 8),
-                    (0, 3, 5, 7, 9, 10),
-                    (2, 3, 7, 8, 9, 11),
-                    (0, 1, 3, 6, 7, 11),
-                    (0, 1, 4, 6, 8, 11),
-                    (0, 1, 3, 6, 8, 11),
-                    (0, 1, 2, 3, 9, 11),
-                    (0, 4, 5, 7, 8, 9),
-                    (0, 1, 3, 5, 7, 11)
+                    (4, 7, 8, 9, 10, 11),
+                    (0, 2, 5, 7, 9, 11),
+                    (1, 2, 3, 7, 9, 11),
+                    (1, 3, 4, 6, 7, 9),
+                    (0, 1, 4, 5, 10, 11),
+                    (0, 1, 2, 3, 8, 9),
+                    (0, 1, 3, 6, 7, 8),
+                    (2, 3, 4, 5, 7, 11),
+                    (0, 3, 4, 7, 10, 11),
+                    (1, 3, 4, 5, 7, 10),
+                    (0, 3, 4, 9, 10, 11),
+                    (0, 2, 3, 4, 7, 8),
+                    (1, 3, 5, 6, 7, 8),
+                    (0, 1, 5, 7, 8, 10),
+                    (0, 6, 7, 8, 9, 11),
+                    (0, 4, 5, 6, 7, 8),
+                    (0, 5, 6, 7, 8, 9),
+                    (0, 1, 2, 3, 5, 9),
+                    (3, 4, 5, 7, 8, 9),
+                    (1, 5, 7, 8, 9, 11)
                 ]
                 self.taskname = self.taskname + '_missing_modal_equality'
                 self.taskpath = os.path.join(self.task_rootpath, self.taskname)
@@ -295,3 +295,18 @@ class TaskCalculator(ClassificationCalculator):
         return {
             'acc': accuracy
         }
+        
+    @torch.no_grad()
+    def independent_test_detail(self, model, dataset, leads, batch_size=64, num_workers=0):
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=1, num_workers=num_workers)
+        labels = list()
+        
+        fin_output = []
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data[1].cpu().tolist())
+            fin_output.append(model.predict_detail(batch_data[0], batch_data[-1], leads))
+        
+        return fin_output

@@ -7,6 +7,19 @@ import utils.fflow as flw
 import os
 import torch
 import numpy as np
+import json
+
+class NumpyEncoder(json.JSONEncoder):
+    """ Special json encoder for numpy types """
+    def default(self, obj):
+        if isinstance(obj, np.integer):
+            return int(obj)
+        elif isinstance(obj, np.floating):
+            return float(obj)
+        elif isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
+    
 
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
@@ -33,6 +46,12 @@ class Server(BasicServer):
             if flw.logger.early_stop(): break
             # federated train
             self.iterate()
+            # Test detail
+            
+            if (round % 100 == 0) and (round > 1):
+                output = self.test_detail()
+                json.dump(output, open(f"test_detail_round{round}.json", "w"), cls=NumpyEncoder)
+                
             # decay learning rate
             self.global_lr_scheduler(round)
             flw.logger.time_end('Time Cost')
@@ -99,6 +118,19 @@ class Server(BasicServer):
                 batch_size=self.option['test_batch_size'],
                 leads=self.specific_leads
             )
+        else:
+            return None
+    
+    def test_detail(self, model=None):
+        if model is None: model=self.model
+        if self.test_data:
+            output = self.calculator.independent_test_detail(
+                model=model,
+                dataset=self.test_data,
+                batch_size=self.option['test_batch_size'],
+                leads=self.specific_leads
+            )
+            return output
         else:
             return None
 

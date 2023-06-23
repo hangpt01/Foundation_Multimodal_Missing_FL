@@ -92,6 +92,7 @@ class RelationEmbedder(FModule):
         super(RelationEmbedder, self).__init__()
         self.input_channels = 3     # Case 2
         self.relation_embedder = nn.Embedding(3,128)
+        nn.init.uniform_(self.relation_embedder.weight, -1.0, 1.0)
 
     def forward(self, device, has_modal=True):
         if has_modal:
@@ -102,15 +103,24 @@ class RelationEmbedder(FModule):
             output2 = self.relation_embedder(torch.tensor(1).to(device))
             return torch.cat((output1,output2),0)
 
+# class Classifier(FModule):
+#     def __init__(self):
+#         super(Classifier, self).__init__()
+#         self.ln1 = nn.Linear(256*12, 128, True)
+#         self.ln2 = nn.Linear(128, 10, True)
+    
+#     def forward(self, x):
+#         return self.ln2(F.relu(self.ln1(x)))
+    
 class Classifier(FModule):
     def __init__(self):
         super(Classifier, self).__init__()
-        self.ln1 = nn.Linear(256*12, 128, True)
-        self.ln2 = nn.Linear(128, 10, True)
+        self.ln = nn.Linear(256*12, 10, True)
     
     def forward(self, x):
-        return self.ln2(F.relu(self.ln1(x)))
-    
+        return self.ln(x)
+
+
 class Model(FModule):
     def __init__(self):
         super(Model, self).__init__()

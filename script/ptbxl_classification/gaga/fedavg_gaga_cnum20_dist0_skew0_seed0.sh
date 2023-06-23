@@ -15,12 +15,11 @@ python main.py \
     --num_rounds 500 \
     --proportion 1.0 \
     --num_epochs 1 \
-    --learning_rate 0.5 \
+    --learning_rate 0.01 \
     --lr_scheduler 0 \
-    --learning_rate_decay 1.0 \
+    --learning_rate_decay 0.9 \
     --batch_size 128 \
     --test_batch_size 128 \
     --gpu 0 \
     --seed 1234 \
-    --fedmsplit_prox_lambda 0.0 \
-    --wandb
+    --fedmsplit_prox_lambda 0.0
