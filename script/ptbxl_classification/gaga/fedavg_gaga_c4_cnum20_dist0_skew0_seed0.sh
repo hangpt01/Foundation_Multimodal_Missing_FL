@@ -15,9 +15,9 @@ python main.py \
     --num_rounds 500 \
     --proportion 1.0 \
     --num_epochs 1 \
-    --learning_rate 0.05 \
+    --learning_rate 0.5 \
     --lr_scheduler 0 \
-    --learning_rate_decay 0.9 \
+    --learning_rate_decay 1 \
     --batch_size 128 \
     --test_batch_size 128 \
     --gpu 0 \
