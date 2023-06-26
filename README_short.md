@@ -4,6 +4,7 @@
 Create conda environment & install required packages: 
 ```sh
 conda create -n "mmfl" python=3.9
+conda activate mmfl
 conda install -c anaconda cudatoolkit
 pip install -r requirements.txt
 ```
