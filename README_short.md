@@ -17,7 +17,7 @@ Paste API key (first log-in time): 887703a5a8c2fde78c2813ca42da60726b8e0cda
 
 
 ```sh
-cd cd script/ptbxl_classification/modal_equal_gaga
+cd script/ptbxl_classification/modal_equal_gaga
 ```
 
 Create 8 windows to run 8 script files:
