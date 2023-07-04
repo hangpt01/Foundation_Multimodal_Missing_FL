@@ -71,9 +71,9 @@ def save_task(generator):
         'datasrc': generator.source_dict
     }
     for cid in range(len(generator.cnames)):
-        if generator.specific_leads:
+        if generator.specific_training_leads:
             feddata[generator.cnames[cid]] = {
-                'modalities': generator.specific_leads[cid],
+                'modalities': generator.specific_training_leads[cid],
                 'dtrain': generator.train_cidxs[cid],
                 'dvalid': generator.valid_cidxs[cid]
             }
@@ -99,7 +99,7 @@ def iid_partition(generator):
     return local_datas
 
 class TaskGen(DefaultTaskGen):
-    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, percentages=None, missing=False, modal_equality=False):
+    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, percentages=None, missing=False, modal_equality=False, modal_missing_case3=False, modal_missing_case4=False):
         super(TaskGen, self).__init__(benchmark='ptbxl_classification',
                                       dist_id=dist_id,
                                       num_clients=num_clients,
@@ -131,10 +131,12 @@ class TaskGen(DefaultTaskGen):
         }
         self.missing = missing
         self.modal_equality = modal_equality
-        self.specific_leads = None
+        self.modal_missing_case3 = modal_missing_case3
+        self.modal_missing_case4 = modal_missing_case4
+        self.specific_training_leads = None
         if self.missing and self.num_clients == 20:
             if self.modal_equality:
-                self.specific_leads = [
+                self.specific_training_leads = [
                     (4, 7, 8, 9, 10, 11),
                     (0, 2, 5, 7, 9, 11),
                     (1, 2, 3, 7, 9, 11),
@@ -158,8 +160,57 @@ class TaskGen(DefaultTaskGen):
                 ]
                 self.taskname = self.taskname + '_missing_modal_equality'
                 self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+            elif self.modal_missing_case3:
+                self.specific_training_leads = [
+                    (1, 11), 
+                    (0, 4, 6, 7, 10), 
+                    (3, 6), 
+                    (1, 2, 3, 4), 
+                    (5,), 
+                    (0, 1, 3, 5, 6, 9, 10), 
+                    (1, 2, 4, 6, 8), 
+                    (0, 1, 6), (1, 3, 8), 
+                    (1, 3, 9, 10), 
+                    (0,), 
+                    (0, 3, 7, 8), 
+                    (1, 5, 9, 11), 
+                    (0, 2, 4, 5, 6, 7, 8), 
+                    (0, 1, 2, 5, 6, 8), 
+                    (4,), 
+                    (1, 5), 
+                    (3, 4, 8, 9), 
+                    (6, 9), 
+                    (0, 1, 3, 7, 8, 9, 10, 11)
+                ]
+                self.taskname = self.taskname + '_missing_modal_case3'
+                self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+            elif self.modal_missing_case4:
+                self.specific_training_leads = [
+                    (1, 2, 3, 8, 10, 11), 
+                    (1, 2, 5, 6, 7, 8), 
+                    (0, 3, 4, 5, 6, 7, 8, 9, 10), 
+                    (2, 5, 7, 9, 10, 11), 
+                    (0, 1, 3, 4, 5, 6, 7, 8, 10, 11), 
+                    (1, 3, 7, 9, 10, 11), 
+                    (0, 1, 2, 3, 4, 6, 8, 9, 10, 11), 
+                    (1, 2, 3, 5, 6, 7, 8, 10, 11), 
+                    (0, 1, 2, 3, 4, 5, 6, 7, 9, 10), 
+                    (2, 3, 4, 5, 7, 8, 11), 
+                    (0, 2, 3, 4, 7, 8, 9, 10, 11), 
+                    (0, 1, 2, 3, 5, 7, 9, 10, 11), 
+                    (1, 3, 4, 5, 9, 10, 11), 
+                    (0, 2, 4, 5, 6, 7, 9), 
+                    (0, 1, 2, 4, 5, 7, 8, 10, 11), 
+                    (1, 2, 4, 5, 6, 9), 
+                    (0, 1, 4, 7, 9, 10), 
+                    (0, 1, 3, 5, 6, 8, 9, 10, 11), 
+                    (0, 3, 5, 6, 9, 10), 
+                    (1, 2, 3, 5, 6, 7, 9)
+                ]
+                self.taskname = self.taskname + '_missing_modal_case4'
+                self.taskpath = os.path.join(self.task_rootpath, self.taskname)
             else:
-                self.specific_leads = [
+                self.specific_training_leads = [
                     (4, 5, 8),
                     (4, 5),
                     (2, 3, 5, 9),

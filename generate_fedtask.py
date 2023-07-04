@@ -10,6 +10,9 @@ def read_option():
     parser.add_argument('--seed', help='random seed;', type=int, default=0)
     parser.add_argument('--missing', help='missing-modality clients;', action='store_true', default=False)
     parser.add_argument('--modal_equality', help='same number of modalities in clients;', action='store_true', default=False)
+    parser.add_argument('--modal_missing_case3', help='missing case3 of modalities in clients (<=12);', action='store_true', default=False)
+    parser.add_argument('--modal_missing_case4', help='missing case3 of modalities in clients (6<=#modals<=12);', action='store_true', default=False)
+    
     try: option = vars(parser.parse_args())
     except IOError as msg: parser.error(str(msg))
     return option
@@ -24,6 +27,8 @@ if __name__ == '__main__':
         num_clients=option['num_clients'],
         seed = option['seed'],
         missing=option['missing'],
-        modal_equality=option['modal_equality']
+        modal_equality=option['modal_equality'],
+        modal_missing_case3 = option['modal_missing_case3'],
+        modal_missing_case4 = option['modal_missing_case4']
     )
     generator.run()

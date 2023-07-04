@@ -1,11 +1,11 @@
-# python generate_fedtask.py \
-#     --benchmark ptbxl_classification \
-#     --dist 0 \
-#     --skew 0.0 \
-#     --num_clients 20 \
-#     --seed 0 \
-#     --missing \
-#     --modal_equality
+python generate_fedtask.py \
+    --benchmark ptbxl_classification \
+    --dist 0 \
+    --skew 0.0 \
+    --num_clients 20 \
+    --seed 0 \
+    --missing \
+    --modal_equality
 
 python main.py \
     --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_modal_equality \

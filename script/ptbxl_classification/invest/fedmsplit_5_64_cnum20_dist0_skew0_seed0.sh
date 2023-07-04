@@ -4,17 +4,18 @@ python generate_fedtask.py \
     --skew 0.0 \
     --num_clients 20 \
     --seed 0 \
-    --missing
+    --missing \
+    --modal_equality
 
 python main.py \
-    --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing \
+    --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_modal_equality \
     --model fedmsplit \
     --algorithm multimodal.ptbxl_classification.fedmsplit \
     --sample full \
     --aggregate other \
     --num_rounds 500 \
     --proportion 1.0 \
-    --num_epochs 3 \
+    --num_epochs 5 \
     --learning_rate 0.5 \
     --lr_scheduler 0 \
     --learning_rate_decay 1.0 \
