@@ -12,7 +12,15 @@ class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 12
-        self.specific_leads = [2, 6, 10]
+        self.list_testing_leads = [
+            [2, 6, 10],                         #1
+            [1, 2, 6, 10, 11],                  #2
+            [1, 2, 6, 9, 10],                   #3
+            [2, 4, 5, 9, 10, 11],               #4
+            [2, 3, 4, 5, 6, 7, 9, 10, 11],      #5
+            [2, 4, 5, 6, 7, 8, 9, 11],          #6
+            [0, 1, 2, 4, 5, 6, 7, 8, 9, 11]     #7
+        ]
 
     def run(self):
         """
@@ -122,7 +130,10 @@ class Server(BasicServer):
             ])
         
         new_model = copy.deepcopy(self.model)
-        for m in self.specific_leads:
+        union_testing_leads = self.list_testing_leads[0]
+        for i in range(1,len(self.list_testing_leads)):
+            union_testing_leads = list(set(union_testing_leads) | set(self.list_testing_leads[i]))
+        for m in union_testing_leads:
             new_model.feature_extractors[m] = fmodule._model_average([
                 self.clients[self.selected_clients[l]].local_model.feature_extractors[m] for l in modal_dict[m]
             ])
@@ -146,7 +157,7 @@ class Server(BasicServer):
                 model=model,
                 dataset=self.test_data,
                 batch_size=self.option['test_batch_size'],
-                leads=self.specific_leads
+                leads=self.list_testing_leads
             )
         else:
             return None
