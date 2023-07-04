@@ -13,7 +13,7 @@ python main.py \
     --algorithm multimodal.ptbxl_classification.fedmsplit \
     --sample full \
     --aggregate other \
-    --num_rounds 3 \
+    --num_rounds 500 \
     --proportion 1.0 \
     --num_epochs 2 \
     --learning_rate 0.5 \
@@ -23,6 +23,5 @@ python main.py \
     --test_batch_size 64 \
     --gpu 0 \
     --seed 1234 \
-    --fedmsplit_prox_lambda 0.01 
-    # \
-    # --wandb
+    --fedmsplit_prox_lambda 0.01 \
+    --wandb
