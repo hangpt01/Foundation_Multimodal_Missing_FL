@@ -9,19 +9,19 @@ python generate_fedtask.py \
 
 python main.py \
     --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_modal_case3 \
-    --model fedavg_gaga \
-    --algorithm multimodal.ptbxl_classification.fedavg \
+    --model full_modal \
+    --algorithm multimodal.ptbxl_classification.full_modal \
     --sample full \
     --aggregate other \
-    --num_rounds 500 \
+    --num_rounds 4 \
     --proportion 1.0 \
-    --num_epochs 2 \
+    --num_epochs 1 \
     --learning_rate 0.5 \
     --lr_scheduler 0 \
-    --learning_rate_decay 1 \
-    --batch_size 64 \
-    --test_batch_size 64 \
+    --learning_rate_decay 1.0 \
+    --batch_size 256 \
+    --test_batch_size 256 \
     --gpu 0 \
     --seed 1234 \
-    --fedmsplit_prox_lambda 0.0 \
+    --fedmsplit_prox_lambda 0.01 \
     --wandb

@@ -53,7 +53,9 @@ class Server(BasicServer):
         # save results as .json file
         flw.logger.save_output_as_json()
         chkpt_dir = os.path.join('fedtask', self.option['task'], 'checkpoints')
-        torch.save(self.model.state_dict(), os.path.join(chkpt_dir, 'full_modal.pt'))
+        if not os.path.exists(chkpt_dir):
+            os.makedirs(chkpt_dir)
+        torch.save(self.model.state_dict(), os.path.join(chkpt_dir, 'missing_modal.pt'))
         return
     
     def test(self, model=None):

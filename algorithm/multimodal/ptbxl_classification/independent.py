@@ -25,7 +25,15 @@ class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 12
-        self.specific_leads = [2, 6, 10]
+        self.list_testing_leads = [
+            [2, 6, 10],                         #1
+            [1, 2, 6, 10, 11],                  #2
+            [1, 2, 6, 9, 10],                   #3
+            [2, 4, 5, 9, 10, 11],               #4
+            [2, 3, 4, 5, 6, 7, 9, 10, 11],      #5
+            [2, 4, 5, 6, 7, 8, 9, 11],          #6
+            [0, 1, 2, 4, 5, 6, 7, 8, 9, 11]     #7
+        ]
 
     def run(self):
         """
@@ -48,9 +56,9 @@ class Server(BasicServer):
             self.iterate()
             # Test detail
             
-            if (round % 100 == 0) and (round > 1):
-                output = self.test_detail()
-                json.dump(output, open(f"test_detail_round{round}.json", "w"), cls=NumpyEncoder)
+            # if (round % 100 == 0) and (round > 1):
+            #     output = self.test_detail()
+            #     json.dump(output, open(f"test_detail_round{round}.json", "w"), cls=NumpyEncoder)
                 
             # decay learning rate
             self.global_lr_scheduler(round)
@@ -87,7 +95,10 @@ class Server(BasicServer):
     def aggregate(self, models: list, modalities_list: list):
         new_model = copy.deepcopy(self.model)
         # feature extractor
-        for m in self.specific_leads:
+        union_testing_leads = self.list_testing_leads[0]
+        for i in range(1,len(self.list_testing_leads)):
+            union_testing_leads = list(set(union_testing_leads) | set(self.list_testing_leads[i]))
+        for m in union_testing_leads:
             p = list()
             chosen_models = list()
             for k, client_id in enumerate(self.selected_clients):
@@ -116,7 +127,7 @@ class Server(BasicServer):
                 model=model,
                 dataset=self.test_data,
                 batch_size=self.option['test_batch_size'],
-                leads=self.specific_leads
+                leads=self.list_testing_leads
             )
         else:
             return None
@@ -128,7 +139,7 @@ class Server(BasicServer):
                 model=model,
                 dataset=self.test_data,
                 batch_size=self.option['test_batch_size'],
-                leads=self.specific_leads
+                leads=self.list_testing_leads
             )
             return output
         else:
