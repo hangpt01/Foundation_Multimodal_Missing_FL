@@ -5,17 +5,17 @@ python generate_fedtask.py \
     --num_clients 20 \
     --seed 0 \
     --missing \
-    --modal_missing_case3
+    --modal_missing_case4
 
 python main.py \
-    --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_modal_case3 \
-    --model fedavg \
-    --algorithm multimodal.ptbxl_classification.fedavg \
+    --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_modal_case4 \
+    --model full_modal \
+    --algorithm multimodal.ptbxl_classification.full_modal \
     --sample full \
     --aggregate other \
     --num_rounds 500 \
     --proportion 1.0 \
-    --num_epochs 3 \
+    --num_epochs 5 \
     --learning_rate 0.5 \
     --lr_scheduler 0 \
     --learning_rate_decay 1.0 \

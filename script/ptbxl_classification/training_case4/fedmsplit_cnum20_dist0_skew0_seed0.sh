@@ -5,12 +5,12 @@ python generate_fedtask.py \
     --num_clients 20 \
     --seed 0 \
     --missing \
-    --modal_missing_case3
+    --modal_missing_case4
 
 python main.py \
-    --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_modal_case3 \
-    --model fedavg \
-    --algorithm multimodal.ptbxl_classification.fedavg \
+    --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_modal_case4 \
+    --model fedmsplit \
+    --algorithm multimodal.ptbxl_classification.fedmsplit \
     --sample full \
     --aggregate other \
     --num_rounds 500 \
