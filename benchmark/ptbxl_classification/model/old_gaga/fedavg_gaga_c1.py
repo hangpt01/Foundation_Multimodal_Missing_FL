@@ -130,10 +130,8 @@ class Model(FModule):
             if lead in leads:
                 features += self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
                 relation_infos[:,lead*128:(lead+1)*128] = self.relation_embedders[lead](y.device, has_modal=True).repeat(batch_size,1)
-                self.relation_embedders[lead].relation_embedder.weight.data[0].zero_()
             else:
                 relation_infos[:,lead*128:(lead+1)*128] = self.relation_embedders[lead](y.device, has_modal=False).repeat(batch_size,1)        # 128, 256
-                self.relation_embedders[lead].relation_embedder.weight.data[1].zero_()
 
         features = torch.cat((features,relation_infos),1)
         outputs = self.classifier(features)

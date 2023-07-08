@@ -11,7 +11,7 @@ class InceptionBlock1D(FModule):
         self.bottleneck = nn.Conv1d(self.input_channels, 32, kernel_size=1, stride=1, bias=False)
         self.convs_conv1 = nn.Conv1d(32, 32, kernel_size=39, stride=1, padding=19, bias=False)
         self.convs_conv2 = nn.Conv1d(32, 32, kernel_size=19, stride=1, padding=9, bias=False)
-        self.convs_conv3    = nn.Conv1d(32, 32, kernel_size=9, stride=1, padding=4, bias=False)
+        self.convs_conv3 = nn.Conv1d(32, 32, kernel_size=9, stride=1, padding=4, bias=False)
         self.convbottle_maxpool = nn.MaxPool1d(kernel_size=3, stride=1, padding=1, dilation=1, ceil_mode=False)
         self.convbottle_conv = nn.Conv1d(self.input_channels, 32, kernel_size=1, stride=1, bias=False)
         self.bnrelu_bn = nn.BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -90,7 +90,7 @@ class Inception1DBase(FModule):
 class RelationEmbedder(FModule):
     def __init__(self):
         super(RelationEmbedder, self).__init__()
-        self.input_channels = 2     # Case 1
+        self.input_channels = 2     # Case 3
         self.relation_embedder = nn.Embedding(self.input_channels,128)
         nn.init.uniform_(self.relation_embedder.weight, -1.0, 1.0)
 
@@ -100,13 +100,14 @@ class RelationEmbedder(FModule):
         else:
             return self.relation_embedder(torch.tensor(0).to(device))
 
+
 class Classifier(FModule):
     def __init__(self):
         super(Classifier, self).__init__()
-        self.ln1 = nn.Linear(128*13, 128, True)
+        self.ln1 = nn.Linear(128*12, 128, True)
         self.ln2 = nn.Linear(128, 10, True)
     
-    def forward(self, x):
+    def forward(self, x):       #()
         return self.ln2(F.relu(self.ln1(x)))
     
 class Model(FModule):
@@ -123,19 +124,19 @@ class Model(FModule):
         
     def forward(self, x, y, leads):
         batch_size = y.shape[0]
-        features = torch.zeros(size=(batch_size, 128), dtype=torch.float32, device=y.device)
-        relation_infos = torch.zeros(size=(batch_size, 128*12), dtype=torch.float32, device=y.device)
+        features = torch.zeros(size=(batch_size, 128*12), dtype=torch.float32, device=y.device)
         total_lead_ind = [*range(12)]
         for lead in total_lead_ind:    
             if lead in leads:
-                features += self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
-                relation_infos[:,lead*128:(lead+1)*128] = self.relation_embedders[lead](y.device, has_modal=True).repeat(batch_size,1)
-                self.relation_embedders[lead].relation_embedder.weight.data[0].zero_()
+                feature = self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
+                # import pdb; pdb.set_trace()
+                relation_info = self.relation_embedders[lead](y.device, has_modal=True).repeat(batch_size,1)
+                feature = feature + relation_info
+                features[:,lead*128:(lead+1)*128] = feature
             else:
-                relation_infos[:,lead*128:(lead+1)*128] = self.relation_embedders[lead](y.device, has_modal=False).repeat(batch_size,1)        # 128, 256
-                self.relation_embedders[lead].relation_embedder.weight.data[1].zero_()
-
-        features = torch.cat((features,relation_infos),1)
+                feature = self.relation_embedders[lead](y.device, has_modal=False).repeat(batch_size,1)        # 128, 256
+                # import pdb; pdb.set_trace()
+                features[:,lead*128:(lead+1)*128] = feature
         outputs = self.classifier(features)
         loss = self.criterion(outputs, y.type(torch.int64))
         return loss, outputs

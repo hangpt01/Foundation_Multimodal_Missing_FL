@@ -132,10 +132,11 @@ class Model(FModule):
                 relation_info = self.relation_embedders[lead](y.device, has_modal=True).repeat(batch_size,1)
                 feature = feature + relation_info
                 features[:,lead*128:(lead+1)*128] = feature
+                self.relation_embedders[lead].relation_embedder.weight.data[0].zero_()
             else:
                 feature = self.relation_embedders[lead](y.device, has_modal=False).repeat(batch_size,1)        # 128, 256
-                # import pdb; pdb.set_trace()
                 features[:,lead*128:(lead+1)*128] = feature
+                self.relation_embedders[lead].relation_embedder.weight.data[1].zero_()
         outputs = self.classifier(features)
         loss = self.criterion(outputs, y.type(torch.int64))
         return loss, outputs
