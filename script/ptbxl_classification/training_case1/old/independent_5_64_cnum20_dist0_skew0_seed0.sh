@@ -14,7 +14,7 @@ python main.py \
     --aggregate other \
     --num_rounds 500 \
     --proportion 1.0 \
-    --num_epochs 3 \
+    --num_epochs 5 \
     --learning_rate 0.5 \
     --lr_scheduler 0 \
     --learning_rate_decay 1.0 \
