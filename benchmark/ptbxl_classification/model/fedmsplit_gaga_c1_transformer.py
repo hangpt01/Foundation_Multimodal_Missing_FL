@@ -100,6 +100,20 @@ class RelationEmbedder(FModule):
         else:
             return self.relation_embedder(torch.tensor(0).to(device))
 
+class TransformerEncoder(FModule):
+    def __init__(self):
+        super(RelationEmbedder, self).__init__()
+        self.input_channels = 2     # Case 1
+        self.relation_embedder = nn.Embedding(self.input_channels,128)
+        nn.init.uniform_(self.relation_embedder.weight, -1.0, 1.0)
+
+    def forward(self, device, has_modal=True):
+        if has_modal:
+            return self.relation_embedder(torch.tensor(1).to(device))
+        else:
+            return self.relation_embedder(torch.tensor(0).to(device))
+        
+
 class Classifier(FModule):
     def __init__(self):
         super(Classifier, self).__init__()
@@ -118,6 +132,10 @@ class Model(FModule):
         for i in range(self.n_leads):
             self.feature_extractors.append(Inception1DBase(input_channels=1))
             self.relation_embedders.append(RelationEmbedder())
+            
+        self.encoder_layers = nn.TransformerEncoderLayer(d_model=128, nhead=4, batch_first=True)       # input: (batch, seq_len, #features)
+        # nn.init.uniform_(self.encoder_layers.weight, -1.0, 1.0)
+        self.transformer_encoder = nn.TransformerEncoder(self.encoder_layers, num_layers=3)
         self.classifier = Classifier()
         self.criterion = nn.CrossEntropyLoss()
         
@@ -130,11 +148,18 @@ class Model(FModule):
             if lead in leads:
                 features += self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
                 relation_infos[:,lead*128:(lead+1)*128] = self.relation_embedders[lead](y.device, has_modal=True).repeat(batch_size,1)
+                self.relation_embedders[lead].relation_embedder.weight.data[0].zero_()
             else:
                 relation_infos[:,lead*128:(lead+1)*128] = self.relation_embedders[lead](y.device, has_modal=False).repeat(batch_size,1)        # 128, 256
+                self.relation_embedders[lead].relation_embedder.weight.data[1].zero_()
 
+        # import pdb; pdb.set_trace()
         features = torch.cat((features,relation_infos),1)
-        outputs = self.classifier(features)
+        transformer_input = features.contiguous().view(batch_size,13,128)
+        transformer_output = self.transformer_encoder(transformer_input)
+        # import pdb; pdb.set_trace()
+        outputs = self.classifier(transformer_output.contiguous().view(batch_size,-1))
+        # outputs = self.classifier(features)
         loss = self.criterion(outputs, y.type(torch.int64))
         return loss, outputs
 

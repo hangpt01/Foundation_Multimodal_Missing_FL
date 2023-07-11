@@ -329,6 +329,36 @@ class TaskCalculator(ClassificationCalculator):
         # import pdb;pdb.set_trace()
         return result
 
+
+    @torch.no_grad()
+    def full_modal_server_test(self, model, dataset, leads, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        total_loss = 0.0
+        labels = list()
+        predicts = list()
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data[1].cpu().tolist())
+            loss, outputs = model(batch_data[0], batch_data[-1], leads)
+            total_loss += loss.item() * len(batch_data[-1])
+            predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+        labels = np.array(labels)
+        predicts = np.array(predicts)
+        accuracy = accuracy_score(labels, predicts)
+        return {
+            'loss': total_loss / len(dataset),
+            'acc': accuracy
+        }
+
     @torch.no_grad()
     def independent_test(self, model, dataset, leads, batch_size=64, num_workers=0):
         """

@@ -60,7 +60,7 @@ class Server(BasicServer):
         # return dict()
         if model is None: model=self.model
         if self.test_data:
-            return self.calculator.server_test(
+            return self.calculator.full_modal_server_test(
                 model=model,
                 dataset=self.test_data,
                 batch_size=self.option['test_batch_size'],
