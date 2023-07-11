@@ -20,7 +20,7 @@ python main.py \
     --learning_rate_decay 1 \
     --batch_size 64 \
     --test_batch_size 64 \
-    --gpu 1 \
+    --gpu 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0.01 \
     --wandb
