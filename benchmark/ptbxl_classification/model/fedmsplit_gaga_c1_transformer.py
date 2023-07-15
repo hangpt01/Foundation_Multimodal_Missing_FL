@@ -135,7 +135,7 @@ class Model(FModule):
             
         self.encoder_layers = nn.TransformerEncoderLayer(d_model=128, nhead=4, batch_first=True)       # input: (batch, seq_len, #features)
         # nn.init.uniform_(self.encoder_layers.weight, -1.0, 1.0)
-        self.transformer_encoder = nn.TransformerEncoder(self.encoder_layers, num_layers=3)
+        self.transformer_encoder = nn.TransformerEncoder(self.encoder_layers, num_layers=2)
         self.classifier = Classifier()
         self.criterion = nn.CrossEntropyLoss()
         
