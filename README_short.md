@@ -16,10 +16,21 @@ wandb login
 
 
 
-Experiment scripts:
+Run every 2 files using 1 GPU (>=10GB):
 ```sh
-bash script/ptbxl_classification/new_gaga/training_case4/fedmsplit_gaga_c1_contrastive_3_64_cnum20_dist0_skew0_seed0.sh
+bash script/ptbxl_classification/new_gaga/training_case1/fedmsplit_contrastive5_5_64_cnum20_dist0_skew0_seed0.sh
+bash script/ptbxl_classification/new_gaga/training_case1/fedmsplit_gaga_c3_contrastive_5_64_cnum20_dist0_skew0_seed0.sh
 
 
+bash script/ptbxl_classification/new_gaga/training_case1/fedmsplit_gaga_c3_5_64_cnum20_dist0_skew0_seed0.sh
+bash script/ptbxl_classification/new_gaga/training_case1/fedmsplit_gaga_c3_contrastive2_5_64_cnum20_dist0_skew0_seed0.sh
+
+
+bash script/ptbxl_classification/new_gaga/training_case1/fedmsplit_gaga_c1_5_64_cnum20_dist0_skew0_seed0.sh
+bash script/ptbxl_classification/new_gaga/training_case2/fedmsplit_gaga_c3_contrastive2_5_64_cnum20_dist0_skew0_seed0.sh
+
+
+bash script/ptbxl_classification/new_gaga/training_case2/fedmsplit_gaga_c1_contrastive_5_64_cnum20_dist0_skew0_seed0.sh
+bash script/ptbxl_classification/new_gaga/training_case2/fedmsplit_gaga_c1_contrastive2_5_64_cnum20_dist0_skew0_seed0.sh
 ```
 
