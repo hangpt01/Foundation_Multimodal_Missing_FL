@@ -4,18 +4,17 @@ python generate_fedtask.py \
     --skew 0.0 \
     --num_clients 20 \
     --seed 0 \
-    --missing \
-    --modal_missing_case4
+    --missing
 
 python main.py \
-    --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_modal_case4 \
-    --model fedmsplit_gaga_c3 \
+    --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing \
+    --model fedmsplit_gaga_c5_contrastive \
     --algorithm multimodal.ptbxl_classification.fedmsplit_gaga \
     --sample full \
     --aggregate other \
     --num_rounds 500 \
     --proportion 1.0 \
-    --num_epochs 5 \
+    --num_epochs 3 \
     --learning_rate 0.5 \
     --lr_scheduler 0 \
     --learning_rate_decay 1 \
@@ -23,6 +22,5 @@ python main.py \
     --test_batch_size 64 \
     --gpu 0 \
     --seed 1234 \
-    --fedmsplit_prox_lambda 0.01 
-    # \
-    # --wandb
+    --fedmsplit_prox_lambda 0.01 \
+    --wandb
