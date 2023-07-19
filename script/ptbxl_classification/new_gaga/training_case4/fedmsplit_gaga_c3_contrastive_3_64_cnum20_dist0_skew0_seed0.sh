@@ -1,4 +1,4 @@
-python generate_fedtask.py \
+python3 generate_fedtask.py \
     --benchmark ptbxl_classification \
     --dist 0 \
     --skew 0.0 \
@@ -7,7 +7,7 @@ python generate_fedtask.py \
     --missing \
     --modal_missing_case4
 
-python main.py \
+python3 main.py \
     --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_modal_case4 \
     --model fedmsplit_gaga_c3_contrastive \
     --algorithm multimodal.ptbxl_classification.fedmsplit_gaga \
