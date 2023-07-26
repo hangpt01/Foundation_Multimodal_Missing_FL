@@ -127,14 +127,14 @@ class AttentionLayer(FModule):
             Wh = torch.matmul(h, self.W)    # h.shape: (N, in_features), Wh.shape: (N, out_features)
             
             e = self._prepare_attentional_mechanism_input(Wh)
-            
             # import pdb; pdb.set_trace()
-            h_prime = torch.mm(e, Wh)
+            attention = F.softmax(e, dim=1)
+            h_prime = torch.mm(attention, Wh)
             h_prime_output = F.elu(h_prime)
-            # import pdb; pdb.set_trace()
             embedding_outputs[i,:] = h_prime_output[0]
             relation_info_outputs[i,:] = h_prime_output[1]
         
+        # import pdb; pdb.set_trace()
         return embedding_outputs, relation_info_outputs
 
     def _prepare_attentional_mechanism_input(self, Wh):
@@ -195,6 +195,7 @@ class Model(FModule):
         features = torch.cat((features_prime,relation_info_prime),1)
         outputs = self.classifier(features)
         loss = self.criterion(outputs, y.type(torch.int64))
+        # import pdb; pdb.set_trace()
         return loss, outputs
 
 if __name__ == '__main__':

@@ -10,7 +10,7 @@ python generate_fedtask.py \
 python main.py \
     --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_modal_case4 \
     --model fedmsplit_gaga_c7 \
-    --algorithm multimodal.ptbxl_classification.fedmsplit_gaga \
+    --algorithm multimodal.ptbxl_classification.fedmsplit_gaga_c7 \
     --sample full \
     --aggregate other \
     --num_rounds 500 \
