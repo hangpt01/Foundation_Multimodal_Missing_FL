@@ -189,7 +189,9 @@ class Logger(logging.Logger):
 
     def early_stop(self):
         # Early stopping when there is no improvement on the validation loss for more than self.meta['early_stop'] rounds
-        if self.meta['early_stop']<0 or (self._es_key not in self.output): return False
+        # import pdb; pdb.set_trace()
+        if self.meta['early_stop']<0 or (self._es_key not in self.output): 
+            return False
         score = -self.output[self._es_key][-1]
         if self._es_best_score is None:
             self._es_best_score = score

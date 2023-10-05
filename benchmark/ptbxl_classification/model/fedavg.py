@@ -65,6 +65,8 @@ class Inception1DBase(FModule):
         # self.ln_2 = nn.Linear(128, 71, bias=True)
     def forward(self, x):
         # inception backbone
+        # import pdb; pdb.set_trace()
+        
         input_res = x
         x = self.inceptionbackbone_1(x)
         x = self.inceptionbackbone_2(x)
@@ -112,6 +114,8 @@ class Model(FModule):
         for lead in leads:
             features += self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
         outputs = self.classifier(features)
+        import pdb; pdb.set_trace()
+        
         loss = self.criterion(outputs, y.type(torch.int64))
         return loss, outputs
 

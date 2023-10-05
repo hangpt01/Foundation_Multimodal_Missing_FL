@@ -173,6 +173,7 @@ class DefaultTaskGen(BasicTaskGen):
         print('-----------------------------------------------------')
         print('Loading...')
         self.load_data()
+        # import pdb; pdb.set_trace()
         print('Done.')
         # partition data and hold-out for each local dataset
         print('-----------------------------------------------------')
@@ -187,8 +188,10 @@ class DefaultTaskGen(BasicTaskGen):
             # create the directory of the task
             self.create_task_directories()
             # visualizing partition
+            # import pdb; pdb.set_trace()
             if self.visualize is not None:
                 self.visualize(self.train_cidxs)
+            # import pdb; pdb.set_trace()
             self.save_task(self)
         except Exception as e:
             print(e)
@@ -479,14 +482,18 @@ class DefaultTaskGen(BasicTaskGen):
             data_columns = [len(cidx) for cidx in train_cidxs]
             row_map = {k:i for k,i in zip(np.argsort(data_columns), [_ for _ in range(self.num_clients)])}
             for cid, cidxs in enumerate(train_cidxs):
+                # import pdb; pdb.set_trace() 
+                # print(cid)
                 labels = [int(self.train_data[did][-1]) for did in cidxs]
                 lb_counter = collections.Counter(labels)
                 offset = 0
                 y_bottom = row_map[cid] - client_height/2.0
                 y_top = row_map[cid] + client_height/2.0
                 for lbi in range(self.num_classes):
+                    # print(lbi)
                     plt.fill_between([offset,offset+lb_counter[lbi]], y_bottom, y_top, facecolor = colors[lbi])
                     offset += lb_counter[lbi]
+        # import pdb; pdb.set_trace()
         plt.xlim(0,max(data_columns))
         plt.ylim(-0.5,len(train_cidxs)-0.5)
         plt.ylabel('Client ID')

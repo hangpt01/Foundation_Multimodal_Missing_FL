@@ -1,4 +1,4 @@
-from .dataset import PTBXLReduceDataset
+from .dataset import VEHICLEDataset
 from benchmark.toolkits import DefaultTaskGen
 from benchmark.toolkits import ClassificationCalculator
 from benchmark.toolkits import IDXTaskPipe
@@ -43,6 +43,7 @@ class TaskPipe(IDXTaskPipe):
             valid_datas.append(cls.TaskDataset(origin_train_data, valid_data))
             modalities_list.append(feddata[name]['modalities'])
             # modalities_list.append(list(range(12)))
+        # import pdb; pdb.set_trace()
         return train_datas, valid_datas, test_data, feddata['client_names'], modalities_list
 
 def save_task(generator):
@@ -70,7 +71,9 @@ def save_task(generator):
         'dtest': [i for i in range(len(generator.test_data))],
         'datasrc': generator.source_dict
     }
+    # import pdb; pdb.set_trace()
     for cid in range(len(generator.cnames)):
+        # print(cid)
         if generator.specific_training_leads:
             feddata[generator.cnames[cid]] = {
                 'modalities': generator.specific_training_leads[cid],
@@ -82,175 +85,158 @@ def save_task(generator):
                 'dtrain': generator.train_cidxs[cid],
                 'dvalid': generator.valid_cidxs[cid]
             }
+    # import pdb; pdb.set_trace()
     with open(os.path.join(generator.taskpath, 'data.json'), 'w') as outf:
         ujson.dump(feddata, outf)
     return
     
 
-def iid_partition(generator):
+# def iid_partition(generator):
+#     print(generator)
+#     labels = np.unique(generator.train_data.y)
+#     local_datas = [[] for _ in range(generator.num_clients)]
+#     for label in labels:
+#         permutation = np.random.permutation(np.where(generator.train_data.y == label)[0])
+#         split = np.array_split(permutation, generator.num_clients)
+#         for i, idxs in enumerate(split):
+#             local_datas[i] += idxs.tolist()
+#     return local_datas
+
+def default_partition(generator):
     print(generator)
-    # import pdb; pdb.set_trace()
-    labels = np.unique(generator.train_data.y)
+    # labels = np.unique(generator.train_data.y)
+    # local_datas = [[] for _ in range(generator.num_clients)]
+    # for label in labels:
+    #     permutation = np.random.permutation(np.where(generator.train_data.y == label)[0])
+    #     split = np.array_split(permutation, generator.num_clients)
+    #     for i, idxs in enumerate(split):
+    #         local_datas[i] += idxs.tolist()
     local_datas = [[] for _ in range(generator.num_clients)]
-    for label in labels:
-        permutation = np.random.permutation(np.where(generator.train_data.y == label)[0])
-        split = np.array_split(permutation, generator.num_clients)
-        for i, idxs in enumerate(split):
-            local_datas[i] += idxs.tolist()
+    ls_train_samples = [1933,
+                        1133,
+                        1139,
+                        1068,
+                        1031,
+                        873,
+                        1262,
+                        1301,
+                        1500,
+                        1275,
+                        1352,
+                        1352,
+                        1465,
+                        1650,
+                        1660,
+                        1435,
+                        1551,
+                        1471,
+                        1715,
+                        1501,
+                        1551,
+                        1836,
+                        1710]
+    index_now = 0
+    for i in range(generator.num_clients):
+        local_datas[i] = [*range(index_now, index_now + ls_train_samples[i])]
+        # print(len(local_datas[i]))
+        index_now += ls_train_samples[i]
     # import pdb; pdb.set_trace()
+    # local_datas = [data_idx.tolist() for data_idx in generator.train_data]
+
     return local_datas
 
+
 class TaskGen(DefaultTaskGen):
-    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, percentages=None, missing=False, modal_equality=False, modal_missing_case3=False, modal_missing_case4=False):
-        super(TaskGen, self).__init__(benchmark='ptbxl_classification',
+    def __init__(self, dist_id, num_clients=23, skewness=0.5, local_hld_rate=0.0, seed=0, percentages=None, missing=False, modal_equality=False, modal_missing_case3=False, modal_missing_case4=False):
+        super(TaskGen, self).__init__(benchmark='vehicle_classification',
                                       dist_id=dist_id,
                                       num_clients=num_clients,
                                       skewness=skewness,
-                                      rawdata_path='./benchmark/RAW_DATA/PTBXL_REDUCE',
+                                      rawdata_path='./benchmark/RAW_DATA/VEHICLE',
                                       local_hld_rate=local_hld_rate,
                                       seed = seed
                                       )
         if self.dist_id == 0:
-            self.partition = iid_partition
-        self.num_classes = 10
+            self.partition = default_partition
+            # self.partition = partition
+        self.num_classes = 2
         self.save_task = save_task
         self.visualize = self.visualize_by_class
         self.source_dict = {
-            'class_path': 'benchmark.ptbxl_classification.dataset',
-            'class_name': 'PTBXLReduceDataset',
+            'class_path': 'benchmark.vehicle_classification.dataset',
+            'class_name': 'VEHICLEDataset',
             'train_args': {
                 'root': '"'+self.rawdata_path+'"',
                 'download': 'True',
-                'standard_scaler': 'True',
+                'standard_scaler': 'False',
                 'train':'True'
             },
             'test_args': {
                 'root': '"'+self.rawdata_path+'"',
                 'download': 'True',
-                'standard_scaler': 'True',
+                'standard_scaler': 'False',
                 'train': 'False'
             }
         }
+        self.num_clients = 23
         self.missing = missing
-        self.modal_equality = modal_equality
-        self.modal_missing_case3 = modal_missing_case3
-        self.modal_missing_case4 = modal_missing_case4
-        self.specific_training_leads = None
-        if self.missing and self.num_clients == 20:
-            if self.modal_equality:
-                self.specific_training_leads = [
-                    (4, 7, 8, 9, 10, 11),
-                    (0, 2, 5, 7, 9, 11),
-                    (1, 2, 3, 7, 9, 11),
-                    (1, 3, 4, 6, 7, 9),
-                    (0, 1, 4, 5, 10, 11),
-                    (0, 1, 2, 3, 8, 9),
-                    (0, 1, 3, 6, 7, 8),
-                    (2, 3, 4, 5, 7, 11),
-                    (0, 3, 4, 7, 10, 11),
-                    (1, 3, 4, 5, 7, 10),
-                    (0, 3, 4, 9, 10, 11),
-                    (0, 2, 3, 4, 7, 8),
-                    (1, 3, 5, 6, 7, 8),
-                    (0, 1, 5, 7, 8, 10),
-                    (0, 6, 7, 8, 9, 11),
-                    (0, 4, 5, 6, 7, 8),
-                    (0, 5, 6, 7, 8, 9),
-                    (0, 1, 2, 3, 5, 9),
-                    (3, 4, 5, 7, 8, 9),
-                    (1, 5, 7, 8, 9, 11)
-                ]
-                self.taskname = self.taskname + '_missing_modal_equality'
-                self.taskpath = os.path.join(self.task_rootpath, self.taskname)
-            elif self.modal_missing_case3:
-                self.specific_training_leads = [
-                    (1, 11), 
-                    (0, 4, 6, 7, 10), 
-                    (3, 6), 
-                    (1, 2, 3, 4), 
-                    (5,), 
-                    (0, 1, 3, 5, 6, 9, 10), 
-                    (1, 2, 4, 6, 8), 
-                    (0, 1, 6), (1, 3, 8), 
-                    (1, 3, 9, 10), 
-                    (0,), 
-                    (0, 3, 7, 8), 
-                    (1, 5, 9, 11), 
-                    (0, 2, 4, 5, 6, 7, 8), 
-                    (0, 1, 2, 5, 6, 8), 
-                    (4,), 
-                    (1, 5), 
-                    (3, 4, 8, 9), 
-                    (6, 9), 
-                    (0, 1, 3, 7, 8, 9, 10, 11)
-                ]
-                self.taskname = self.taskname + '_missing_modal_case3'
-                self.taskpath = os.path.join(self.task_rootpath, self.taskname)
-            elif self.modal_missing_case4:
-                self.specific_training_leads = [
-                    (1, 2, 3, 8, 10, 11), 
-                    (1, 2, 5, 6, 7, 8), 
-                    (0, 3, 4, 5, 6, 7, 8, 9, 10), 
-                    (2, 5, 7, 9, 10, 11), 
-                    (0, 1, 3, 4, 5, 6, 7, 8, 10, 11), 
-                    (1, 3, 7, 9, 10, 11), 
-                    (0, 1, 2, 3, 4, 6, 8, 9, 10, 11), 
-                    (1, 2, 3, 5, 6, 7, 8, 10, 11), 
-                    (0, 1, 2, 3, 4, 5, 6, 7, 9, 10), 
-                    (2, 3, 4, 5, 7, 8, 11), 
-                    (0, 2, 3, 4, 7, 8, 9, 10, 11), 
-                    (0, 1, 2, 3, 5, 7, 9, 10, 11), 
-                    (1, 3, 4, 5, 9, 10, 11), 
-                    (0, 2, 4, 5, 6, 7, 9), 
-                    (0, 1, 2, 4, 5, 7, 8, 10, 11), 
-                    (1, 2, 4, 5, 6, 9), 
-                    (0, 1, 4, 7, 9, 10), 
-                    (0, 1, 3, 5, 6, 8, 9, 10, 11), 
-                    (0, 3, 5, 6, 9, 10), 
-                    (1, 2, 3, 5, 6, 7, 9)
-                ]
-                self.taskname = self.taskname + '_missing_modal_case4'
-                self.taskpath = os.path.join(self.task_rootpath, self.taskname)
-            else:
-                self.specific_training_leads = [
-                    (4, 5, 8),
-                    (4, 5),
-                    (2, 3, 5, 9),
-                    (1, 3, 7, 8, 11),
-                    (5, 6, 8, 9),
-                    (0, 2, 3, 5, 8, 9),
-                    (0, 2, 3, 5),
-                    (0, 1, 3, 5),
-                    (0, 3, 5, 10, 11),
-                    (1, 4, 6),
-                    (8, 9, 11),
-                    (0, 3, 5, 6, 7, 11),
-                    (2, 3, 4, 5, 7),
-                    (0, 4, 7, 8),
-                    (0, 3, 4, 6, 7),
-                    (1, 5, 6, 7, 8),
-                    (0, 1, 3, 4, 10),
-                    (2, 4, 5, 7, 9, 11),
-                    (3, 4, 5, 8, 10, 11),
-                    (0, 1, 3, 7, 9, 11)
-                ]
-                self.taskname = self.taskname + '_missing'
-                self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        # self.modal_equality = modal_equality
+        # self.modal_missing_case3 = modal_missing_case3
+        # self.modal_missing_case4 = modal_missing_case4
+        self.specific_training_leads = [(1,),            # p=0.7, #modals_sample = [14,15]   
+                                        (0,),
+                                        (1,),
+                                        (0,),
+                                        (0,),
+                                        (0,),
+                                        (1,),
+                                        (0,),
+                                        (0,),
+                                        (0, 1),
+                                        (0, 1),
+                                        (0, 1),
+                                        (0, 1),
+                                        (1,),
+                                        (0, 1),
+                                        (1,),
+                                        (1,),
+                                        (0,),
+                                        (0, 1),
+                                        (1,),
+                                        (0,),
+                                        (1,),
+                                        (1,)]
+
+        # self.taskname = self.taskname + '_missing'
+        self.taskpath = os.path.join(self.task_rootpath, self.taskname)
 
     def load_data(self):
-        self.train_data = PTBXLReduceDataset(
+        # import pdb; pdb.set_trace()
+        self.train_data = VEHICLEDataset(
             root=self.rawdata_path,
             download=True,
-            standard_scaler=True,
+            standard_scaler=False,
             train=True
         )
         # import pdb; pdb.set_trace()
-        self.test_data = PTBXLReduceDataset(
+        self.test_data = VEHICLEDataset(
             root=self.rawdata_path,
             download=True,
-            standard_scaler=True,
+            standard_scaler=False,
             train=False
         )
+        
+    # def partition(self):
+    #     # Partition self.train_data according to the delimiter and return indexes of data owned by each client as [c1data_idxs, ...] where the type of each element is list(int)
+    #     if self.dist_id == 0:
+    #         """IID"""
+    #         # d_idxs = np.random.permutation(len(self.train_data))
+    #         # local_datas = np.array_split(d_idxs, self.num_clients)
+    #         # local_datas = [data_idx.tolist() for data_idx in local_datas]
+    #         local_datas = [data_idx.tolist() for data_idx in self.train_data]
+        
+    #     return local_datas
+
     
 class TaskCalculator(ClassificationCalculator):
     def __init__(self, device, optimizer_name='sgd'):

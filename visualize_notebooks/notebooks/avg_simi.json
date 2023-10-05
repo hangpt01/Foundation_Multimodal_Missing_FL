@@ -1,0 +1,106 @@
+{
+    "0.3": {
+        "paper_fedavg": {
+            "same": 0.38933951620486307,
+            "diff": 0.2680550756268132
+        },
+        "fedavg-bz-32": {
+            "same": 0.4918711598891671,
+            "diff": 0.3025749000406499
+        },
+        "fedavg_contrastive-cosine-simclr-cross-1.0": {
+            "same": 0.6130571778614793,
+            "diff": 0.24300343905228505
+        },
+        "fedsam_contrastive-rho-0.01-cosine-simclr-cross-1.0": {
+            "same": 0.6363847909485545,
+            "diff": 0.272907174795468
+        },
+        "fedsam_contrastive-rho-0.02-cosine-simclr-cross-1.0": {
+            "same": 0.65708761511866,
+            "diff": 0.29049273717424556
+        },
+        "fedsam_contrastive-rho-0.05-cosine-simclr-cross-1.0": {
+            "same": 0.698905166373574,
+            "diff": 0.3140553972595533
+        }
+    },
+    "0.5": {
+        "paper_fedavg": {
+            "same": 0.3896237876096195,
+            "diff": 0.26378277733557254
+        },
+        "fedavg-bz-32": {
+            "same": 0.4865510302877513,
+            "diff": 0.29917051938794986
+        },
+        "fedavg_contrastive-cosine-simclr-cross-1.0": {
+            "same": 0.608856132596752,
+            "diff": 0.23053085941212645
+        },
+        "fedsam_contrastive-rho-0.01-cosine-simclr-cross-1.0": {
+            "same": 0.6517565758624705,
+            "diff": 0.2676797375575201
+        },
+        "fedsam_contrastive-rho-0.02-cosine-simclr-cross-1.0": {
+            "same": 0.6600297557560884,
+            "diff": 0.2833388538967615
+        },
+        "fedsam_contrastive-rho-0.05-cosine-simclr-cross-1.0": {
+            "same": 0.6995012880247531,
+            "diff": 0.31633789061792156
+        }
+    },
+    "0.7": {
+        "paper_fedavg": {
+            "same": 0.4034544535366797,
+            "diff": 0.2707955076732939
+        },
+        "fedavg-bz-32": {
+            "same": 0.4926020893446388,
+            "diff": 0.2789492631961193
+        },
+        "fedavg_contrastive-cosine-simclr-cross-1.0": {
+            "same": 0.618334487586831,
+            "diff": 0.2395583701837057
+        },
+        "fedsam_contrastive-rho-0.01-cosine-simclr-cross-1.0": {
+            "same": 0.6561091112465766,
+            "diff": 0.27708434437119156
+        },
+        "fedsam_contrastive-rho-0.02-cosine-simclr-cross-1.0": {
+            "same": 0.6769884258393256,
+            "diff": 0.299484064041734
+        },
+        "fedsam_contrastive-rho-0.05-cosine-simclr-cross-1.0": {
+            "same": 0.7039585525561879,
+            "diff": 0.3219841167728279
+        }
+    },
+    "1.0": {
+        "paper_fedavg": {
+            "same": 0.41629460889703396,
+            "diff": 0.27494623916160826
+        },
+        "fedavg-bz-32": {
+            "same": 0.5044935756933363,
+            "diff": 0.29609750967722853
+        },
+        "fedavg_contrastive-cosine-simclr-cross-1.0": {
+            "same": 0.6190661587399302,
+            "diff": 0.24323854066177536
+        },
+        "fedsam_contrastive-rho-0.01-cosine-simclr-cross-1.0": {
+            "same": 0.6370030314436684,
+            "diff": 0.26450053402139356
+        },
+        "fedsam_contrastive-rho-0.02-cosine-simclr-cross-1.0": {
+            "same": 0.656129055386646,
+            "diff": 0.28718491257304496
+        },
+        "fedsam_contrastive-rho-0.05-cosine-simclr-cross-1.0": {
+            "same": 0.6967780420746257,
+            "diff": 0.3120824278738906
+        }
+    }
+}

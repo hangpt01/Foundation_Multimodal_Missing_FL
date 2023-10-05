@@ -1,0 +1,2 @@
+# Reduced PTXBL dataset
+wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=1x39M3wYLt0VKNS8RSiwohT-VfVoGeKlM' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1x39M3wYLt0VKNS8RSiwohT-VfVoGeKlM" -O ./benchmark/RAW_DATA/VEHICLE/vehicle.mat && rm -rf /tmp/cookies.txt

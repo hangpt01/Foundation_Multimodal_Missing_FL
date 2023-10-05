@@ -13,7 +13,7 @@ class PTBXLReduceDataset(Dataset):
 
         if not os.path.exists(self.root):
             if download:
-                print('Downloading MHD Dataset...', end=' ')
+                print('Downloading PTBXL Dataset...', end=' ')
                 os.makedirs(root, exist_ok=True)
                 os.system('bash ./benchmark/ptbxl_classification/download.sh')
                 print('done!')
@@ -22,6 +22,7 @@ class PTBXLReduceDataset(Dataset):
         if self.train:
             self.x = np.load(os.path.join(self.root, 'x_train.npy'))
             self.y = np.load(os.path.join(self.root, 'y_train.npy'))
+            # import pdb; pdb.set_trace()
         else:
             self.x = np.load(os.path.join(self.root, 'x_test.npy'))
             self.y = np.load(os.path.join(self.root, 'y_test.npy'))
@@ -32,6 +33,7 @@ class PTBXLReduceDataset(Dataset):
                 x_shape = x.shape
                 x_tmp.append(self.ss.transform(x.flatten()[:, np.newaxis]).reshape(x_shape))
             self.x = np.array(x_tmp)
+            # import pdb; pdb.set_trace()
     
     def __len__(self):
         return self.y.shape[0]
