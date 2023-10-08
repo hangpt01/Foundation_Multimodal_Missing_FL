@@ -114,7 +114,7 @@ class Model(FModule):
         for lead in leads:
             features += self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
         outputs = self.classifier(features)
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         
         loss = self.criterion(outputs, y.type(torch.int64))
         return loss, outputs

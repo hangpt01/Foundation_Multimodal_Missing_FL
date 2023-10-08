@@ -1,17 +1,50 @@
-import os
-import ujson
-import importlib
-import random
-from torchvision import transforms
 from .dataset import IEMOCAPDataset
 from benchmark.toolkits import DefaultTaskGen
 from benchmark.toolkits import ClassificationCalculator
 from benchmark.toolkits import IDXTaskPipe
+import os
+import ujson
+import importlib
+import random
 import torch
+from torch.utils.data import DataLoader
+from sklearn.metrics import accuracy_score
 import numpy as np
-from itertools import combinations
-from tqdm.auto import tqdm
-from sklearn.metrics import f1_score, accuracy_score
+import warnings
+warnings.filterwarnings('ignore')
+
+class TaskPipe(IDXTaskPipe):
+    @classmethod
+    def load_task(cls, task_path):
+        with open(os.path.join(task_path, 'data.json'), 'r') as inf:
+            feddata = ujson.load(inf)
+        class_path = feddata['datasrc']['class_path']
+        class_name = feddata['datasrc']['class_name']
+        origin_class = getattr(importlib.import_module(class_path), class_name)
+        origin_train_data = cls.args_to_dataset(origin_class, feddata['datasrc']['train_args'])
+        origin_test_data = cls.args_to_dataset(origin_class, feddata['datasrc']['test_args'])
+        test_data = cls.TaskDataset(origin_test_data, [_ for _ in range(len(origin_test_data))])
+        train_datas = []
+        valid_datas = []
+        modalities_list = []
+        for name in feddata['client_names']:
+            train_data = feddata[name]['dtrain']
+            valid_data = feddata[name]['dvalid']
+            if cls._cross_validation:
+                k = len(train_data)
+                train_data.extend(valid_data)
+                random.shuffle(train_data)
+                all_data = train_data
+                train_data = all_data[:k]
+                valid_data = all_data[k:]
+            if cls._train_on_all:
+                train_data.extend(valid_data)
+            train_datas.append(cls.TaskDataset(origin_train_data, train_data))
+            valid_datas.append(cls.TaskDataset(origin_train_data, valid_data))
+            modalities_list.append(feddata[name]['modalities'])
+            # modalities_list.append(list(range(12)))
+        # import pdb; pdb.set_trace()
+        return train_datas, valid_datas, test_data, feddata['client_names'], modalities_list
 
 def save_task(generator):
     """
@@ -38,18 +71,41 @@ def save_task(generator):
         'dtest': [i for i in range(len(generator.test_data))],
         'datasrc': generator.source_dict
     }
+    # import pdb; pdb.set_trace()
     for cid in range(len(generator.cnames)):
-        feddata[generator.cnames[cid]] = {
-            'modalities': generator.all_cases[cid],
-            'dtrain': generator.train_cidxs[cid],
-            'dvalid': generator.valid_cidxs[cid]
-        }
+        # print(cid)
+        if generator.specific_training_leads:
+            feddata[generator.cnames[cid]] = {
+                'modalities': generator.specific_training_leads[cid],
+                'dtrain': generator.train_cidxs[cid],
+                'dvalid': generator.valid_cidxs[cid]
+            }
+        else:
+            feddata[generator.cnames[cid]] = {
+                'dtrain': generator.train_cidxs[cid],
+                'dvalid': generator.valid_cidxs[cid]
+            }
+    # import pdb; pdb.set_trace()
     with open(os.path.join(generator.taskpath, 'data.json'), 'w') as outf:
         ujson.dump(feddata, outf)
     return
 
+
+def iid_partition(generator):
+    print(generator)
+    # import pdb; pdb.set_trace()
+    labels = np.unique(generator.train_data.y)
+    local_datas = [[] for _ in range(generator.num_clients)]
+    for label in labels:
+        permutation = np.random.permutation(np.where(generator.train_data.y == label)[0])
+        split = np.array_split(permutation, generator.num_clients)
+        for i, idxs in enumerate(split):
+            local_datas[i] += idxs.tolist()
+    # import pdb; pdb.set_trace()
+    return local_datas
+
 class TaskGen(DefaultTaskGen):
-    def __init__(self, dist_id, num_clients = 1, skewness = 0.5, local_hld_rate=0.2, seed= 0, percentages=None):
+    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, percentages=None, missing=False, modal_equality=False, modal_missing_case3=False, modal_missing_case4=False):
         super(TaskGen, self).__init__(benchmark='iemocap_classification',
                                       dist_id=dist_id,
                                       num_clients=num_clients,
@@ -58,198 +114,85 @@ class TaskGen(DefaultTaskGen):
                                       local_hld_rate=local_hld_rate,
                                       seed = seed
                                       )
-        self.modalities = ["text", "audio", "vision"]
+        if self.dist_id == 0:
+            self.partition = iid_partition
+            # self.partition = partition
         self.num_classes = 6
-        if len(percentages) != 2 or sum(percentages) > 1.0:
-            self.percentages = [0.0, 0.0]
-        else:
-            self.percentages = percentages
-        self.combin_cnt = [int(p * self.num_clients) for p in self.percentages]
-        self.combin_cnt.append(self.num_clients - sum(self.combin_cnt))
-        self.taskname = self.rename_task()
-        self.taskpath = os.path.join(self.task_rootpath, self.taskname)
-        print("Count for each combinations:", self.percentages, self.combin_cnt)
-        self.all_cases = [[self.modalities[0]]] * self.combin_cnt[0] + \
-                         [[self.modalities[1]]] * self.combin_cnt[1] + \
-                         [[self.modalities[2]]] * self.combin_cnt[2] + \
-                         [self.modalities] * self.combin_cnt[2]
-        random.shuffle(self.all_cases)
         self.save_task = save_task
         self.visualize = self.visualize_by_class
-        
         self.source_dict = {
-            'class_path': 'benchmark.iemocap_classification.dataset',
+            'class_path': 'benchmark.vehicle_classification.dataset',
             'class_name': 'IEMOCAPDataset',
             'train_args': {
                 'root': '"'+self.rawdata_path+'"',
                 'download': 'True',
+                'standard_scaler': 'False',
                 'train':'True'
             },
             'test_args': {
                 'root': '"'+self.rawdata_path+'"',
                 'download': 'True',
+                'standard_scaler': 'False',
                 'train': 'False'
             }
         }
+        self.num_clients = num_clients
+        self.missing = missing
+        # self.modal_equality = modal_equality
+        # self.modal_missing_case3 = modal_missing_case3
+        # self.modal_missing_case4 = modal_missing_case4
+        if self.num_clients == 20:
+            self.specific_training_leads = [(0,), (0,), (0, 2), (2,), (1,), (0,), (2,), (0,), (0, 1), (2,), (0, 2), (0, 1, 2), (2,), (1, 2), (2,), (0,), (1,), (1,), (1,), (0,)]            # p=0.7, #modals_sample = [10,7,9]   
+                                        
 
-    def rename_task(self):
-        """Create task name and return it."""
-        taskname = '_'.join([
-            self.benchmark,
-            'cnum' +  str(self.num_clients),
-            'dist' + str(self.dist_id),
-            'skew' + str(self.skewness).replace(" ", ""),
-            'seed'+str(self.seed),
-            '+'.join(self.modalities),
-            '+'.join([str(c) for c in self.combin_cnt])
-        ])
-        return taskname
+        # self.taskname = self.taskname + '_missing'
+        self.taskpath = os.path.join(self.task_rootpath, self.taskname)
 
     def load_data(self):
+        # import pdb; pdb.set_trace()
         self.train_data = IEMOCAPDataset(
             root=self.rawdata_path,
-            train=True,
             download=True,
+            standard_scaler=False,
+            train=True
         )
+        # import pdb; pdb.set_trace()
         self.test_data = IEMOCAPDataset(
             root=self.rawdata_path,
-            train=False,
             download=True,
+            standard_scaler=False,
+            train=False
         )
+        
+    # def partition(self):
+    #     # Partition self.train_data according to the delimiter and return indexes of data owned by each client as [c1data_idxs, ...] where the type of each element is list(int)
+    #     if self.dist_id == 0:
+    #         """IID"""
+    #         # d_idxs = np.random.permutation(len(self.train_data))
+    #         # local_datas = np.array_split(d_idxs, self.num_clients)
+    #         # local_datas = [data_idx.tolist() for data_idx in local_datas]
+    #         local_datas = [data_idx.tolist() for data_idx in self.train_data]
+        
+    #     return local_datas
 
-
-class TaskPipe(IDXTaskPipe):
-    @classmethod
-    def load_task(cls, task_path):
-        with open(os.path.join(task_path, 'data.json'), 'r') as inf:
-            feddata = ujson.load(inf)
-        class_path = feddata['datasrc']['class_path']
-        class_name = feddata['datasrc']['class_name']
-        origin_class = getattr(importlib.import_module(class_path), class_name)
-        origin_train_data = cls.args_to_dataset(origin_class, feddata['datasrc']['train_args'])
-        origin_test_data = cls.args_to_dataset(origin_class, feddata['datasrc']['test_args'])
-        test_data = cls.TaskDataset(origin_test_data, [_ for _ in range(len(origin_test_data))])
-        train_datas = []
-        valid_datas = []
-        modalities_list = []
-        for name in feddata['client_names']:
-            train_data = feddata[name]['dtrain']
-            valid_data = feddata[name]['dvalid']
-            if cls._cross_validation:
-                k = len(train_data)
-                train_data.extend(valid_data)
-                # import pdb; pdb.set_trace()
-                random.shuffle(train_data)
-                all_data = train_data
-                train_data = all_data[:k]
-                valid_data = all_data[k:]
-            if cls._train_on_all:
-                train_data.extend(valid_data)
-            train_datas.append(cls.TaskDataset(origin_train_data, train_data))
-            valid_datas.append(cls.TaskDataset(origin_train_data, valid_data))
-            modalities_list.append(feddata[name]['modalities'])
-        # import pdb;pdb.set_trace()
-        return train_datas, valid_datas, test_data, feddata['client_names'], modalities_list
     
-
 class TaskCalculator(ClassificationCalculator):
     def __init__(self, device, optimizer_name='sgd'):
         super(TaskCalculator, self).__init__(device, optimizer_name)
+        self.DataLoader = DataLoader
 
-    def data_to_device(self, data):
-        sample_to_device = dict()
-        for modal, modal_data in data[0].items():
-            sample_to_device[modal] = modal_data.to(self.device)
-        return sample_to_device, data[1].to(self.device)
-    
-    def train_one_step(self, model, data, modalities, contrastive_weight, temperature, kl_weight):
+    def train_one_step(self, model, data, leads):
         """
         :param model: the model to train
         :param data: the training dataset
         :return: dict of train-one-step's result, which should at least contains the key 'loss'
         """
         tdata = self.data_to_device(data)
-        joint_loss, joint_outputs, vision_loss, vision_outputs = model(tdata[0], tdata[1], modalities, 
-                                                                     contrastive_weight, temperature, kl_weight)
-        if modalities == ["text", "audio", "vision"]:
-            return {'loss': joint_loss + vision_loss}
-        elif modalities == ["vision"]:
-            return {'loss': vision_loss}
-    
-    @torch.no_grad()
-    def test(self, model, dataset, modalities, contrastive_weight, temperature, kl_weight, batch_size=64, num_workers=0):
-        model.eval()
-        if batch_size == -1:
-            batch_size = len(dataset)
-        data_loader = self.get_data_loader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-        # total_loss = 0.0
-        # total_count = 0
-        # labels = list()
-        # preds = list()
-        # losses = list()
-        # for data in data_loader:        
-        #     tdata = self.data_to_device(data)
-        #     total_count += tdata[1].shape[0]
-        #     labels.extend(tdata[1].cpu().tolist())
-        #     loss, outputs = model(tdata[0], tdata[1], contrastive_weight, temperature, kl_weight)
-        #     total_loss += loss * tdata[1].shape[0]
-        #     preds.extend(outputs.cpu().tolist())
-        # truth = np.array(labels)
-        # truth_a7 = np.clip(truth, a_min=-3.0, a_max=3.0)
-        # preds = np.array(preds)
-        # preds_a7 = np.clip(preds, a_min=-3.0, a_max=3.0)
-        # binary_truth = (truth > 0)
-        # binary_preds = (preds > 0)
-        # return {
-        #     'loss': total_loss.item() / total_count,
-        #     'mae': np.mean(np.absolute(preds - truth)),
-        #     'corr': np.corrcoef(preds, truth)[0, 1],
-        #     'acc7': np.sum(np.round(preds_a7) == np.round(truth_a7)) / total_count,
-        #     'acc2': accuracy_score(binary_truth, binary_preds),
-        #     'f1': f1_score(binary_truth, binary_preds, average='weighted'),
-        # }
-        total_loss = {
-            'text+audio+vision': 0.0,
-            'vision': 0.0
-        }
-        labels = list()
-        predicts = {
-            'text+audio+vision': list(),
-            'vision': list()
-        }
-        for batch_id, batch_data in enumerate(data_loader):
-            batch_data = self.data_to_device(batch_data)
-            labels.extend(batch_data[1].cpu().tolist())
-            # import pdb; pdb.set_trace()
-            joint_loss, joint_outputs, vision_loss, vision_outputs = model({modal: batch_data[0][modal] for modal in modalities}, batch_data[-1], modalities, 
-                                                                         contrastive_weight, temperature, kl_weight)
-            total_loss['vision'] += vision_loss.item() * len(batch_data[-1])
-            predicts['vision'].extend(torch.argmax(torch.softmax(vision_outputs, dim=1), dim=1).cpu().tolist())
-            if modalities == ["text", "audio", "vision"]:
-                total_loss['text+audio+vision'] += joint_loss.item() * len(batch_data[-1])
-                predicts['text+audio+vision'].extend(torch.argmax(torch.softmax(joint_outputs, dim=1), dim=1).cpu().tolist())
-                # if np.any(np.isnan(torch.sigmoid(joint_outputs).cpu().numpy())):
-                #     import pdb; pdb.set_trace()
-        labels = np.array(labels)
-        acc = dict()
-        for combin in ['text+audio+vision', 'vision']:
-            predicts[combin] = np.array(predicts[combin])
-            acc[combin] = accuracy_score((labels), (predicts[combin]))
-        if modalities == ["text", "audio", "vision"]:
-            return {
-                'text+audio+vision_loss': total_loss['text+audio+vision'] / len(dataset),
-                'text+audio+vision_acc': acc['text+audio+vision'],
-                'vision_loss': total_loss['vision'] / len(dataset),
-                'vision_acc': acc['vision'],
-            }
-        elif modalities == ["vision"]:
-            return {
-                'vision_loss': total_loss['vision'] / len(dataset),
-                'vision_acc': acc['vision'],
-            }
+        loss, outputs = model(tdata[0], tdata[-1], leads)
+        return {'loss': loss}
 
     @torch.no_grad()
-    def custom_test(self, model, dataset, contrastive_weight, temperature, kl_weight, batch_size=64, num_workers=0, all_modal_combin_list=[]):
+    def test(self, model, dataset, leads, batch_size=64, num_workers=0):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -258,70 +201,128 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         model.eval()
-        if batch_size == -1:
-            batch_size = len(dataset)
-        data_loader = self.get_data_loader(dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
-        # total_count = 0
-        # labels = list()
-        # eval_dict = dict()
-        # for combin_list in all_modal_combin_list:
-        #     combin = "+".join(combin_list)
-        #     eval_dict[combin + "_total_loss"] = 0.0
-        #     eval_dict[combin + "_outputs"] = list()
-        # for data in data_loader:        
-        #     tdata = self.data_to_device(data)
-        #     total_count += tdata[1].shape[0]
-        #     labels.extend(tdata[1].cpu().tolist())
-        #     for combin_list in all_modal_combin_list:
-        #         combin = "+".join(combin_list)
-        #         samples = dict()
-        #         for modal in combin_list:
-        #             samples[modal] = tdata[0][modal].contiguous()
-        #         loss, outputs = model(samples, tdata[1], contrastive_weight, temperature, kl_weight)
-        #         eval_dict[combin + "_total_loss"] += loss.item() * tdata[1].shape[0]
-        #         eval_dict[combin + "_outputs"].extend(outputs.cpu().tolist())
-        # result = dict()
-        # truth = np.array(labels)
-        # truth_a7 = np.clip(truth, a_min=-3.0, a_max=3.0)
-        # for combin_list in all_modal_combin_list:
-        #     combin = "+".join(combin_list)
-        #     result[combin + "_loss"] = eval_dict[combin + "_total_loss"] / total_count
-        #     preds = np.array(eval_dict[combin + "_outputs"])
-        #     preds_a7 = np.clip(preds, a_min=-3.0, a_max=3.0)
-        #     result[combin + "_mae"] = np.mean(np.absolute(preds - truth))
-        #     result[combin + "_corr"] = np.corrcoef(preds, truth)[0, 1]
-        #     result[combin + "_acc7"] = np.sum(np.round(preds_a7) == np.round(truth_a7)) / total_count
-        #     binary_truth = (truth > 0)
-        #     binary_preds = (preds > 0)
-        #     result[combin + "_acc2"] = accuracy_score(binary_truth, binary_preds)
-        #     result[combin + "_f1"] = f1_score(binary_truth, binary_preds, average='weighted')
-        # return result
-        total_loss = {
-            'text+audio+vision': 0.0,
-            'vision': 0.0
-        }
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        total_loss = 0.0
         labels = list()
-        predicts = {
-            'text+audio+vision': list(),
-            'vision': list()
-        }
+        predicts = list()
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data[1].cpu().tolist())
-            joint_loss, joint_outputs, vision_loss, vision_outputs = model(batch_data[0], batch_data[-1], ["text", "audio", "vision"], 
-                                                                         contrastive_weight, temperature, kl_weight)
-            total_loss['vision'] += vision_loss.item() * len(batch_data[-1])
-            predicts['vision'].extend(torch.argmax(torch.softmax(vision_outputs, dim=1), dim=1).cpu().tolist())
-            total_loss['text+audio+vision'] += joint_loss.item() * len(batch_data[-1])
-            predicts['text+audio+vision'].extend(torch.argmax(torch.softmax(joint_outputs, dim=1), dim=1).cpu().tolist())
+            loss, outputs = model(batch_data[0], batch_data[-1], leads)
+            total_loss += loss.item() * len(batch_data[-1])
+            predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
         labels = np.array(labels)
-        acc = dict()
-        for combin in ['text+audio+vision', 'vision']:
-            predicts[combin] = np.array(predicts[combin])
-            acc[combin] = accuracy_score((labels), (predicts[combin]))
+        predicts = np.array(predicts)
+        accuracy = accuracy_score(labels, predicts)
         return {
-            'text+audio+vision_loss': total_loss['text+audio+vision'] / len(dataset),
-            'text+audio+vision_acc': acc['text+audio+vision'],
-            'vision_loss': total_loss['vision'] / len(dataset),
-            'vision_acc': acc['vision'],
+            'loss': total_loss / len(dataset),
+            'acc': accuracy
         }
+
+    @torch.no_grad()
+    def server_test(self, model, dataset, leads, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        result = dict() 
+        for test_combi_index in range(len(leads)):
+            total_loss = 0.0
+            labels = list()
+            predicts = list()    
+            for batch_id, batch_data in enumerate(data_loader):
+                batch_data = self.data_to_device(batch_data)
+                labels.extend(batch_data[1].cpu().tolist())
+                loss, outputs = model(batch_data[0], batch_data[-1], leads[test_combi_index])
+                total_loss += loss.item() * len(batch_data[-1])
+                predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+            labels = np.array(labels)
+            predicts = np.array(predicts)
+            accuracy = accuracy_score(labels, predicts)
+            
+            result['loss'+str(test_combi_index+1)] = total_loss / len(dataset)
+            result['acc'+str(test_combi_index+1)] = accuracy
+        # return {
+        #     'loss': total_loss / len(dataset),
+        #     'acc': accuracy
+        # }
+        # import pdb;pdb.set_trace()
+        return result
+
+
+    @torch.no_grad()
+    def full_modal_server_test(self, model, dataset, leads, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        total_loss = 0.0
+        labels = list()
+        predicts = list()
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data[1].cpu().tolist())
+            loss, outputs = model(batch_data[0], batch_data[-1], leads)
+            total_loss += loss.item() * len(batch_data[-1])
+            predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+        labels = np.array(labels)
+        predicts = np.array(predicts)
+        accuracy = accuracy_score(labels, predicts)
+        return {
+            'loss': total_loss / len(dataset),
+            'acc': accuracy
+        }
+
+    @torch.no_grad()
+    def independent_test(self, model, dataset, leads, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        result = dict() 
+        for test_combi_index in range(len(leads)):
+            labels = list()
+            predicts = list()
+            for batch_id, batch_data in enumerate(data_loader):
+                batch_data = self.data_to_device(batch_data)
+                labels.extend(batch_data[1].cpu().tolist())
+                predict = model.predict(batch_data[0], batch_data[-1], leads[test_combi_index])
+                predicts.extend(predict.argmax(dim=1).cpu().tolist())
+            predicts = np.array(predicts)
+            accuracy = accuracy_score(labels, predicts)
+            result['acc'+str(test_combi_index+1)] = accuracy
+        return result
+        
+    @torch.no_grad()
+    def independent_test_detail(self, model, dataset, leads, batch_size=64, num_workers=0):
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=1, num_workers=num_workers)
+        labels = list()
+        
+        fin_output = []
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data[1].cpu().tolist())
+            fin_output.append(model.predict_detail(batch_data[0], batch_data[-1], leads))
+        
+        return fin_output

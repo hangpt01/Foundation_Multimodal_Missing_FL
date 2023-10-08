@@ -8,20 +8,19 @@ python generate_fedtask.py \
 
 python main.py \
     --task vehicle_classification_cnum23_dist0_skew0_seed0 \
-    --model fedavg \
-    --algorithm multimodal.vehicle_classification.fedavg \
+    --model fedmsplit \
+    --algorithm multimodal.vehicle_classification.fedmsplit \
     --sample full \
     --aggregate other \
-    --num_rounds 10 \
+    --num_rounds 500 \
     --proportion 1.0 \
     --num_epochs 4 \
-    --learning_rate 1 \
+    --learning_rate 0.05 \
     --lr_scheduler 0 \
     --learning_rate_decay 1.0 \
-    --batch_size 256 \
-    --test_batch_size 256 \
+    --batch_size 128 \
+    --test_batch_size 128 \
     --gpu 0 \
     --seed 1234 \
-    --fedmsplit_prox_lambda 0.0 
-    # \
-    # --wandb
+    --fedmsplit_prox_lambda 0.01 \
+    --wandb

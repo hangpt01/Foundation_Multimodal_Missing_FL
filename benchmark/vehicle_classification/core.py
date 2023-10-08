@@ -180,35 +180,88 @@ class TaskGen(DefaultTaskGen):
         }
         self.num_clients = 23
         self.missing = missing
-        # self.modal_equality = modal_equality
-        # self.modal_missing_case3 = modal_missing_case3
-        # self.modal_missing_case4 = modal_missing_case4
-        self.specific_training_leads = [(1,),            # p=0.7, #modals_sample = [14,15]   
-                                        (0,),
-                                        (1,),
-                                        (0,),
-                                        (0,),
-                                        (0,),
-                                        (1,),
-                                        (0,),
-                                        (0,),
-                                        (0, 1),
-                                        (0, 1),
-                                        (0, 1),
-                                        (0, 1),
-                                        (1,),
-                                        (0, 1),
-                                        (1,),
-                                        (1,),
-                                        (0,),
-                                        (0, 1),
-                                        (1,),
-                                        (0,),
-                                        (1,),
-                                        (1,)]
-
+        self.modal_equality = modal_equality
+        self.missing_rate_0_3 = modal_missing_case3
+        self.modal_missing_case4 = modal_missing_case4
+        if self.modal_equality:         # p=1, #modals_sample = [14,9]
+            self.specific_training_leads = [(1,),
+                                            (0,),
+                                            (0,),
+                                            (1,),
+                                            (1,),
+                                            (0,),
+                                            (1,),
+                                            (1,),
+                                            (0,),
+                                            (0,),
+                                            (0,),
+                                            (0,),
+                                            (0,),
+                                            (0,),
+                                            (1,),
+                                            (0,),
+                                            (0,),
+                                            (0,),
+                                            (0,),
+                                            (0,),
+                                            (1,),
+                                            (1,),
+                                            (1,)]
+            self.taskname = self.taskname + '_missing_rate_1'
+            self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        if self.missing_rate_0_3:       # p=0.3, #modals_sample = [20,19]   
+            self.specific_training_leads = [(0, 1),
+                                            (0, 1),
+                                            (0, 1),
+                                            (0, 1),
+                                            (0,),
+                                            (0, 1),
+                                            (0, 1),
+                                            (0, 1),
+                                            (0, 1),
+                                            (0,),
+                                            (0, 1),
+                                            (0, 1),
+                                            (0, 1),
+                                            (1,),
+                                            (0,),
+                                            (0, 1),
+                                            (0, 1),
+                                            (0, 1),
+                                            (1,),
+                                            (0, 1),
+                                            (0,),
+                                            (1,),
+                                            (0, 1)]
+            self.taskname = self.taskname + '_missing_rate_0.3'
+            self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        else:
+            self.specific_training_leads = [(1,),            # p=0.7, #modals_sample = [14,15]   
+                                            (0,),
+                                            (1,),
+                                            (0,),
+                                            (0,),
+                                            (0,),
+                                            (1,),
+                                            (0,),
+                                            (0,),
+                                            (0, 1),
+                                            (0, 1),
+                                            (0, 1),
+                                            (0, 1),
+                                            (1,),
+                                            (0, 1),
+                                            (1,),
+                                            (1,),
+                                            (0,),
+                                            (0, 1),
+                                            (1,),
+                                            (0,),
+                                            (1,),
+                                            (1,)]
+            self.taskpath = os.path.join(self.task_rootpath, self.taskname)
         # self.taskname = self.taskname + '_missing'
-        self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        
 
     def load_data(self):
         # import pdb; pdb.set_trace()
