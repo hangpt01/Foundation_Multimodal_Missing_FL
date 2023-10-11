@@ -167,7 +167,8 @@ class Model(FModule):
         if count > 0:
             loss += 5.0 * contrative_loss / count
 
-        return loss, outputs
+        loss_leads = 0
+        return loss_leads, loss, outputs
 
 if __name__ == '__main__':
     model = Model()

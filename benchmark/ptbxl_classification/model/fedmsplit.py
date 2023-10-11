@@ -112,7 +112,8 @@ class Model(FModule):
             features += self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
         outputs = self.classifier(features)
         loss = self.criterion(outputs, y.type(torch.int64))
-        return loss, outputs
+        loss_leads = 0
+        return loss_leads, loss, outputs
 
 if __name__ == '__main__':
     model = Model()

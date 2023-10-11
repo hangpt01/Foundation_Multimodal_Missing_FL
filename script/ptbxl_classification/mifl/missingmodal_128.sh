@@ -8,8 +8,8 @@ python generate_fedtask.py \
 
 python main.py \
     --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_mifl_gblend \
-    --model mifl_gblend \
-    --algorithm multimodal.ptbxl_classification.mifl_gblend \
+    --model missing_modal \
+    --algorithm multimodal.ptbxl_classification.missing_modal \
     --sample full \
     --aggregate other \
     --num_rounds 2 \
@@ -20,7 +20,7 @@ python main.py \
     --learning_rate_decay 1.0 \
     --batch_size 256 \
     --test_batch_size 256 \
-    --gpu 0 \
+    --gpu 1 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0.01 
     # \

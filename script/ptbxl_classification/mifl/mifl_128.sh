@@ -8,20 +8,19 @@ python generate_fedtask.py \
 
 python main.py \
     --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_mifl_gblend \
-    --model mifl_gblend \
-    --algorithm multimodal.ptbxl_classification.mifl_gblend \
+    --model fedmsplit_gaga_c3_contrastive \
+    --algorithm multimodal.ptbxl_classification.fedmsplit_gaga \
     --sample full \
     --aggregate other \
-    --num_rounds 2 \
+    --num_rounds 300 \
     --proportion 1.0 \
-    --num_epochs 2 \
+    --num_epochs 3 \
     --learning_rate 0.5 \
     --lr_scheduler 0 \
     --learning_rate_decay 1.0 \
-    --batch_size 256 \
-    --test_batch_size 256 \
+    --batch_size 128 \
+    --test_batch_size 128 \
     --gpu 0 \
     --seed 1234 \
-    --fedmsplit_prox_lambda 0.01 
-    # \
-    # --wandb
+    --fedmsplit_prox_lambda 0.01 \
+    --wandb

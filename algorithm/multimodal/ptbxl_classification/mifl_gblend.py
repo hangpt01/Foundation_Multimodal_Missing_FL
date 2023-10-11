@@ -21,6 +21,7 @@ class Server(BasicServer):
             [2, 4, 5, 6, 7, 8, 9, 11],          #6
             [0, 1, 2, 4, 5, 6, 7, 8, 9, 11]     #7
         ]
+        # self.z_M = [1/12]*12
 
     def run(self):
         """
@@ -81,8 +82,8 @@ class Server(BasicServer):
             for l in range(n_models):
                 d_q[k, l] = 1 + len(set(modalities_list[k]).intersection(set(modalities_list[l])))
         modal_dict = dict()
-        A = torch.zeros(size=(self.n_leads + 1, n_models, n_models))
-        # feature extractors
+        A = torch.zeros(size=(self.n_leads *3+1, n_models, n_models))
+        # feature extractors update coefficients
         for m in range(self.n_leads):
             modal_dict[m] = list()
             for k in range(n_models):
@@ -102,10 +103,53 @@ class Server(BasicServer):
                 for idl, l in enumerate(modal_dict[m]):
                     A[m, k, l] = att_mat[idk, idl]
         # classifier
+        # params = torch.stack([
+        #     torch.cat([
+        #         mi.data.view(-1) for mi in \
+        #         self.clients[self.selected_clients[k]].local_model.classifier.parameters()
+        #     ]) for k in range(n_models)
+        # ])
+        # dim = params.shape[1]
+        # att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
+        # for k in range(n_models):
+        #     for l in range(n_models):
+        #         A[-1, k, l] = att_mat[k, l]
+        
+        
+        # relation embedders update coefficient
+        list_full_n_leads = [*range(self.n_leads)]
+        for m in range(self.n_leads):
+            params = torch.stack([
+                torch.cat([
+                    mi.data.view(-1) for mi in \
+                    self.clients[self.selected_clients[k]].local_model.relation_embedders[m].parameters()
+                ]) for k in list_full_n_leads
+            ])
+            dim = params.shape[1]
+            att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
+            for idk, k in enumerate(list_full_n_leads):
+                for idl, l in enumerate(list_full_n_leads):
+                    A[self.n_leads+m, k, l] = att_mat[idk, idl]
+        
+        # classifiers update coefficient
+        for m in range(self.n_leads):
+            params = torch.stack([
+                torch.cat([
+                    mi.data.view(-1) for mi in \
+                    self.clients[self.selected_clients[k]].local_model.classifiers[m].parameters()
+                ]) for k in list_full_n_leads
+            ])
+            dim = params.shape[1]
+            att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
+            for idk, k in enumerate(list_full_n_leads):
+                for idl, l in enumerate(list_full_n_leads):
+                    A[self.n_leads*2+m, k, l] = att_mat[idk, idl]
+        
+        # multi classifier update coefficient
         params = torch.stack([
             torch.cat([
                 mi.data.view(-1) for mi in \
-                self.clients[self.selected_clients[k]].local_model.classifier.parameters()
+                self.clients[self.selected_clients[k]].local_model.multi_classifier.parameters()
             ]) for k in range(n_models)
         ])
         dim = params.shape[1]
@@ -113,8 +157,11 @@ class Server(BasicServer):
         for k in range(n_models):
             for l in range(n_models):
                 A[-1, k, l] = att_mat[k, l]
-        global_relation_embedders = []
-        for m in range(self.n_leads):
+        
+        # global_relation_embedders = []
+        # global_classifiers = []
+        
+        for m in range(self.n_leads):       #clients new feature extractors
             for k in modal_dict[m]:
                 self.clients[self.selected_clients[k]].local_model.feature_extractors[m] = fmodule._model_sum([
                     self.clients[self.selected_clients[l]].local_model.feature_extractors[m] * \
@@ -123,19 +170,46 @@ class Server(BasicServer):
                     A[m, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in modal_dict[m]
                 ])
         for m in range(self.n_leads):
-            global_relation_embedders.append(fmodule._model_average([
-                self.clients[self.selected_clients[k]].local_model.relation_embedders[m] for k in self.selected_clients
-            ])    )
-        for k in range(n_models):    
-            for m in range(self.n_leads):
-                self.clients[self.selected_clients[k]].local_model.relation_embedders[m] = global_relation_embedders[m]
+            # global_relation_embedders.append(fmodule._model_average([
+            #     self.clients[self.selected_clients[k]].local_model.relation_embedders[m] for k in self.selected_clients
+            # ])    )
+            # global_classifiers.append(fmodule._model_average([
+            #     self.clients[self.selected_clients[k]].local_model.classifiers[m] for k in self.selected_clients
+            # ])    )
+            for k in list_full_n_leads:
+                self.clients[self.selected_clients[k]].local_model.relation_embedders[m] = fmodule._model_sum([
+                        self.clients[self.selected_clients[l]].local_model.relation_embedders[m] * \
+                        A[self.n_leads+m, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in list_full_n_leads
+                    ]) / sum([
+                        A[self.n_leads+m, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in list_full_n_leads
+                    ])
+                self.clients[self.selected_clients[k]].local_model.classifiers[m] = fmodule._model_sum([
+                        self.clients[self.selected_clients[l]].local_model.classifiers[m] * \
+                        A[self.n_leads*2+m, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in list_full_n_leads
+                    ]) / sum([
+                        A[self.n_leads*2+m, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in list_full_n_leads
+                    ])
+        
         for k in range(n_models):
-            self.clients[self.selected_clients[k]].local_model.classifier = fmodule._model_sum([
-                self.clients[self.selected_clients[l]].local_model.classifier * \
+            self.clients[self.selected_clients[k]].local_model.multi_classifier = fmodule._model_sum([
+                self.clients[self.selected_clients[l]].local_model.multi_classifier * \
                 A[-1, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in range(n_models)
             ]) / sum([
                 A[-1, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in range(n_models)
-            ])
+            ])    
+            
+        # for k in range(n_models):    
+        #     for m in range(self.n_leads):
+        #         self.clients[self.selected_clients[k]].local_model.relation_embedders[m] = global_relation_embedders[m]
+        #         self.clients[self.selected_clients[k]].local_model.classifiers[m] = global_classifiers[m]
+                
+        # for k in range(n_models):
+        #     self.clients[self.selected_clients[k]].local_model.classifier = fmodule._model_sum([
+        #         self.clients[self.selected_clients[l]].local_model.classifier * \
+        #         A[-1, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in range(n_models)
+        #     ]) / sum([
+        #         A[-1, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in range(n_models)
+        #     ])
         
         new_model = copy.deepcopy(self.model)
         union_testing_leads = self.list_testing_leads[0]
@@ -145,10 +219,25 @@ class Server(BasicServer):
             new_model.feature_extractors[m] = fmodule._model_average([
                 self.clients[self.selected_clients[l]].local_model.feature_extractors[m] for l in modal_dict[m]
             ])
-            new_model.relation_embedders[m] = global_relation_embedders[m]
-        new_model.classifier = fmodule._model_average([
-            self.clients[self.selected_clients[l]].local_model.classifier for l in range(n_models)
+        for m in list_full_n_leads:
+            new_model.relation_embedders[m] = fmodule._model_average([
+                self.clients[self.selected_clients[l]].local_model.relation_embedders[m] for l in list_full_n_leads
+            ])
+            new_model.classifiers[m] = fmodule._model_average([
+                self.clients[self.selected_clients[l]].local_model.classifiers[m] for l in list_full_n_leads
+            ])
+            
+        new_model.multi_classifier = fmodule._model_average([
+            self.clients[self.selected_clients[l]].local_model.multi_classifier for l in range(n_models)
         ])
+        
+        clients_z_M = [self.clients[self.selected_clients[l]].local_model.z_M for l in range(n_models)]
+        new_model.z_M = torch.FloatTensor([sum(sub_list) / len(sub_list) for sub_list in zip(*clients_z_M)])
+        # p_k = 
+    
+        print("Z_M", new_model.z_M)
+        for k in range(n_models):    
+            self.clients[self.selected_clients[k]].local_model.z_M = new_model.z_M
         return new_model
     
     def test(self, model=None):
@@ -161,6 +250,8 @@ class Server(BasicServer):
         """
         # return dict()
         if model is None: model=self.model
+        # import pdb; pdb.set_trace()
+        
         if self.test_data:
             return self.calculator.server_test(
                 model=model,
@@ -235,7 +326,7 @@ class Client(BasicClient):
 
     @ss.with_completeness
     @fmodule.with_multi_gpus
-    def train(self, model):
+    def train(self, model):     #Client training
         """
         Standard local training procedure. Train the transmitted model with local training dataset.
         :param
@@ -251,30 +342,96 @@ class Client(BasicClient):
             weight_decay=self.weight_decay,
             momentum=self.momentum
         )
-        for iter in range(self.num_steps):
+        # first step - step 0
+        loss = 0
+        val_loss_step_0 = torch.stack(self.evaluate(model))
+        # import pdb; pdb.set_trace()
+        z_M_step_0 = model.z_M.to(self.device)
+        for iter in range(self.num_steps):      # num clients epochs
             # get a batch of data
+            # import pdb; pdb.set_trace()
+            
             batch_data = self.get_batch_data()
             if batch_data[-1].shape[0] == 1:
                 continue
             model.zero_grad()
             # calculate the loss of the model on batched dataset through task-specified calculator
-            loss_leads, loss, outputs = self.calculator.train_one_step(
+            # import pdb; pdb.set_trace()
+            loss, loss_ , outputs = self.calculator.train_one_step(
                 model=model,
                 data=batch_data,
                 leads=self.modalities
             )['loss']
-            regular_loss = 0.0
-            if self.fedmsplit_prox_lambda > 0.0:
-                for m in self.modalities:
-                    for parameter, agg_parameter in zip(model.feature_extractors[m].parameters(), self.agg_model.feature_extractors[m].parameters()):
-                        regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
-                for parameter, agg_parameter in zip(model.classifier.parameters(), self.agg_model.classifier.parameters()):
-                    regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
-                loss += self.fedmsplit_prox_lambda * regular_loss
-            loss.backward()
+
+            # regular_loss = 0.0
+            # if self.fedmsplit_prox_lambda > 0.0:
+            #     for m in self.modalities:
+            #         for parameter, agg_parameter in zip(model.feature_extractors[m].parameters(), self.agg_model.feature_extractors[m].parameters()):
+            #             regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
+            #         for parameter, agg_parameter in zip(model.relation_embedders[m].parameters(), self.agg_model.relation_embedders[m].parameters()):
+            #             regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
+            #         for parameter, agg_parameter in zip(model.classifiers[m].parameters(), self.agg_model.classifiers[m].parameters()):
+            #             regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))    
+            #     # for parameter, agg_parameter in zip(model.classifier.parameters(), self.agg_model.classifier.parameters()):
+            #     #     regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
+            #     loss += self.fedmsplit_prox_lambda * regular_loss
+            
+            if iter==0:
+                loss_step_0 = torch.stack(loss)
+            # import pdb; pdb.set_trace()
+            # loss.backward(retain_graph=True)
+            loss_.backward()
             optimizer.step()
+        
+        # Training loss per batch
+        loss_step_E = torch.stack(loss)
+        # import pdb; pdb.set_trace()
+        
+        # for m in self.modalities:
+        val_loss_step_E = torch.stack(self.evaluate(model))
+        # import pdb; pdb.set_trace()
+        
+        delta_G = abs(val_loss_step_E - val_loss_step_0)
+        delta_O = abs((val_loss_step_E - val_loss_step_0) - (loss_step_E - loss_step_0))
+        z_M = delta_G / (delta_O*delta_O)
+        Q = torch.sum(z_M)
+        model.z_M = z_M / (2*Q)
+        
+        z_M_step_E = model.z_M
+        # import pdb; pdb.set_trace()
+        
+        loss_total_step_0 = torch.sum(z_M_step_0*loss_step_0).item()
+        loss_total_step_E = torch.sum(z_M_step_E*loss_step_E).item()
+        val_loss_total_step_0 = torch.sum(z_M_step_0*val_loss_step_0).item()
+        val_loss_total_step_E = torch.sum(z_M_step_0*val_loss_step_E).item()
+        
+        delta_G_client = abs(val_loss_total_step_E - val_loss_total_step_0)
+        delta_O_client = abs((val_loss_total_step_E - val_loss_total_step_0) - (loss_total_step_E - loss_total_step_0))
+        model.delta_G = delta_G_client
+        model.delta_O = delta_O_client
+        
+        # import pdb; pdb.set_trace()
+                
         return
 
+    @fmodule.with_multi_gpus
+    def evaluate(self, model):
+        """
+        Evaluate the model with local data (e.g. training data or validating data).
+        :param
+            model:
+            dataflag: choose the dataset to be evaluated on
+        :return:
+            metric: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
+        """
+        dataset = self.valid_data
+        # import pdb; pdb.set_trace()
+        return self.calculator.evaluate(
+            model=model,
+            dataset=dataset,
+            leads=self.modalities
+        )
+        
     @fmodule.with_multi_gpus
     def test(self, model, dataflag='train'):
         """

@@ -270,6 +270,8 @@ class BasicServer:
             metrics: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
         if model is None: model=self.model
+        # import pdb; pdb.set_trace()
+        
         if self.test_data:
             return self.calculator.test(model, self.test_data, batch_size = self.option['test_batch_size'])
         else:
@@ -341,6 +343,7 @@ class BasicClient():
         self.batch_size = int(self.batch_size) if self.batch_size>=1 else int(len(self.train_data)*self.batch_size)
         self.momentum = option['momentum']
         self.weight_decay = option['weight_decay']
+        # import pdb; pdb.set_trace()
         if option['num_steps']>0:
             self.num_steps = option['num_steps']
             self.epochs = 1.0 * self.num_steps/(math.ceil(len(self.train_data)/self.batch_size))
@@ -395,6 +398,7 @@ class BasicClient():
             metric: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
         dataset = self.train_data if dataflag=='train' else self.valid_data
+        # import pdb; pdb.set_trace()
         return self.calculator.test(model, dataset, self.test_batch_size)
 
     def unpack(self, received_pkg):

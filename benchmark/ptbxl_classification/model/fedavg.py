@@ -117,7 +117,8 @@ class Model(FModule):
         # import pdb; pdb.set_trace()
         
         loss = self.criterion(outputs, y.type(torch.int64))
-        return loss, outputs
+        loss_leads = 0
+        return loss_leads, loss, outputs
 
 if __name__ == '__main__':
     model = Model()

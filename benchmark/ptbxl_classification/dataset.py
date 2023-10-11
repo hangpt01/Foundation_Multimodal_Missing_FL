@@ -5,7 +5,7 @@ import pickle
 import random
 
 class PTBXLReduceDataset(Dataset):
-    def __init__(self, root, download=True, standard_scaler=True, train=True, crop_length=250):
+    def __init__(self, root, download=True, standard_scaler=True, train=True, crop_length=250, valid=False):
         self.root = root
         self.standard_scaler = standard_scaler
         self.train = train
@@ -20,8 +20,15 @@ class PTBXLReduceDataset(Dataset):
             else:
                 raise RuntimeError('Dataset not found. You can use download=True to download it')
         if self.train:
-            self.x = np.load(os.path.join(self.root, 'x_train.npy'))
-            self.y = np.load(os.path.join(self.root, 'y_train.npy'))
+            self.x = np.load(os.path.join(self.root, 'x_train.npy'))        # (3170, 1000, 12)
+            self.y = np.load(os.path.join(self.root, 'y_train.npy'))        # (3170,)
+            # if valid:
+            #     self.x = self.x[2400:,:,:]
+            #     self.y = self.y[2400:]
+            # else:
+            #     self.x = self.x[:2400,:,:]
+            #     self.y = self.y[:2400]
+
             # import pdb; pdb.set_trace()
         else:
             self.x = np.load(os.path.join(self.root, 'x_test.npy'))

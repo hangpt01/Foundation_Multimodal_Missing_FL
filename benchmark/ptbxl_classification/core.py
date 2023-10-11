@@ -72,6 +72,7 @@ def save_task(generator):
     }
     for cid in range(len(generator.cnames)):
         if generator.specific_training_leads:
+            # import pdb; pdb.set_trace()
             feddata[generator.cnames[cid]] = {
                 'modalities': generator.specific_training_leads[cid],
                 'dtrain': generator.train_cidxs[cid],
@@ -100,6 +101,19 @@ def iid_partition(generator):
     # import pdb; pdb.set_trace()
     return local_datas
 
+# def local_holdout(self, local_datas, shuffle=False):
+#         """split each local dataset into train data and valid data according the rate."""
+#         train_cidxs = []
+#         valid_cidxs = []
+#         for local_data in local_datas:
+#             if shuffle:
+#                 np.random.shuffle(local_data)
+#             k = int(len(local_data) * (1-self.local_holdout_rate))
+#             train_cidxs.append(local_data[:k])
+#             valid_cidxs.append(local_data[k:])
+#         return train_cidxs, valid_cidxs
+    
+
 class TaskGen(DefaultTaskGen):
     def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, percentages=None, missing=False, modal_equality=False, modal_missing_case3=False, modal_missing_case4=False):
         super(TaskGen, self).__init__(benchmark='ptbxl_classification',
@@ -112,6 +126,7 @@ class TaskGen(DefaultTaskGen):
                                       )
         if self.dist_id == 0:
             self.partition = iid_partition
+        # self.local_holdout = local_holdout
         self.num_classes = 10
         self.save_task = save_task
         self.visualize = self.visualize_by_class
@@ -136,6 +151,7 @@ class TaskGen(DefaultTaskGen):
         self.modal_missing_case3 = modal_missing_case3
         self.modal_missing_case4 = modal_missing_case4
         self.specific_training_leads = None
+        self.local_holdout_rate = 0.1
         if self.missing and self.num_clients == 20:
             if self.modal_equality:
                 self.specific_training_leads = [
@@ -234,8 +250,20 @@ class TaskGen(DefaultTaskGen):
                     (3, 4, 5, 8, 10, 11),
                     (0, 1, 3, 7, 9, 11)
                 ]
-                self.taskname = self.taskname + '_missing'
+                self.taskname = self.taskname + '_missing_mifl_gblend'
                 self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+
+    # def local_holdout(self, local_datas, shuffle=False):
+    #     """split each local dataset into train data and valid data according the rate."""
+    #     train_cidxs = []
+    #     valid_cidxs = []
+    #     for local_data in local_datas:
+    #         if shuffle:
+    #             np.random.shuffle(local_data)
+    #         k = int(len(local_data) * (1-self.local_holdout_rate))
+    #         train_cidxs.append(local_data[:k])
+    #         valid_cidxs.append(local_data[k:])
+    #     return train_cidxs, valid_cidxs
 
     def load_data(self):
         self.train_data = PTBXLReduceDataset(
@@ -244,6 +272,13 @@ class TaskGen(DefaultTaskGen):
             standard_scaler=True,
             train=True
         )
+        # self.valid_data = PTBXLReduceDataset(
+        #     root=self.rawdata_path,
+        #     download=True,
+        #     standard_scaler=True,
+        #     train=True,
+        #     valid=True
+        # )
         # import pdb; pdb.set_trace()
         self.test_data = PTBXLReduceDataset(
             root=self.rawdata_path,
@@ -264,7 +299,8 @@ class TaskCalculator(ClassificationCalculator):
         :return: dict of train-one-step's result, which should at least contains the key 'loss'
         """
         tdata = self.data_to_device(data)
-        loss, outputs = model(tdata[0], tdata[-1], leads)
+        # import pdb; pdb.set_trace()
+        loss = model(tdata[0], tdata[-1], leads)
         return {'loss': loss}
 
     @torch.no_grad()
@@ -285,7 +321,9 @@ class TaskCalculator(ClassificationCalculator):
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data[1].cpu().tolist())
-            loss, outputs = model(batch_data[0], batch_data[-1], leads)
+            # import pdb; pdb.set_trace()
+            
+            loss_leads, loss, outputs = model(batch_data[0], batch_data[-1], leads)
             total_loss += loss.item() * len(batch_data[-1])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
         labels = np.array(labels)
@@ -295,6 +333,48 @@ class TaskCalculator(ClassificationCalculator):
             'loss': total_loss / len(dataset),
             'acc': accuracy
         }
+        
+    @torch.no_grad()
+    def evaluate(self, model, dataset, leads, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        # import pdb; pdb.set_trace()    
+
+        # total_loss = []
+        labels = list()
+        predicts = list()
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data[1].cpu().tolist())
+            loss, loss_, outputs = model(batch_data[0], batch_data[-1], leads)
+            # import pdb; pdb.set_trace()    
+            if batch_id == 0:
+                total_loss = loss
+            else:    
+                total_loss = loss + total_loss
+            
+        
+        loss_eval = [loss / (batch_id + 1) for loss in total_loss]
+        
+        #     total_loss += loss.item() * len(batch_data[-1])
+        #     predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+        # labels = np.array(labels)
+        # predicts = np.array(predicts)
+        # accuracy = accuracy_score(labels, predicts)
+        # return {
+        #     'loss': total_loss / len(dataset),
+        #     'acc': accuracy
+        # }
+        return loss_eval
+
 
     @torch.no_grad()
     def server_test(self, model, dataset, leads, batch_size=64, num_workers=0):
@@ -316,7 +396,7 @@ class TaskCalculator(ClassificationCalculator):
             for batch_id, batch_data in enumerate(data_loader):
                 batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data[1].cpu().tolist())
-                loss, outputs = model(batch_data[0], batch_data[-1], leads[test_combi_index])
+                loss_leads, loss, outputs = model(batch_data[0], batch_data[-1], leads[test_combi_index])
                 total_loss += loss.item() * len(batch_data[-1])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             labels = np.array(labels)

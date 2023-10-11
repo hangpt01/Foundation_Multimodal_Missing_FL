@@ -2,6 +2,7 @@ from typing import Any
 import torch
 from torch import nn
 import torch.nn.functional as F
+import numpy as np
 from utils.fmodule import FModule
 
 class InceptionBlock1D(FModule):
@@ -86,7 +87,21 @@ class Inception1DBase(FModule):
         x = self.bn_2(x)
         x = self.dropout_2(x)
         return x
-    
+
+class RelationEmbedder(FModule):
+    def __init__(self):
+        super(RelationEmbedder, self).__init__()
+        self.input_channels = 2     # Case 3
+        self.relation_embedder = nn.Embedding(self.input_channels,128)
+        nn.init.uniform_(self.relation_embedder.weight, -1.0, 1.0)
+
+    def forward(self, device, has_modal=True):
+        if has_modal:
+            return self.relation_embedder(torch.tensor(1).to(device))
+        else:
+            return self.relation_embedder(torch.tensor(0).to(device))
+
+
 class Classifier(FModule):
     def __init__(self):
         super(Classifier, self).__init__()
@@ -95,26 +110,83 @@ class Classifier(FModule):
     def forward(self, x):
         return self.ln(x)
     
+    
+class Multi_Classifier(FModule):
+    def __init__(self):
+        super(Multi_Classifier, self).__init__()
+        self.ln1 = nn.Linear(128*12, 128, True)
+        self.ln2 = nn.Linear(128, 10, True)
+    
+    def forward(self, x):       #()
+        return self.ln2(F.relu(self.ln1(x)))
+
+# class UniModel(FModule):
+#     def __init__(self):
+#         super(UniModel, self).__init__()
+#         self.feature_extractor = Inception1DBase(input_channels=1)
+#         self.relation_embedder = RelationEmbedder()
+#         self.classifier = Classifier()
+    
+#     def forward(self, x, y, leads):       #()
+#         return self.ln2(F.relu(self.ln1(x)))
+    
+    
 class Model(FModule):
     def __init__(self):
         super(Model, self).__init__()
         self.n_leads = 12
-        self.leads = [2, 6, 10]
         self.feature_extractors = nn.ModuleList()
+        self.relation_embedders = nn.ModuleList()
+        self.classifiers = nn.ModuleList()
+        self.z_M = torch.FloatTensor([1/13]*13)
+        self.delta_G = 0
+        self.delta_O = 0
         for i in range(self.n_leads):
             self.feature_extractors.append(Inception1DBase(input_channels=1))
-        self.classifier = Classifier()
+            self.relation_embedders.append(RelationEmbedder())
+            self.classifiers.append(Classifier())
+        self.multi_classifier = Multi_Classifier()
         self.criterion = nn.CrossEntropyLoss()
-
+        
     def forward(self, x, y, leads):
         batch_size = y.shape[0]
-        features = torch.zeros(size=(batch_size, 128), dtype=torch.float32, device=y.device)
-        for lead in self.leads:
-            features += self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
-        outputs = self.classifier(features)
-        loss = self.criterion(outputs, y.type(torch.int64))
-        loss_leads = 0
-        return loss_leads, loss, outputs
+        features = torch.zeros(size=(batch_size, 128*12), dtype=torch.float32, device=y.device)
+        total_lead_ind = [*range(12)]
+        # leads_features = []
+        loss_leads = [0]*13
+        # feature_extractor_outputs = torch.zeros(size=(batch_size, 128), dtype=torch.float32, device=y.device)
+        # import pdb; pdb.set_trace()
+        for lead in total_lead_ind:    
+            if lead in leads:
+                feature = self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
+                relation_info = self.relation_embedders[lead](y.device, has_modal=True).repeat(batch_size,1)
+                feature += relation_info
+                output = self.classifiers[lead](feature)
+                loss_leads[lead] = self.criterion(output,y.type(torch.int64))
+                
+                features[:,lead*128:(lead+1)*128] = feature
+                self.relation_embedders[lead].relation_embedder.weight.data[0].zero_()
+                
+            else:
+                feature = self.relation_embedders[lead](y.device, has_modal=False).repeat(batch_size,1)        # 128, 256
+                output = self.classifiers[lead](feature)
+                loss_leads[lead] = self.criterion(output,y.type(torch.int64))
+                
+                features[:,lead*128:(lead+1)*128] = feature
+                self.relation_embedders[lead].relation_embedder.weight.data[1].zero_()
+        
+        # import pdb; pdb.set_trace()
+        
+        outputs_multi = self.multi_classifier(features)
+        loss_multi = self.criterion(outputs_multi, y.type(torch.int64))
+        loss_leads[-1] = loss_multi
+        # import pdb; pdb.set_trace()
+        loss =  sum([a*b for a,b in zip(self.z_M, loss_leads)])
+    
+        # outputs = self.classifier(features)
+        # loss = self.criterion(outputs, y.type(torch.int64))
+
+        return loss_leads, loss, outputs_multi
 
 if __name__ == '__main__':
     model = Model()
