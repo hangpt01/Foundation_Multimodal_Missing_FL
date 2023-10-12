@@ -183,6 +183,9 @@ class TaskGen(DefaultTaskGen):
         self.modal_equality = modal_equality
         self.missing_rate_0_3 = modal_missing_case3
         self.modal_missing_case4 = modal_missing_case4
+        self.local_holdout_rate = 0.1
+        if self.local_holdout_rate > 0:
+            self.taskname = self.taskname + '_mifl_gblend'
         if self.modal_equality:         # p=1, #modals_sample = [14,9]
             self.specific_training_leads = [(1,),
                                             (0,),
@@ -303,7 +306,7 @@ class TaskCalculator(ClassificationCalculator):
         :return: dict of train-one-step's result, which should at least contains the key 'loss'
         """
         tdata = self.data_to_device(data)
-        loss, outputs = model(tdata[0], tdata[-1], leads)
+        loss = model(tdata[0], tdata[-1], leads)
         return {'loss': loss}
 
     @torch.no_grad()
@@ -324,7 +327,7 @@ class TaskCalculator(ClassificationCalculator):
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data[1].cpu().tolist())
-            loss, outputs = model(batch_data[0], batch_data[-1], leads)
+            loss_leads, loss, outputs = model(batch_data[0], batch_data[-1], leads)
             total_loss += loss.item() * len(batch_data[-1])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
         labels = np.array(labels)
@@ -334,6 +337,49 @@ class TaskCalculator(ClassificationCalculator):
             'loss': total_loss / len(dataset),
             'acc': accuracy
         }
+
+
+    @torch.no_grad()
+    def evaluate(self, model, dataset, leads, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        # import pdb; pdb.set_trace()    
+
+        # total_loss = []
+        labels = list()
+        predicts = list()
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data[1].cpu().tolist())
+            loss, loss_, outputs = model(batch_data[0], batch_data[-1], leads)
+            # import pdb; pdb.set_trace()    
+            loss = torch.tensor(loss).to(loss[0].device)
+            if batch_id == 0:
+                total_loss = loss
+            else:    
+                total_loss = loss + total_loss
+            
+        
+        loss_eval = [loss / (batch_id + 1) for loss in total_loss]
+        # import pdb; pdb.set_trace()
+        #     total_loss += loss.item() * len(batch_data[-1])
+        #     predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+        # labels = np.array(labels)
+        # predicts = np.array(predicts)
+        # accuracy = accuracy_score(labels, predicts)
+        # return {
+        #     'loss': total_loss / len(dataset),
+        #     'acc': accuracy
+        # }
+        return loss_eval
 
     @torch.no_grad()
     def server_test(self, model, dataset, leads, batch_size=64, num_workers=0):
@@ -355,7 +401,7 @@ class TaskCalculator(ClassificationCalculator):
             for batch_id, batch_data in enumerate(data_loader):
                 batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data[1].cpu().tolist())
-                loss, outputs = model(batch_data[0], batch_data[-1], leads[test_combi_index])
+                loss_leads, loss, outputs = model(batch_data[0], batch_data[-1], leads[test_combi_index])
                 total_loss += loss.item() * len(batch_data[-1])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             labels = np.array(labels)

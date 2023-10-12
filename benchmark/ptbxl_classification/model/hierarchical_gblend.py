@@ -161,7 +161,7 @@ class Model(FModule):
             if lead in leads:
                 feature = self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
                 relation_info = self.relation_embedders[lead](y.device, has_modal=True).repeat(batch_size,1)
-                feature += relation_info
+                feature = feature + relation_info
                 output = self.classifiers[lead](feature)
                 loss_leads[lead] = self.criterion(output,y.type(torch.int64))
                 

@@ -356,6 +356,8 @@ class TaskCalculator(ClassificationCalculator):
             labels.extend(batch_data[1].cpu().tolist())
             loss, loss_, outputs = model(batch_data[0], batch_data[-1], leads)
             # import pdb; pdb.set_trace()    
+            loss = torch.tensor(loss).to(loss[0].device)
+            
             if batch_id == 0:
                 total_loss = loss
             else:    
