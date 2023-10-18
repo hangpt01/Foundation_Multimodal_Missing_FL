@@ -135,6 +135,7 @@ class Model(FModule):
     def __init__(self):
         super(Model, self).__init__()
         self.n_leads = 12
+        self.hidden_dim = 128
         self.feature_extractors = nn.ModuleList()
         self.relation_embedders = nn.ModuleList()
         self.classifiers = nn.ModuleList()
@@ -150,7 +151,7 @@ class Model(FModule):
         
     def forward(self, x, y, leads):
         batch_size = y.shape[0]
-        features = torch.zeros(size=(batch_size, 128*12), dtype=torch.float32, device=y.device)
+        features = torch.zeros(size=(batch_size, self.hidden_dim*12), dtype=torch.float32, device=y.device)
         total_lead_ind = [*range(12)]
         # leads_features = []
         loss_leads = [0]*13
@@ -164,7 +165,7 @@ class Model(FModule):
                 output = self.classifiers[lead](feature)
                 loss_leads[lead] = self.criterion(output,y.type(torch.int64))
                 
-                features[:,lead*128:(lead+1)*128] = feature
+                features[:,lead*self.hidden_dim:(lead+1)*self.hidden_dim] = feature
                 self.relation_embedders[lead].relation_embedder.weight.data[0].zero_()
                 
             else:
@@ -172,7 +173,7 @@ class Model(FModule):
                 output = self.classifiers[lead](feature)
                 loss_leads[lead] = self.criterion(output,y.type(torch.int64))
                 
-                features[:,lead*128:(lead+1)*128] = feature
+                features[:,lead*self.hidden_dim:(lead+1)*self.hidden_dim] = feature
                 self.relation_embedders[lead].relation_embedder.weight.data[1].zero_()
         
         # import pdb; pdb.set_trace()

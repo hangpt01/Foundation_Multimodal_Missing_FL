@@ -115,6 +115,7 @@ class Model(FModule):
     def __init__(self):
         super(Model, self).__init__()
         self.n_leads = 12
+        self.hidden_dim = 128
         self.feature_extractors = nn.ModuleList()
         self.relation_embedders = nn.ModuleList()
         for i in range(self.n_leads):
@@ -125,10 +126,10 @@ class Model(FModule):
         
     def forward(self, x, y, leads):
         batch_size = y.shape[0]
-        features = torch.zeros(size=(batch_size, 128*12), dtype=torch.float32, device=y.device)
+        features = torch.zeros(size=(batch_size, self.hidden_dim*12), dtype=torch.float32, device=y.device)
         total_lead_ind = [*range(12)]
         leads_features = []
-        feature_extractor_outputs = torch.zeros(size=(batch_size, 128), dtype=torch.float32, device=y.device)
+        feature_extractor_outputs = torch.zeros(size=(batch_size, self.hidden_dim), dtype=torch.float32, device=y.device)
         for lead in total_lead_ind:    
             if lead in leads:
                 feature = self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
@@ -136,11 +137,11 @@ class Model(FModule):
                 feature_extractor_outputs += feature
                 relation_info = self.relation_embedders[lead](y.device, has_modal=True).repeat(batch_size,1)
                 feature = feature + relation_info
-                features[:,lead*128:(lead+1)*128] = feature
+                features[:,lead*self.hidden_dim:(lead+1)*self.hidden_dim] = feature
                 self.relation_embedders[lead].relation_embedder.weight.data[0].zero_()
             else:
-                feature = self.relation_embedders[lead](y.device, has_modal=False).repeat(batch_size,1)        # 128, 256
-                features[:,lead*128:(lead+1)*128] = feature
+                feature = self.relation_embedders[lead](y.device, has_modal=False).repeat(batch_size,1)        # self.hidden_dim, 256
+                features[:,lead*self.hidden_dim:(lead+1)*self.hidden_dim] = feature
                 self.relation_embedders[lead].relation_embedder.weight.data[1].zero_()
         outputs = self.classifier(features)
         loss = self.criterion(outputs, y.type(torch.int64))

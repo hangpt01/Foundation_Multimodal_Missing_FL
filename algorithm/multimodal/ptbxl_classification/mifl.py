@@ -7,6 +7,7 @@ import utils.fflow as flw
 import os
 import torch
 import numpy as np
+import wandb
 
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
@@ -21,6 +22,8 @@ class Server(BasicServer):
             [2, 4, 5, 6, 7, 8, 9, 11],          #6
             [0, 1, 2, 4, 5, 6, 7, 8, 9, 11]     #7
         ]
+        self.checkpoints_dir = os.path.join('fedtask', option['task'], 'checkpoints')
+        os.makedirs(self.checkpoints_dir, exist_ok=True)
 
     def run(self):
         """
@@ -54,6 +57,25 @@ class Server(BasicServer):
         flw.logger.save_output_as_json()
         return
 
+    def save_checkpoints(self):
+        print("Saving global model checkpoints!")
+        if not os.path.exists(os.path.join(self.checkpoints_dir, 'global-model')):
+            os.makedirs(os.path.join(self.checkpoints_dir, 'global-model'), exist_ok=True)
+        # torch.save(self.model.feature_extractors.state_dict(), os.path.join(self.checkpoints_dir, 'global-model', 'feature_extractor.pt'))
+        # torch.save(self.model.branchallleads_classifier.state_dict(), os.path.join(self.checkpoints_dir, 'global-model', 'classifier.pt'))
+        torch.save(self.model.state_dict(), os.path.join(self.checkpoints_dir, 'global-model', 'model.pt'))
+
+        # if flw.logger.output['test_2_loss'][-1] == min(flw.logger.output['test_2_loss']):
+        #     os.makedirs(os.path.join(self.checkpoints_dir, 'missing-modal'), exist_ok=True)
+        #     print("Saving missing-modal model checkpoints!")
+        #     torch.save(self.model.branch2leads.state_dict(), os.path.join(self.checkpoints_dir, 'missing-modal', 'feature_extractor.pt'))
+        #     torch.save(self.model.branch2leads_classifier.state_dict(), os.path.join(self.checkpoints_dir, 'missing-modal', 'classifier.pt'))
+
+    def load_checkpoints(self):
+        print("Loading global model checkpoints!")
+        self.model.load_state_dict(torch.load(os.path.join(self.checkpoints_dir, 'global-model', 'model.pt')))
+
+
     def iterate(self):
         """
         The standard iteration of each federated round that contains three
@@ -67,7 +89,10 @@ class Server(BasicServer):
         conmmunitcation_result = self.communicate(self.selected_clients)
         models = conmmunitcation_result['model']
         modalities_list = conmmunitcation_result['modalities']
+        if wandb.run.resumed:
+            self.load_checkpoints()
         self.model = self.aggregate(models, modalities_list)
+        self.save_checkpoints()
         return
 
     @torch.no_grad()

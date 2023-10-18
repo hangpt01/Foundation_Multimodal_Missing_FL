@@ -15,7 +15,8 @@ def main():
             group=option['task'],
             # group='ptbxl_reduce_missing',
             tags=[],
-            config=option
+            config=option,
+            resume=True
         )
     # set random seed
     flw.setup_seed(option['seed'])
