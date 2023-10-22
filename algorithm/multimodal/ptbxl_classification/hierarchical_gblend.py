@@ -347,7 +347,10 @@ class Client(BasicClient):
         :return:
             metric: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
-        dataset = self.train_data
+        if dataflag == "train":
+            dataset = self.train_data
+        elif dataflag == "valid":
+            dataset = self.valid_data
         return self.calculator.test(
             model=model,
             dataset=dataset,

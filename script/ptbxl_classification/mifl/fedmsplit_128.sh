@@ -18,8 +18,8 @@ python main.py \
     --learning_rate 0.5 \
     --lr_scheduler 0 \
     --learning_rate_decay 1.0 \
-    --batch_size 128 \
-    --test_batch_size 128 \
+    --batch_size 64 \
+    --test_batch_size 64 \
     --gpu 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0.01 \

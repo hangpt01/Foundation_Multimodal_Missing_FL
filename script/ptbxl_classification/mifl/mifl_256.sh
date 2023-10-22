@@ -8,8 +8,8 @@ python generate_fedtask.py \
 
 python main.py \
     --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_mifl_gblend \
-    --model fedmsplit_gaga_c3_contrastive \
-    --algorithm multimodal.ptbxl_classification.fedmsplit_gaga \
+    --model mifl \
+    --algorithm multimodal.ptbxl_classification.mifl \
     --sample full \
     --aggregate other \
     --num_rounds 6 \

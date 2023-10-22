@@ -72,8 +72,9 @@ class Server(BasicServer):
         #     torch.save(self.model.branch2leads_classifier.state_dict(), os.path.join(self.checkpoints_dir, 'missing-modal', 'classifier.pt'))
 
     def load_checkpoints(self):
-        print("Loading global model checkpoints!")
-        self.model.load_state_dict(torch.load(os.path.join(self.checkpoints_dir, 'global-model', 'model.pt')))
+        if os.path.exists(os.path.join(self.checkpoints_dir, 'global-model')):
+            print("Loading global model checkpoints!")
+            self.model.load_state_dict(torch.load(os.path.join(self.checkpoints_dir, 'global-model', 'model.pt')))
 
 
     def iterate(self):
@@ -89,10 +90,10 @@ class Server(BasicServer):
         conmmunitcation_result = self.communicate(self.selected_clients)
         models = conmmunitcation_result['model']
         modalities_list = conmmunitcation_result['modalities']
-        if wandb.run.resumed:
-            self.load_checkpoints()
+        # if wandb.run.resumed:
+        #     self.load_checkpoints()
         self.model = self.aggregate(models, modalities_list)
-        self.save_checkpoints()
+        # self.save_checkpoints()
         return
 
     @torch.no_grad()
@@ -310,7 +311,10 @@ class Client(BasicClient):
         :return:
             metric: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
-        dataset = self.train_data
+        if dataflag == "train":
+            dataset = self.train_data
+        elif dataflag == "valid":
+            dataset = self.valid_data
         return self.calculator.test(
             model=model,
             dataset=dataset,

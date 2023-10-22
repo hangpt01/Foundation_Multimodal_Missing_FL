@@ -228,13 +228,15 @@ class Logger(logging.Logger):
                     self.server.clients[client_id].datavol * client_met for client_id, client_met in zip(self.server.selected_clients, met_val)
                 ]) / sum([self.server.clients[client_id].datavol for client_id in self.server.selected_clients])
             )
-        # # calculate weighted averaging and other statistics of metrics on validation datasets across clients
-        # valid_metrics = self.server.test_on_clients('valid')
-        # for met_name, met_val in valid_metrics.items():
-        #     self.output['valid_'+met_name+'_dist'].append(met_val)
-        #     self.output['valid_' + met_name].append(1.0 * sum([client_vol * client_met for client_vol, client_met in zip(self.server.local_data_vols, met_val)]) / self.server.total_data_vol)
-        #     self.output['mean_valid_' + met_name].append(np.mean(met_val))
-        #     self.output['std_valid_' + met_name].append(np.std(met_val))
+        # calculate weighted averaging and other statistics of metrics on validation datasets across clients
+        valid_metrics = self.server.test_on_clients('valid')
+        for met_name, met_val in valid_metrics.items():
+            self.output['valid_' + met_name + '_dist'].append(met_val)
+            self.output['valid_' + met_name].append(
+                1.0 * sum([
+                    self.server.clients[client_id].datavol * client_met for client_id, client_met in zip(self.server.selected_clients, met_val)
+                ]) / sum([self.server.clients[client_id].datavol for client_id in self.server.selected_clients])
+            )
         # output to stdout
         self.show_current_output()
 
