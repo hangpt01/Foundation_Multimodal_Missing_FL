@@ -352,6 +352,7 @@ class BasicClient():
             self.num_steps = self.epochs * math.ceil(len(self.train_data) / self.batch_size)
         self.model = None
         self.test_batch_size = option['test_batch_size']
+        self.test_batch_size = self.batch_size
         self.loader_num_workers = option['num_workers']
         self.current_steps = 0
         # system setting
