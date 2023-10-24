@@ -228,7 +228,7 @@ class TaskGen(DefaultTaskGen):
                 self.taskname = self.taskname + '_missing_modal_case4'
                 self.taskpath = os.path.join(self.task_rootpath, self.taskname)
             else:
-                self.specific_training_leads = [
+                self.specific_training_leads = [       # 2-6 modalities
                     (4, 5, 8),
                     (4, 5),
                     (2, 3, 5, 9),

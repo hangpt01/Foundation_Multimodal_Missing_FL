@@ -183,7 +183,6 @@ class Model(FModule):
         loss_leads[-1] = loss_multi
         # import pdb; pdb.set_trace()
         loss =  sum([a*b for a,b in zip(self.z_M, loss_leads)])
-    
         # outputs = self.classifier(features)
         # loss = self.criterion(outputs, y.type(torch.int64))
 

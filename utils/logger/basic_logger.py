@@ -201,7 +201,7 @@ class Logger(logging.Logger):
             self._es_counter += 1
             if self._es_counter >= self._es_patience:
                 if self.meta['wandb']:
-                    import pdb; pdb.set_trace()
+                    # import pdb; pdb.set_trace()
                     wandb.log({"best_valid_loss":-self._es_best_score})
                 self.info('Early stopping after training for {} rounds.'.format(self.server.current_round-1))
                 return True
