@@ -104,7 +104,7 @@ class RelationEmbedder(FModule):
 class Multi_Attention(FModule):
     def __init__(self):
         super(Multi_Attention, self).__init__()
-        self.multi_attention = nn.MultiheadAttention(embed_dim=12*128, num_heads=3)
+        self.multi_attention = nn.MultiheadAttention(embed_dim=128, num_heads=4)
     
     def forward(self, x):       #()
         return self.multi_attention(x,x,x)
@@ -155,10 +155,10 @@ class Model(FModule):
         
         # import pdb; pdb.set_trace()
 
-        fused_embedding = self.multi_attention(features)
+        fused_embedding = self.multi_attention(features.view(batch_size, 12, 128))
         # import pdb; pdb.set_trace()
         
-        outputs = self.classifier(fused_embedding[0])
+        outputs = self.classifier(fused_embedding[0].view(batch_size, -1))
         loss = self.criterion(outputs, y.type(torch.int64))
 
 
