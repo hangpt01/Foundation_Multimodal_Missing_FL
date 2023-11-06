@@ -290,6 +290,7 @@ class TaskGen(DefaultTaskGen):
 class TaskCalculator(ClassificationCalculator):
     def __init__(self, device, optimizer_name='sgd'):
         super(TaskCalculator, self).__init__(device, optimizer_name)
+        self.n_leads = 12
         self.DataLoader = DataLoader
 
     def train_one_step(self, model, data, leads):
@@ -394,17 +395,23 @@ class TaskCalculator(ClassificationCalculator):
         for test_combi_index in range(len(leads)):
             total_loss = 0.0
             labels = list()
-            predicts = list()    
+            predicts = list()   
+            loss_each_modal = [[] for i in range(self.n_leads)]
+            loss_each_modal = [0]*12
             for batch_id, batch_data in enumerate(data_loader):
                 batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data[1].cpu().tolist())
                 loss_leads, loss, outputs = model(batch_data[0], batch_data[-1], leads[test_combi_index])
+                for i in range(self.n_leads):
+                    loss_each_modal[i] += loss_leads[i] * len(batch_data[-1])
                 total_loss += loss.item() * len(batch_data[-1])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+            # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)
             accuracy = accuracy_score(labels, predicts)
-            
+            for i in range(self.n_leads):
+                result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result['loss'+str(test_combi_index+1)] = total_loss / len(dataset)
             result['acc'+str(test_combi_index+1)] = accuracy
         # return {
