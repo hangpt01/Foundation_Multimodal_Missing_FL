@@ -23,5 +23,5 @@ python main.py \
     --learning_rate_decay 1.0 \
     --batch_size 256 \
     --test_batch_size 256 \
-    --gpu 3 \
+    --gpu 1 \
     --wandb
