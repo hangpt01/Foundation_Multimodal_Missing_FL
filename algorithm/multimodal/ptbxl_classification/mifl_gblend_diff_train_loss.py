@@ -198,7 +198,7 @@ class Server(BasicServer):
             ])
             
         new_model.multi_classifier = fmodule._model_average([
-            self.clients[self.selected_clients[l]]                                                                                                        .local_model.multi_classifier for l in range(n_models)
+            self.clients[self.selected_clients[l]].local_model.multi_classifier for l in range(n_models)
         ])
         
         clients_z_M = [self.clients[self.selected_clients[l]].local_model.z_M for l in range(n_models)]
@@ -323,6 +323,7 @@ class Client(BasicClient):
         )
         # first step - step 0
         loss = 0
+        loss_step_0 = torch.stack(self.evaluate(model, dataflag="train"))
         val_loss_step_0 = torch.stack(self.evaluate(model))
         # import pdb; pdb.set_trace()
         z_M_step_0 = model.z_M.to(self.device)
@@ -342,36 +343,33 @@ class Client(BasicClient):
                 leads=self.modalities
             )['loss']
 
-            regular_loss = 0.0
-            if self.fedmsplit_prox_lambda > 0.0:
-                for m in self.modalities:
-                    for parameter, agg_parameter in zip(model.feature_extractors[m].parameters(), self.agg_model.feature_extractors[m].parameters()):
-                        regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
-                    for parameter, agg_parameter in zip(model.relation_embedders[m].parameters(), self.agg_model.relation_embedders[m].parameters()):
-                        regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
-                    for parameter, agg_parameter in zip(model.classifiers[m].parameters(), self.agg_model.classifiers[m].parameters()):
-                        regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))   
-                for parameter, agg_parameter in zip(model.multi_classifier.parameters(), self.agg_model.multi_classifier.parameters()):
-                    # import pdb; pdb.set_trace()
-                    regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
-                # for parameter, agg_parameter in zip(model.classifier.parameters(), self.agg_model.classifier.parameters()):
-                #     regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
-                # import pdb; pdb.set_trace()
-                
-                loss_ += self.fedmsplit_prox_lambda * regular_loss
+            # regular_loss = 0.0
+            # if self.fedmsplit_prox_lambda > 0.0:
+            #     for m in self.modalities:
+            #         for parameter, agg_parameter in zip(model.feature_extractors[m].parameters(), self.agg_model.feature_extractors[m].parameters()):
+            #             regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
+            #         for parameter, agg_parameter in zip(model.relation_embedders[m].parameters(), self.agg_model.relation_embedders[m].parameters()):
+            #             regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
+            #         for parameter, agg_parameter in zip(model.classifiers[m].parameters(), self.agg_model.classifiers[m].parameters()):
+            #             regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))    
+            #     # for parameter, agg_parameter in zip(model.classifier.parameters(), self.agg_model.classifier.parameters()):
+            #     #     regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
+            #     loss += self.fedmsplit_prox_lambda * regular_loss
             
-            if iter==0:
-                loss_step_0 = torch.stack(loss)
+            # if iter==0:
+            #     loss_step_0 = torch.stack(loss)
             # import pdb; pdb.set_trace()
             # loss.backward(retain_graph=True)
             loss_.backward()
             optimizer.step()
         
+        # USE EVALUATE TO GET TRAIN_LOSS
         # Training loss per batch
-        loss_step_E = torch.stack(loss)
+        # loss_step_E = torch.stack(loss)
         # import pdb; pdb.set_trace()
         
         # for m in self.modalities:
+        loss_step_E = torch.stack(self.evaluate(model, dataflag="train"))
         val_loss_step_E = torch.stack(self.evaluate(model))
         # import pdb; pdb.set_trace()
         
@@ -399,7 +397,7 @@ class Client(BasicClient):
         return
 
     @fmodule.with_multi_gpus
-    def evaluate(self, model):
+    def evaluate(self, model, dataflag='valid'):
         """
         Evaluate the model with local data (e.g. training data or validating data).
         :param
@@ -408,7 +406,10 @@ class Client(BasicClient):
         :return:
             metric: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
-        dataset = self.valid_data
+        if dataflag == "train":
+            dataset = self.train_data
+        elif dataflag == "valid":
+            dataset = self.valid_data
         # import pdb; pdb.set_trace()
         return self.calculator.evaluate(
             model=model,
