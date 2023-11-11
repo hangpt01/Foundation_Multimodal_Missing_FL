@@ -1,2 +1,8 @@
-# Reduced PTXBL dataset
-wget --load-cookies /tmp/cookies.txt "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=1x39M3wYLt0VKNS8RSiwohT-VfVoGeKlM' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1\n/p')&id=1x39M3wYLt0VKNS8RSiwohT-VfVoGeKlM" -O ./benchmark/RAW_DATA/VEHICLE/vehicle.mat && rm -rf /tmp/cookies.txt
+# Vehicle dataset
+wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=14Qq9aDeKIIM0hASB-RcU_A6g8PhuhnGZ' -O ./benchmark/RAW_DATA/VEHICLE/x_train.npy
+
+wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1zbWwXiROogxC3bkY7hNYSyyBPkY3J8Y4' -O ./benchmark/RAW_DATA/VEHICLE/x_test.npy
+
+wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1oXckPgcKLR4wDU3gcYbcq8mvv35co6n0' -O ./benchmark/RAW_DATA/VEHICLE/y_train.npy
+
+wget --no-check-certificate 'https://docs.google.com/uc?export=download&id=1lY-CY6bP28-3M0bQ38xaCzuZlHLD-tLY' -O ./benchmark/RAW_DATA/VEHICLE/y_test.npy

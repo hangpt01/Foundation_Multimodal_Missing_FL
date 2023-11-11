@@ -4,13 +4,12 @@ python generate_fedtask.py \
     --skew 0.0 \
     --num_clients 20 \
     --seed 0 \
-    --missing \
-    --modal_missing_case4
+    --missing
 
 python main.py \
-    --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_modal_case4_mifl_gblend \
-    --model missing_modal \
-    --algorithm multimodal.ptbxl_classification.missing_modal \
+    --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_mifl_gblend \
+    --model mifl_attention \
+    --algorithm multimodal.ptbxl_classification.mifl_attention \
     --sample full \
     --aggregate other \
     --num_rounds 500 \
@@ -24,5 +23,5 @@ python main.py \
     --learning_rate_decay 1.0 \
     --batch_size 128 \
     --test_batch_size 128 \
-    --gpu 3 \
+    --gpu 0 \
     --wandb
