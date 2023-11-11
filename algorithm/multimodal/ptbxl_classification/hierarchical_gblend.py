@@ -89,7 +89,7 @@ class Server(BasicServer):
             self.clients[self.selected_clients[k]].local_model.z_M = new_model.z_M
             
             #newly added
-            p_k[k] = self.clients[self.selected_clients[k]].local_model.delta_G / (self.clients[self.selected_clients[k]].local_model.delta_G**2 *2)
+            p_k[k] = self.clients[self.selected_clients[k]].local_model.delta_G / (self.clients[self.selected_clients[k]].local_model.delta_O**2 *2)
             
         M = sum(p_k)
         p_k = [pk/M for pk in p_k]
@@ -308,7 +308,7 @@ class Client(BasicClient):
         loss_total_step_0 = torch.sum(z_M_step_0*loss_step_0).item()
         loss_total_step_E = torch.sum(z_M_step_E*loss_step_E).item()
         val_loss_total_step_0 = torch.sum(z_M_step_0*val_loss_step_0).item()
-        val_loss_total_step_E = torch.sum(z_M_step_0*val_loss_step_E).item()
+        val_loss_total_step_E = torch.sum(z_M_step_E*val_loss_step_E).item()
         
         delta_G_client = abs(val_loss_total_step_E - val_loss_total_step_0)
         delta_O_client = abs((val_loss_total_step_E - val_loss_total_step_0) - (loss_total_step_E - loss_total_step_0))
