@@ -145,8 +145,8 @@ class Model(FModule):
         for i in range(self.n_leads):
             self.feature_extractors.append(Inception1DBase(input_channels=1))
             self.relation_embedders.append(RelationEmbedder())
-            self.classifiers.append(Classifier())
-        self.multi_classifier = Multi_Classifier()
+            self.classifiers.append(Classifier())   # classifier for each modality
+        self.multi_classifier = Multi_Classifier()  # classifier for multimodal
         self.criterion = nn.CrossEntropyLoss()
         
     def forward(self, x, y, leads):

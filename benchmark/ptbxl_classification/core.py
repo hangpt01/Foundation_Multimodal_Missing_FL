@@ -365,7 +365,8 @@ class TaskCalculator(ClassificationCalculator):
                 total_loss = loss + total_loss
             
         
-        loss_eval = [loss / (batch_id + 1) for loss in total_loss]
+        # loss_eval = [loss / (batch_id + 1) for loss in total_loss]
+        loss_eval = [loss for loss in total_loss]
         
         #     total_loss += loss.item() * len(batch_data[-1])
         #     predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
@@ -406,6 +407,7 @@ class TaskCalculator(ClassificationCalculator):
                 #     loss_each_modal[i] += loss_leads[i] * len(batch_data[-1])
                 total_loss += loss.item() * len(batch_data[-1])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+            # import pdb; pdb.set_trace()
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)
