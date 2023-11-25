@@ -82,16 +82,20 @@ class Server(BasicServer):
             for l in range(n_models):
                 d_q[k, l] = 1 + len(set(modalities_list[k]).intersection(set(modalities_list[l])))
         modal_dict = dict()
-        A = torch.zeros(size=(self.n_leads *3+1, n_models, n_models))
+        A = torch.zeros(size=(self.n_leads*3+1, n_models, n_models))   # attention matrix
+        
+        
+        # Embedder -> Extractor -> Classifier -> MultiClassifier
         # feature extractors update coefficients
+        # attention matrix of feature extractor of each modality m for client i, j 
         for m in range(self.n_leads):
             modal_dict[m] = list()
             for k in range(n_models):
                 if m in modalities_list[k]:
-                    modal_dict[m].append(k)
-            if len(modal_dict[m]) == 0:
+                    modal_dict[m].append(k) # track whether modal m have {k=1...K} clients
+            if len(modal_dict[m]) == 0: # no client has modal m, skip the modal m ?
                 continue
-            params = torch.stack([
+            params = torch.stack([   # w(km) for all k, for each m
                 torch.cat([
                     mi.data.view(-1) for mi in \
                     self.clients[self.selected_clients[k]].local_model.feature_extractors[m].parameters()
@@ -102,7 +106,7 @@ class Server(BasicServer):
             for idk, k in enumerate(modal_dict[m]):
                 for idl, l in enumerate(modal_dict[m]):
                     A[m, k, l] = att_mat[idk, idl]
-        
+            # -> M channel at this step
         
         # relation embedders update coefficient
         list_full_n_leads = [*range(self.n_leads)]
@@ -118,6 +122,7 @@ class Server(BasicServer):
             for k in range(n_models):
                 for l in range(n_models):
                     A[self.n_leads+m, k, l] = att_mat[k, l]
+            # -> M channels for this step (relation embedder of each modal)
         
         # classifiers update coefficient
         for m in range(self.n_leads):
@@ -128,10 +133,11 @@ class Server(BasicServer):
                 ]) for k in range(n_models)
             ])
             dim = params.shape[1]
-            att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
+            att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)  # n_models x n_models 
             for k in range(n_models):
                 for l in range(n_models):
                     A[self.n_leads*2+m, k, l] = att_mat[k, l]
+            # -> M channels for this step (classifier for each modality)
         
         # multi classifier update coefficient
         params = torch.stack([
@@ -145,6 +151,7 @@ class Server(BasicServer):
         for k in range(n_models):
             for l in range(n_models):
                 A[-1, k, l] = att_mat[k, l]
+                # -> 1 channel for multi-classifier for client k, l
         
         # global_relation_embedders = []
         # global_classifiers = []
@@ -382,7 +389,7 @@ class Client(BasicClient):
         loss_total_step_0 = torch.sum(z_M_step_0*loss_step_0).item()
         loss_total_step_E = torch.sum(z_M_step_E*loss_step_E).item()
         val_loss_total_step_0 = torch.sum(z_M_step_0*val_loss_step_0).item()
-        val_loss_total_step_E = torch.sum(z_M_step_0*val_loss_step_E).item()
+        val_loss_total_step_E = torch.sum(z_M_step_E*val_loss_step_E).item()
         
         delta_G_client = abs(val_loss_total_step_E - val_loss_total_step_0)
         delta_O_client = abs((val_loss_total_step_E - val_loss_total_step_0) - (loss_total_step_E - loss_total_step_0))
@@ -408,7 +415,7 @@ class Client(BasicClient):
         return self.calculator.evaluate(
             model=model,
             dataset=dataset,
-            leads=self.modalities
+            leads=self.modalities   # list of batch mean eval loss of each leads
         )
         
     @fmodule.with_multi_gpus

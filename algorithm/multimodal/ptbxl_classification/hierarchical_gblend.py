@@ -309,7 +309,7 @@ class Client(BasicClient):
         loss_total_step_0 = torch.sum(z_M_step_0*loss_step_0).item()
         loss_total_step_E = torch.sum(z_M_step_E*loss_step_E).item()
         val_loss_total_step_0 = torch.sum(z_M_step_0*val_loss_step_0).item()
-        val_loss_total_step_E = torch.sum(z_M_step_0*val_loss_step_E).item()
+        val_loss_total_step_E = torch.sum(z_M_step_E*val_loss_step_E).item()
         
         delta_G_client = abs(val_loss_total_step_E - val_loss_total_step_0)
         delta_O_client = abs((val_loss_total_step_E - val_loss_total_step_0) - (loss_total_step_E - loss_total_step_0))
