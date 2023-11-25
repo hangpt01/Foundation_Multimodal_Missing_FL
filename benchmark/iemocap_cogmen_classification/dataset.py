@@ -15,9 +15,9 @@ class IEMOCAPDataset(Dataset):
         # import pdb; pdb.set_trace()
         if not os.path.exists(self.root):
             if download:
-                print('Downloading (not done) IEMOCAP Dataset...', end=' ')
+                print('Downloading IEMOCAP Dataset...', end=' ')
                 os.makedirs(root, exist_ok=True)
-                os.system('bash ./benchmark/iemocap_classification/download.sh')
+                os.system('bash ./benchmark/iemocap_cogmen_classification/download.sh')
                 print('done!')
             else:
                 raise RuntimeError('Dataset not found. You can use download=True to download it')
