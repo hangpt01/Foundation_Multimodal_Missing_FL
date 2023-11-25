@@ -11,7 +11,7 @@ from torch.utils.data import Dataset
 class IEMOCAPDataset(Dataset):
     def __init__(
         self, 
-        root: str = './benchmark/RAW_DATA/IEMOCAP',
+        root: str = './benchmark/RAW_DATA/IEMOCAP_COGMEN',
         train: bool = True,
         text_transform: Optional[Callable] = None,
         audio_transform: Optional[Callable] = None,

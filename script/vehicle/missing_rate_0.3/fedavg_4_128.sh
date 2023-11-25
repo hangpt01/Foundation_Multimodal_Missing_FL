@@ -23,5 +23,6 @@ python main.py \
     --test_batch_size 128 \
     --gpu 0 \
     --seed 1234 \
-    --fedmsplit_prox_lambda 0.0 \
-    --wandb
+    --fedmsplit_prox_lambda 0.0 
+    # \
+    # --wandb
