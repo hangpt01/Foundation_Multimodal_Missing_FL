@@ -12,7 +12,7 @@ python main_iemocap4.py \
     --algorithm multimodal.iemocap_cogmen_classification.fedavg \
     --sample full \
     --aggregate other \
-    --num_rounds 500 \
+    --num_rounds 1000 \
     --early_stop 40  \
     --proportion 1.0 \
     --lr_scheduler 0 \
@@ -23,5 +23,5 @@ python main_iemocap4.py \
     --learning_rate_decay 1.0 \
     --batch_size 64 \
     --test_batch_size 64 \
-    --gpu 1 \
+    --gpu 0 \
     --wandb

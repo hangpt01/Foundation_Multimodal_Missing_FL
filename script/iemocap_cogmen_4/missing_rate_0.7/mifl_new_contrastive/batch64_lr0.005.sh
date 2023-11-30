@@ -12,7 +12,7 @@ python main_iemocap4.py \
     --algorithm multimodal.iemocap_cogmen_classification.mifl \
     --sample full \
     --aggregate other \
-    --num_rounds 500 \
+    --num_rounds 1000 \
     --early_stop 40  \
     --proportion 1.0 \
     --lr_scheduler 0 \

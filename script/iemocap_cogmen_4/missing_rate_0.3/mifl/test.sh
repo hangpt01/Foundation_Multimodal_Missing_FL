@@ -4,10 +4,11 @@ python generate_fedtask.py \
     --skew 0.0 \
     --num_clients 20 \
     --seed 0 \
-    --missing
+    --missing \
+    --modal_missing_case3
 
 python main_iemocap4.py \
-    --task iemocap_cogmen_classification_cnum20_dist0_skew0_seed0_mifl_gblend \
+    --task iemocap_cogmen_classification_cnum20_dist0_skew0_seed0_mifl_gblend_missing_rate_0.3 \
     --model mifl \
     --algorithm multimodal.iemocap_cogmen_classification.mifl \
     --sample full \
@@ -23,6 +24,6 @@ python main_iemocap4.py \
     --learning_rate_decay 1.0 \
     --batch_size 128 \
     --test_batch_size 128 \
-    --gpu 0 
+    --gpu 1
     # \
     # --wandb
