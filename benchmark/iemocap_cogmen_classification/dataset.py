@@ -22,9 +22,9 @@ class IEMOCAPDataset(Dataset):
             else:
                 raise RuntimeError('Dataset not found. You can use download=True to download it')
         
-        video_ids, video_speakers, video_labels, video_text, \
-            video_audio, video_visual, video_sentence, trainVids, \
-            test_vids = pickle.load(open(os.path.join(self.root, 'IEMOCAP_features.pkl'),"rb"), encoding='latin1')
+        # video_ids, video_speakers, video_labels, video_text, \
+        #     video_audio, video_visual, video_sentence, trainVids, \
+        #     test_vids = pickle.load(open(os.path.join(self.root, 'IEMOCAP_features.pkl'),"rb"), encoding='latin1')
         
         if self.train:
             # import pdb; pdb.set_trace()
