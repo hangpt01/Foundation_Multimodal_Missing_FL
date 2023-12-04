@@ -24,5 +24,5 @@ python main_iemocap4.py \
     --learning_rate_decay 1.0 \
     --batch_size 64 \
     --test_batch_size 64 \
-    --gpu 0 \
+    --gpu 1 \
     --wandb
