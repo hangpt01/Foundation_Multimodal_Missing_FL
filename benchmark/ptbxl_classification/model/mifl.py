@@ -133,8 +133,6 @@ class Model(FModule):
         for lead in total_lead_ind:    
             if lead in leads:
                 feature = self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
-                # import pdb; pdb.set_trace()
-
                 leads_features.append(feature)
                 feature_extractor_outputs += feature
                 relation_info = self.relation_embedders[lead](y.device, has_modal=True).repeat(batch_size,1)
@@ -155,7 +153,6 @@ class Model(FModule):
         contrative_loss = 0.0
         count = 0
         for lead_features in leads_features:
-            # import pdb; pdb.set_trace()
             norm_lead_features = F.normalize(lead_features, p=2, dim=1)
             simi_mat = norm_features.matmul(norm_lead_features.T)
             exp_simi_mat = torch.exp(simi_mat / 1.0)

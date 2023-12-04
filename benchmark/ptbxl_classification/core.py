@@ -100,7 +100,7 @@ def iid_partition(generator):
             local_datas[i] += idxs.tolist()
     # import pdb; pdb.set_trace()
     return local_datas
-    
+
 # def local_holdout(self, local_datas, shuffle=False):
 #         """split each local dataset into train data and valid data according the rate."""
 #         train_cidxs = []
