@@ -1,15 +1,15 @@
 python generate_fedtask.py \
-    --benchmark ptbxl_classification \
+    --benchmark ptbxl_classification_lm \
     --dist 0 \
     --skew 0.0 \
     --num_clients 20 \
     --seed 0 \
-    --missing
+    --missing \
 
 python main.py \
-    --task ptbxl_classification_cnum20_dist0_skew0_seed0_missing_mifl_gblend \
-    --model mifl \
-    --algorithm multimodal.ptbxl_classification.mifl \
+    --task ptbxl_classification_lm_cnum20_dist0_skew0_seed0_missing_mifl_local_missing \
+    --model mifl_ps01_pm05 \
+    --algorithm multimodal.ptbxl_classification_lm.mifl \
     --sample full \
     --aggregate other \
     --num_rounds 300 \
@@ -23,4 +23,6 @@ python main.py \
     --gpu 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0.01 \
+    --ps 0.1 \
+    --pm 0.5 \
     --wandb
