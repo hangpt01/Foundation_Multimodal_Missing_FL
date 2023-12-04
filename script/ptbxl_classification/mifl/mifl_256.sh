@@ -12,7 +12,7 @@ python main.py \
     --algorithm multimodal.ptbxl_classification.mifl \
     --sample full \
     --aggregate other \
-    --num_rounds 300 \
+    --num_rounds 6 \
     --proportion 1.0 \
     --num_epochs 3 \
     --learning_rate 0.5 \
