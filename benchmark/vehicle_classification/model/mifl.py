@@ -91,6 +91,8 @@ class Model(FModule):
             # import pdb; pdb.set_trace()
             if lead in leads:
                 feature = self.feature_extractors[lead](x[:, lead, :])
+                import pdb; pdb.set_trace()
+
                 leads_features.append(feature)
                 feature_extractor_outputs += feature
                 relation_info = self.relation_embedders[lead](y.device, has_modal=True).repeat(batch_size,1)
