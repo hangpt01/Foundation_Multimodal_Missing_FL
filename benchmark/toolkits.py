@@ -137,7 +137,8 @@ class BasicTaskGen:
     def _remove_task(self):
         "remove the task when generating failed"
         if self._check_task_exist():
-            taskname = self.get_taskname()
+            # import pdb; pdb.set_trace()
+            taskname = self.taskname
             taskpath = os.path.join(self.task_rootpath, taskname)
             shutil.rmtree(taskpath)
         return
@@ -463,10 +464,15 @@ class DefaultTaskGen(BasicTaskGen):
         import matplotlib.colors
         import random
         ax = plt.subplots()
+        # import pdb; pdb.set_trace()
+        
         colors = [key for key in matplotlib.colors.CSS4_COLORS.keys()]
         random.shuffle(colors)
+        # random.shuffle(colors)
         client_height = 1
         if hasattr(self, 'dirichlet_dist'):
+        # if self.dist_id:
+            import pdb; pdb.set_trace()
             client_dist = self.dirichlet_dist.tolist()
             data_columns = [sum(cprop) for cprop in client_dist]
             row_map = {k:i for k,i in zip(np.argsort(data_columns), [_ for _ in range(self.num_clients)])}
@@ -478,10 +484,12 @@ class DefaultTaskGen(BasicTaskGen):
                     plt.fill_between([offset,offset+cprop[lbi]], y_bottom, y_top, facecolor = colors[lbi])
                     # plt.barh(cid, cprop[lbi], client_height, left=offset, color=)
                     offset += cprop[lbi]
+        
         else:
             data_columns = [len(cidx) for cidx in train_cidxs]
-            row_map = {k:i for k,i in zip(np.argsort(data_columns), [_ for _ in range(self.num_clients)])}
-            for cid, cidxs in enumerate(train_cidxs):
+            row_map = {k:i for k,i in zip(np.argsort(data_columns), [_ for _ in range(self.num_clients)])}  # sort clients accord. #samples
+            # print(row_map)
+            for cid, cidxs in enumerate(train_cidxs):       # list of all clients' sample indices
                 # import pdb; pdb.set_trace() 
                 # print(cid)
                 labels = [int(self.train_data[did][-1]) for did in cidxs]
@@ -490,16 +498,24 @@ class DefaultTaskGen(BasicTaskGen):
                 y_bottom = row_map[cid] - client_height/2.0
                 y_top = row_map[cid] + client_height/2.0
                 for lbi in range(self.num_classes):
+                    # import pdb; pdb.set_trace()
                     # print(lbi)
-                    plt.fill_between([offset,offset+lb_counter[lbi]], y_bottom, y_top, facecolor = colors[lbi])
+                    if cid == 0:
+                        plt.fill_between([offset,offset+lb_counter[lbi]], y_bottom, y_top, facecolor = colors[lbi], label='Class '+str(lbi))
+                    
+                    else:
+                        plt.fill_between([offset,offset+lb_counter[lbi]], y_bottom, y_top, facecolor = colors[lbi])
+                    
                     offset += lb_counter[lbi]
         # import pdb; pdb.set_trace()
         plt.xlim(0,max(data_columns))
         plt.ylim(-0.5,len(train_cidxs)-0.5)
         plt.ylabel('Client ID')
         plt.xlabel('Number of Samples')
+        # import pdb; pdb.set_trace()
         plt.title(self.get_taskname())
-        plt.savefig(os.path.join(self.taskpath, self.get_taskname()+'.jpg'))
+        plt.legend(loc='lower right')
+        plt.savefig(os.path.join(self.taskpath,'data_dist.jpg'))
         plt.show()
 
 # =======================================Task Calculator===============================================

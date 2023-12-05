@@ -3,6 +3,7 @@ from benchmark.toolkits import DefaultTaskGen
 from benchmark.toolkits import ClassificationCalculator
 from benchmark.toolkits import IDXTaskPipe
 import os
+import time
 import ujson
 import importlib
 import random
@@ -87,9 +88,127 @@ def save_task(generator):
             }
     # import pdb; pdb.set_trace()
     with open(os.path.join(generator.taskpath, 'data.json'), 'w') as outf:
-        ujson.dump(feddata, outf)
+        ujson.dump(feddata, outf, default=convert)
     return
+
+def convert(o):
+    if isinstance(o, np.int64): return int(o)  
+    raise TypeError
+
+def iid_divide(l, g):
+    """
+    https://github.com/TalwalkarLab/leaf/blob/master/data/utils/sample.py
+    divide list `l` among `g` groups
+    each group has either `int(len(l)/g)` or `int(len(l)/g)+1` elements
+    returns a list of groups
+    """
+    num_elems = len(l)
+    group_size = int(len(l) / g)
+    num_big_groups = num_elems - g * group_size
+    num_small_groups = g - num_big_groups
+    glist = []
+    for i in range(num_small_groups):
+        glist.append(l[group_size * i: group_size * (i + 1)])
+    bi = group_size * num_small_groups
+    group_size += 1
+    for i in range(num_big_groups):
+        glist.append(l[bi + group_size * i:bi + group_size * (i + 1)])
+    return glist
+
+
+def split_list_by_indices(l, indices):
+    """
+    divide list `l` given indices into `len(indices)` sub-lists
+    sub-list `i` starts from `indices[i]` and stops at `indices[i+1]`
+    returns a list of sub-lists
+    """
+    res = []
+    current_index = 0
+    for index in indices:
+        res.append(l[current_index: index])
+        current_index = index
+
+    return res
+
+
+def by_labels_non_iid_split(dataset, n_classes, n_clients, n_clusters, alpha, frac, seed=1234):
+    """
+    split classification dataset among `n_clients`. The dataset is split as follow:
+        1) classes are grouped into `n_clusters`
+        2) for each cluster `c`, samples are partitioned across clients using dirichlet distribution
+
+    Inspired by the split in "Federated Learning with Matched Averaging"__(https://arxiv.org/abs/2002.06440)
+
+    :param dataset:
+    :type dataset: torch.utils.Dataset
+    :param n_classes: number of classes present in `dataset`
+    :param n_clients: number of clients
+    :param n_clusters: number of clusters to consider; if it is `-1`, then `n_clusters = n_classes`
+    :param alpha: parameter controlling the diversity among clients
+    :param frac: fraction of dataset to use
+    :param seed:
+    :return: list (size `n_clients`) of subgroups, each subgroup is a list of indices.
+    """
+    if n_clusters == -1:
+        n_clusters = n_classes
+
+    rng_seed = (seed if (seed is not None and seed >= 0) else int(time.time()))
+    rng = random.Random(rng_seed)
+    np.random.seed(rng_seed)
+
+    all_labels = list(range(n_classes))
+    rng.shuffle(all_labels)
+    clusters_labels = iid_divide(all_labels, n_clusters)        #cluster=class
+
+    label2cluster = dict()  # maps label to its cluster
+    for group_idx, labels in enumerate(clusters_labels):
+        for label in labels:
+            label2cluster[label] = group_idx
+    # get subset
+    n_samples = int(len(dataset) * frac)
+    selected_indices = np.random.randint(0, len(dataset), n_samples)
+
+    clusters_sizes = np.zeros(n_clusters, dtype=int)
+    clusters = {k: [] for k in range(n_clusters)}       # class:[indices]
+    for idx in selected_indices:
+        _, label = dataset[idx]
+        # import pdb; pdb.set_trace()
+        group_id = label2cluster[int(label)]
+        clusters_sizes[group_id] += 1
+        clusters[group_id].append(idx)
+
+    for _, cluster in clusters.items():
+        rng.shuffle(cluster)
+
+    clients_indices = [[] for _ in range(n_clients)]        
+    clients_counts = np.zeros((n_clusters, n_clients), dtype=np.int64)  # number of samples by client from each cluster
     
+    for cluster_id in range(n_clusters):
+            weights = np.random.dirichlet(alpha=alpha * np.ones(n_clients))
+            clients_counts[cluster_id] = np.random.multinomial(clusters_sizes[cluster_id], weights)
+
+    
+    clients_counts = np.cumsum(clients_counts, axis=1)
+
+    for cluster_id in range(n_clusters):
+        cluster_split = split_list_by_indices(clusters[cluster_id], clients_counts[cluster_id])
+
+        for client_id, indices in enumerate(cluster_split):
+            # clients_indices[client_id] += list(indices)
+            clients_indices[client_id] += indices
+            # import pdb; pdb.set_trace()
+
+                    
+    return clients_indices
+
+
+def noniid_partition(generator):
+    print(generator)
+    labels = np.unique(generator.train_data.y)
+    # import pdb; pdb.set_trace()
+    clients_indices = by_labels_non_iid_split(generator.train_data, labels.shape[0], generator.num_clients, labels.shape[0], generator.skewness, frac=1, seed=generator.seed)
+    # import pdb; pdb.set_trace()
+    return clients_indices
 
 def iid_partition(generator):
     print(generator)
@@ -102,7 +221,6 @@ def iid_partition(generator):
             local_datas[i] += idxs.tolist()
     return local_datas
 
-
 class TaskGen(DefaultTaskGen):
     def __init__(self, dist_id, num_clients=23, skewness=0.5, local_hld_rate=0.0, seed=0, percentages=None, missing=False, modal_equality=False, modal_missing_case3=False, modal_missing_case4=False):
         super(TaskGen, self).__init__(benchmark='iemocap_cogmen_classification',
@@ -113,10 +231,12 @@ class TaskGen(DefaultTaskGen):
                                       local_hld_rate=local_hld_rate,
                                       seed = seed
                                       )
-        if self.dist_id == 0:
-            # self.partition = default_partition
-            self.partition = iid_partition
-        self.num_classes = 2
+        # if self.dist_id == 0:
+        #     # self.partition = default_partition
+        #     self.partition = iid_partition
+        if self.dist_id == 1:
+            self.partition = noniid_partition
+        self.num_classes = 4
         self.save_task = save_task
         self.visualize = self.visualize_by_class
         self.source_dict = {
@@ -135,14 +255,14 @@ class TaskGen(DefaultTaskGen):
                 'train': 'False'
             }
         }
-        self.num_clients = 23
+        self.num_clients = num_clients
         self.missing = missing
         self.modal_equality = modal_equality
         self.missing_rate_0_3 = modal_missing_case3
         self.modal_missing_case4 = modal_missing_case4
         self.local_holdout_rate = 0.1
-        if self.local_holdout_rate > 0:
-            self.taskname = self.taskname + '_mifl_gblend'
+        # if self.local_holdout_rate > 0:
+        #     self.taskname = self.taskname + '_mifl_gblend'
         if self.modal_equality:         # p=1, #modals_sample = [8 7 5]
             self.specific_training_leads = [(0,),
                                             (1,),
@@ -166,7 +286,7 @@ class TaskGen(DefaultTaskGen):
                                             (0,)]
             self.taskname = self.taskname + '_missing_rate_1'
             self.taskpath = os.path.join(self.task_rootpath, self.taskname)
-        if self.missing_rate_0_3:       # p=0.3, #modals_sample = [14  8 11]  
+        elif self.missing_rate_0_3:       # p=0.3, #modals_sample = [14  8 11]  
             self.specific_training_leads = [(2,), 
                                             (0, 1, 2), 
                                             (0, 1), 
@@ -211,6 +331,7 @@ class TaskGen(DefaultTaskGen):
                                             (2,), 
                                             (0, 1), 
                                             (1,)]
+            self.taskname = self.taskname + '_missing_rate_0.7'
             self.taskpath = os.path.join(self.task_rootpath, self.taskname)
         # self.taskname = self.taskname + '_missing'
         
