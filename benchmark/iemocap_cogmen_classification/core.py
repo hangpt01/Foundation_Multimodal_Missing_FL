@@ -9,7 +9,7 @@ import importlib
 import random
 import torch
 from torch.utils.data import DataLoader
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import accuracy_score, f1_score
 import numpy as np
 import warnings
 warnings.filterwarnings('ignore')
@@ -401,9 +401,11 @@ class TaskCalculator(ClassificationCalculator):
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
+        f1score=  f1_score(labels, predicts, average='macro')
         return {
             'loss': total_loss / len(dataset),
-            'acc': accuracy
+            'acc': accuracy,
+            'f1_score': f1score
         }
 
 
@@ -472,14 +474,17 @@ class TaskCalculator(ClassificationCalculator):
                 loss, outputs = model(batch_data[0], batch_data[-1], leads[test_combi_index])
                 total_loss += loss.item() * len(batch_data[-1])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
-                import pdb; pdb.set_trace()
+                # import pdb; pdb.set_trace()
                 
                 # breakpoint()
             labels = np.array(labels)
             predicts = np.array(predicts)
             accuracy = accuracy_score(labels, predicts)
+            f1score = f1_score(labels, predicts, average='macro')
             result['loss'+str(test_combi_index+1)] = total_loss / len(dataset)
             result['acc'+str(test_combi_index+1)] = accuracy
+            result['f1_score_'+str(test_combi_index+1)] = f1score
+
         # return {
         #     'loss': total_loss / len(dataset),
         #     'acc': accuracy
@@ -513,9 +518,11 @@ class TaskCalculator(ClassificationCalculator):
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
+        f1score=  f1_score(labels, predicts, average='macro')
         return {
             'loss': total_loss / len(dataset),
-            'acc': accuracy
+            'acc': accuracy,
+            'f1_score': f1score
         }
 
     @torch.no_grad()
@@ -541,7 +548,10 @@ class TaskCalculator(ClassificationCalculator):
                 predicts.extend(predict.argmax(dim=1).cpu().tolist())
             predicts = np.array(predicts)
             accuracy = accuracy_score(labels, predicts)
+            f1score = f1_score(labels, predicts, average='macro')
             result['acc'+str(test_combi_index+1)] = accuracy
+            result['f1_score_'+str(test_combi_index+1)] = f1score
+
         return result
         
     @torch.no_grad()

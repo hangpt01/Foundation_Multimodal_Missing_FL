@@ -139,6 +139,7 @@ class Logger(logging.Logger):
             for i in range(7):
                 wandb.define_metric("test_loss"+str(i+1), summary="min")
                 wandb.define_metric("test_acc"+str(i+1), summary="max")
+                wandb.define_metric("test_f1_score_"+str(i+1), summary="max")
             wandb.log(tmp)
 
     def get_output_name(self, suffix='.json', prefix_log_filename=None):
