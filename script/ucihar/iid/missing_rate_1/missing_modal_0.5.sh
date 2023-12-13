@@ -1,7 +1,7 @@
 python main.py \
     --task ucihar_classification_cnum20_dist0_skew0_seed0_missing_rate_1 \
-    --model fedavg \
-    --algorithm multimodal.ucihar_classification.fedavg \
+    --model missing_modal \
+    --algorithm multimodal.ucihar_classification.missing_modal \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \
