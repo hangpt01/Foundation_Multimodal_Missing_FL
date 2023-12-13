@@ -2,89 +2,127 @@ from typing import Any
 import torch
 from torch import nn
 import numpy as np
+from torch import Tensor
 import torch.nn.functional as F
 from utils.fmodule import FModule
 
-class SubNet(FModule):
-    '''
-    The subnetwork that is used in TFN for video and audio in the pre-fusion stage
-    '''
-
-    def __init__(self):
-        '''
-        Args:
-            in_size: input dimension
-            hidden_size: hidden layer dimension
-            dropout: dropout probability
-        Output:
-            (return value in forward) a tensor of shape (batch_size, hidden_size)
-        '''
-        in_size=768
-        hidden_size = 64    # FedMSplit
-        dropout = 0
-        super(SubNet, self).__init__()
-        self.bnorm = nn.BatchNorm1d(in_size)
-        self.drop = nn.Dropout(p=dropout)
-        self.linear_1 = nn.Linear(in_size, hidden_size)
-        self.linear_2 = nn.Linear(hidden_size, hidden_size)
-        self.linear_3 = nn.Linear(hidden_size, hidden_size)
-
-    def forward(self, x):
-        '''
-        Args:
-            x: tensor of shape (batch_size, in_size)
-        '''
-        # import pdb; pdb.set_trace()        
-        normed = self.bnorm(x)
-        dropped = self.drop(normed)
-        y_1 = F.relu(self.linear_1(dropped))
-        y_2 = F.relu(self.linear_2(y_1))
-        y_3 = F.relu(self.linear_3(y_2))
-
-        return y_3
-
-class TextSubNet(FModule):
-    '''
-    The LSTM-based subnetwork that is used in TFN for text
-    '''
-
-    def __init__(self):
-        '''
-        Args:
-            in_size: input dimension
-            hidden_size: hidden layer dimension
-            num_layers: specify the number of layers of LSTMs.
-            dropout: dropout probability
-            bidirectional: specify usage of bidirectional LSTM
-        Output:
-            (return value in forward) a tensor of shape (batch_size, out_size)
-        '''
-        super(TextSubNet, self).__init__()
-        in_size = 768
-        hidden_size = 64
-        dropout = 0
-        out_size = hidden_size
-        self.rnn = nn.LSTM(in_size, hidden_size, num_layers=1, dropout=dropout, bidirectional=False, batch_first=True)
+class Conv1dEncoder(FModule):
+    def __init__(
+        self,
+        input_dim: int, 
+        n_filters: int,
+        dropout: float=0.1
+    ):
+        super().__init__()
+        # conv module
+        self.conv1 = nn.Conv1d(input_dim, n_filters, kernel_size=5, padding=2)
+        self.conv2 = nn.Conv1d(n_filters, n_filters*2, kernel_size=5, padding=2)
+        self.conv3 = nn.Conv1d(n_filters*2, n_filters*4, kernel_size=5, padding=2)
+        self.relu = nn.ReLU()
+        self.pooling = nn.MaxPool1d(kernel_size=2, stride=2)
         self.dropout = nn.Dropout(dropout)
-        self.linear_1 = nn.Linear(hidden_size, out_size)
+        
+    def forward(
+            self,
+            x: Tensor   # shape => [batch_size (B), num_data (T), feature_dim (D)]
+        ):
+        x = x.float()
+        x = x.permute(0, 2, 1)
+        # conv1
+        x = self.conv1(x)
+        x = self.relu(x)
+        x = self.pooling(x)
+        x = self.dropout(x)
+        # conv2
+        x = self.conv2(x)
+        x = self.relu(x)
+        x = self.pooling(x)
+        x = self.dropout(x)
+        # conv3
+        x = self.conv3(x)
+        x = self.relu(x)
+        x = self.pooling(x)
+        x = self.dropout(x)
+        x = x.permute(0, 2, 1)
+        return x
 
-    def forward(self, x):
-        '''
-        Args:
-            x: tensor of shape (batch_size, sequence_len, in_size)
-        '''
-        batch_size = x.shape[0]
-        _, final_states = self.rnn(x.view(batch_size, 1, -1))
-        h = self.dropout(final_states[0].squeeze())
-        y_1 = self.linear_1(h)
-        return y_1   
+
+class HAR_Feature_Extractor(FModule):
+    def __init__(
+        self, 
+        num_classes: int=6,       # Number of classes 
+        acc_input_dim: int=3,     # Acc data input dim
+        gyro_input_dim: int=3,    # Gyro data input dim
+        d_hid: int=128,         # Hidden Layer size
+        n_filters: int=32,      # number of filters
+        en_att: bool=False,     # Enable self attention or not
+        att_name: str='',       # Attention Name
+        d_head: int=6           # Head dim
+    ):
+        super(HAR_Feature_Extractor, self).__init__()
+        self.dropout_p = 0.1
+        self.en_att = en_att
+        self.att_name = att_name
+        
+        # Conv Encoder module
+        self.acc_conv = Conv1dEncoder(
+            input_dim=acc_input_dim, 
+            n_filters=n_filters, 
+            dropout=self.dropout_p, 
+        )
+        
+        # RNN module
+        self.acc_rnn = nn.GRU(
+            input_size=n_filters*4, 
+            hidden_size=d_hid, 
+            num_layers=1, 
+            batch_first=True, 
+            dropout=self.dropout_p, 
+            bidirectional=False
+        )
+        # projection
+        self.acc_proj = nn.Linear(d_hid, d_hid//2)
+
+        self.init_weight()
+
+
+    def init_weight(self):
+        for m in self._modules:
+            if type(m) == nn.Linear:
+                torch.nn.init.xavier_uniform(m.weight)
+                m.bias.data.fill_(0.01)
+            if type(m) == nn.Conv1d:
+                torch.nn.init.xavier_uniform(m.weight)
+                m.bias.data.fill_(0.01)
+
+    def forward(self, x_acc):
+        # x_acc: (batch, dim=128*3)
+        # requires: (batch, dim, 3)
+        # import pdb; pdb.set_trace()
+        x_acc = self.acc_conv(x_acc.reshape(x_acc.shape[0], -1, 3))
+        x_acc, _ = self.acc_rnn(x_acc)
+
+        x_acc = torch.mean(x_acc, axis=1)
+        # x_gyro = torch.mean(x_gyro, axis=1)
+        # x_mm = torch.cat((x_acc, x_gyro), dim=1)
+
+        # # 5. Projection
+        # if self.en_att and self.att_name != "fuse_base":
+        #     x_acc = self.acc_proj(x_acc)
+        #     x_gyro = self.gyro_proj(x_gyro)
+        #     x_mm = torch.cat((x_acc, x_gyro), dim=1)
+        
+        # # 6. MM embedding and predict
+        # preds = self.classifier(x_mm)
+        # return preds, x_mm
+        return x_acc
 
 
 class RelationEmbedder(FModule):
     def __init__(self):
         super(RelationEmbedder, self).__init__()
         self.input_channels = 2     # Case 3
-        self.relation_embedder = nn.Embedding(self.input_channels,64)
+        self.relation_embedder = nn.Embedding(self.input_channels,128)
         nn.init.uniform_(self.relation_embedder.weight, -1.0, 1.0)
 
     def forward(self, device, has_modal=True):
@@ -97,26 +135,22 @@ class RelationEmbedder(FModule):
 class Classifier(FModule):
     def __init__(self):
         super(Classifier, self).__init__()
-        self.ln = nn.Linear(64*3, 6, True)
-        
+        self.ln1 = nn.Linear(128*2, 64, True)
+        self.relu = nn.ReLU(inplace=True)
+        self.ln2 = nn.Linear(64, 6, True)
+    
     def forward(self, x):
-        # import pdb; pdb.set_trace()
-        
-        return self.ln(x)
+        return self.ln2(self.relu(self.ln1(x)))
     
 class Model(FModule):
     def __init__(self):
         super(Model, self).__init__()
-        self.n_leads = 3        # t-a-v: text-audio-visual
-        self.hidden_dim = 64
-        self.feature_extractors = nn.ModuleList()
+        self.n_leads = 2
+        self.hidden_dim = 128
         self.relation_embedders = nn.ModuleList()
-
-        self.feature_extractors.append(TextSubNet())
-        self.relation_embedders.append(RelationEmbedder())
-
-        for i in range(2):
-            self.feature_extractors.append(SubNet())
+        self.feature_extractors = nn.ModuleList()
+        for i in range(self.n_leads):
+            self.feature_extractors.append(HAR_Feature_Extractor())
             self.relation_embedders.append(RelationEmbedder())
         self.classifier = Classifier()
         self.criterion = nn.CrossEntropyLoss()

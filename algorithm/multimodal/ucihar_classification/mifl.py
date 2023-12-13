@@ -12,15 +12,11 @@ import wandb
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
-        self.n_leads = 3
+        self.n_leads = 2
         self.list_testing_leads = [
-            [0],                        #1
-            [1],                        
-            [2],                        
-            [0, 1],                     
-            [0, 2],                     
-            [1, 2],                     
-            [0, 1, 2],                  #7
+            [0],                    #1
+            [1],                    #2
+            [0,1],                  #3
         ]
         self.checkpoints_dir = os.path.join('fedtask', option['task'], 'checkpoints')
         os.makedirs(self.checkpoints_dir, exist_ok=True)
@@ -217,7 +213,7 @@ class Server(BasicServer):
 class Client(BasicClient):
     def __init__(self, option, modalities, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
-        self.n_leads = 3
+        self.n_leads = 2
         self.fedmsplit_prox_lambda = option['fedmsplit_prox_lambda']
         self.modalities = modalities
         self.local_model = None
