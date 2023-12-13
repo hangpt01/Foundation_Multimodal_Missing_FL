@@ -155,7 +155,7 @@ class Model(FModule):
         self.classifier = Classifier()
         self.criterion = nn.CrossEntropyLoss()
 
-    def forward(self, x, y, leads):
+    def forward(self, x, y, leads, contrastive_weight):
         batch_size = y.shape[0]
         features = torch.zeros(size=(batch_size, self.hidden_dim*self.n_leads), dtype=torch.float32, device=y.device)
         total_lead_ind = [*range(self.n_leads)]

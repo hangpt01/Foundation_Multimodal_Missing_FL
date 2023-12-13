@@ -138,7 +138,7 @@ class Model(FModule):
         self.classifier = Classifier()
         self.criterion = nn.CrossEntropyLoss()
 
-    def forward(self, x, y, leads):
+    def forward(self, x, y, leads, contrastive_weight=5):
         # import pdb; pdb.set_trace()
         
         batch_size = y.shape[0]

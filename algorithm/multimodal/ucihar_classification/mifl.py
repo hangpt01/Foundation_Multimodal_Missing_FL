@@ -188,7 +188,8 @@ class Server(BasicServer):
                 model=model,
                 dataset=self.test_data,
                 batch_size=self.option['test_batch_size'],
-                leads=self.list_testing_leads
+                leads=self.list_testing_leads,
+                contrastive_weight=self.option['contrastive_weight']
             )
         else:
             return None
@@ -215,6 +216,7 @@ class Client(BasicClient):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
         self.fedmsplit_prox_lambda = option['fedmsplit_prox_lambda']
+        self.contrastive_weight = option['contrastive_weight']
         self.modalities = modalities
         self.local_model = None
         self.agg_model = None
@@ -283,7 +285,8 @@ class Client(BasicClient):
             loss, outputs = self.calculator.train_one_step(
                 model=model,
                 data=batch_data,
-                leads=self.modalities
+                leads=self.modalities,
+                contrastive_weight=self.contrastive_weight
             )['loss']
             regular_loss = 0.0
             if self.fedmsplit_prox_lambda > 0.0:
@@ -314,5 +317,6 @@ class Client(BasicClient):
         return self.calculator.test(
             model=model,
             dataset=dataset,
-            leads=self.modalities
+            leads=self.modalities,
+            contrastive_weight=self.contrastive_weight
         )
