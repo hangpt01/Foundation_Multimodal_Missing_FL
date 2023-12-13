@@ -1,4 +1,4 @@
-for contrastive_weight in 6 8; do
+for contrastive_weight in 6 10; do
     taskset -c 1-40 python main_w_contrastive.py \
         --task ucihar_classification_cnum20_dist0_skew0_seed0_missing_rate_0.7 \
         --model mifl \

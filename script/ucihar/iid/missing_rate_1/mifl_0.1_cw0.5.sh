@@ -1,7 +1,7 @@
-python main.py \
+python main_w_contrastive.py \
     --task ucihar_classification_cnum20_dist0_skew0_seed0_missing_rate_1 \
-    --model fedmsplit \
-    --algorithm multimodal.ucihar_classification.fedmsplit \
+    --model mifl \
+    --algorithm multimodal.ucihar_classification.mifl \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \
@@ -10,7 +10,8 @@ python main.py \
     --lr_scheduler 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0.01 \
-    --learning_rate 0.5 \
+    --contrastive_weight 0.5 \
+    --learning_rate 0.1 \
     --num_epochs 3 \
     --learning_rate_decay 1.0 \
     --batch_size 128 \

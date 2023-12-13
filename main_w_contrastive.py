@@ -11,7 +11,7 @@ def main():
             entity="aiotlab",
             project='FLMultimodal',
             # name="{}_CW{:.2f}_CT{:.2f}_KL{:.2f}_P{:.2f}".format(option['task'], option['contrastive_weight'], option['temperature'], option['kl_weight'], option['proportion']),
-            name="{}_lr{:.1f}_ep{:.0f}_contrastive{:.0f}".format(option['model'], option['learning_rate'], option['num_epochs'], option['contrastive_weight']),
+            name="{}_lr{:.1f}_ep{:.0f}_contrastive{:.1f}".format(option['model'], option['learning_rate'], option['num_epochs'], option['contrastive_weight']),
             # name=option['model']+"_"+option['contrastive_weight'],
             group=option['task'],
             # group='ptbxl_reduce_missing',
