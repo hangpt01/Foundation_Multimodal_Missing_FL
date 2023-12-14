@@ -72,7 +72,7 @@ def read_option():
     parser.add_argument('--margin', help='Contrastive loss margin;', type=float, default=0.0)
     parser.add_argument('--kl_weight', help='KL loss weight;', type=float, default=0.0)
     parser.add_argument('--fedmsplit_prox_lambda', help='FedMSplit prox lambda;', type=float, default=0.0)
-    parser.add_argument('--contrastive_weight', help='Local contrastive weight;', type=float, default=5.0)
+    parser.add_argument('--contrastive_weight', help='Local contrastive weight;', type=float, default=0.0)
 
     try: option = vars(parser.parse_args())
     except IOError as msg: parser.error(str(msg))

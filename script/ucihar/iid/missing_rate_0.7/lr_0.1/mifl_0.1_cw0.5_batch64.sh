@@ -1,5 +1,5 @@
 python main_w_contrastive.py \
-    --task ucihar_classification_cnum20_dist0_skew0_seed0_missing_rate_1 \
+    --task ucihar_classification_cnum20_dist0_skew0_seed0_missing_rate_0.7 \
     --model mifl \
     --algorithm multimodal.ucihar_classification.mifl \
     --sample full \
@@ -16,5 +16,5 @@ python main_w_contrastive.py \
     --learning_rate_decay 1.0 \
     --batch_size 64 \
     --test_batch_size 64 \
-    --gpu 2 \
+    --gpu 1 \
     --wandb

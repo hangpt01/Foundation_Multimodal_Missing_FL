@@ -16,5 +16,5 @@ python main_w_contrastive.py \
     --learning_rate_decay 1.0 \
     --batch_size 128 \
     --test_batch_size 128 \
-    --gpu 1 \
+    --gpu 2 \
     --wandb
