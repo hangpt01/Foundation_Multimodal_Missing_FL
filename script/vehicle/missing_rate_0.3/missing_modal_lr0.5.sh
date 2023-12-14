@@ -1,5 +1,5 @@
 python main.py \
-    --task vehicle_classification_cnum23_dist0_skew0_seed0_missing_rate_0.7 \
+    --task vehicle_classification_cnum23_dist0_skew0_seed0_missing_rate_0.3 \
     --model missing_modal \
     --algorithm multimodal.vehicle_classification.missing_modal \
     --sample full \
