@@ -163,19 +163,17 @@ class Client(BasicClient):
             momentum=self.momentum
         )
         for iter in range(self.num_steps):
-            # import pdb; pdb.set_trace()
             # get a batch of data
             batch_data = self.get_batch_data()
             if batch_data[-1].shape[0] == 1:
                 continue
             model.zero_grad()
             # calculate the loss of the model on batched dataset through task-specified calculator
-            loss = self.calculator.train_one_step(
+            loss, outputs = self.calculator.train_one_step(
                 model=model,
                 data=batch_data,
                 leads=self.modalities
             )['loss']
-            # import pdb; pdb.set_trace()
             loss.backward()
             optimizer.step()
         return
@@ -190,7 +188,10 @@ class Client(BasicClient):
         :return:
             metric: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
-        dataset = self.train_data
+        if dataflag == "train":
+            dataset = self.train_data
+        elif dataflag == "valid":
+            dataset = self.valid_data
         return self.calculator.test(
             model=model,
             dataset=dataset,

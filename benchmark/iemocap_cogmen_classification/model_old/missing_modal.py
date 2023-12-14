@@ -9,7 +9,7 @@ class SubNet(FModule):
     The subnetwork that is used in TFN for video and audio in the pre-fusion stage
     '''
 
-    def __init__(self):
+    def __init__(self, in_size=768):
         '''
         Args:
             in_size: input dimension
@@ -18,8 +18,7 @@ class SubNet(FModule):
         Output:
             (return value in forward) a tensor of shape (batch_size, hidden_size)
         '''
-        in_size = 50
-        hidden_size = 32    # FedMSplit
+        hidden_size = 64    # FedMSplit
         dropout = 0
         super(SubNet, self).__init__()
         self.bnorm = nn.BatchNorm1d(in_size)
@@ -42,11 +41,46 @@ class SubNet(FModule):
 
         return y_3
 
-    
+class TextSubNet(FModule):
+    '''
+    The LSTM-based subnetwork that is used in TFN for text
+    '''
+
+    def __init__(self):
+        '''
+        Args:
+            in_size: input dimension
+            hidden_size: hidden layer dimension
+            num_layers: specify the number of layers of LSTMs.
+            dropout: dropout probability
+            bidirectional: specify usage of bidirectional LSTM
+        Output:
+            (return value in forward) a tensor of shape (batch_size, out_size)
+        '''
+        super(TextSubNet, self).__init__()
+        in_size = 768
+        hidden_size = 64
+        dropout = 0
+        out_size = hidden_size
+        self.rnn = nn.LSTM(in_size, hidden_size, num_layers=1, dropout=dropout, bidirectional=False, batch_first=True)
+        self.dropout = nn.Dropout(dropout)
+        self.linear_1 = nn.Linear(hidden_size, out_size)
+
+    def forward(self, x):
+        '''
+        Args:
+            x: tensor of shape (batch_size, sequence_len, in_size)
+        '''
+        _, final_states = self.rnn(x)
+        h = self.dropout(final_states[0].squeeze())
+        y_1 = self.linear_1(h)
+        return y_1   
+
+
 class Classifier(FModule):
     def __init__(self):
         super(Classifier, self).__init__()
-        self.ln = nn.Linear(32, 2, True)
+        self.ln = nn.Linear(64, 6, True)
     
     def forward(self, x):
         # import pdb; pdb.set_trace()
@@ -56,20 +90,25 @@ class Classifier(FModule):
 class Model(FModule):
     def __init__(self):
         super(Model, self).__init__()
-        self.n_leads = 2
+        self.n_leads = 3        # t-a-v: text-audio-visual
         self.feature_extractors = nn.ModuleList()
-        for i in range(self.n_leads):
+        self.feature_extractors.append(TextSubNet())
+        for i in range(2):
             self.feature_extractors.append(SubNet())
+        
         self.classifier = Classifier()
         self.criterion = nn.CrossEntropyLoss()
 
-    def forward(self, x, y, leads, contrastive_weight=0):
+    def forward(self, x, y, leads):
         # import pdb; pdb.set_trace()
         
         batch_size = y.shape[0]
+        hidden_dim = 64
         # print(batch_size)
-        features = torch.zeros(size=(batch_size, 32), dtype=torch.float32, device=y.device)
+        features = torch.zeros(size=(batch_size, hidden_dim), dtype=torch.float32, device=y.device)
         for lead in leads:
+            # input = x[:, lead, :]
+            # features += self.feature_extractors[lead](input[input.nonzero()])
             features += self.feature_extractors[lead](x[:, lead, :])
         outputs = self.classifier(features)
         # import pdb; pdb.set_trace()
