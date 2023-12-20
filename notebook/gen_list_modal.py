@@ -6,7 +6,7 @@ import torch
 import sys
 from torch.utils.data import Dataset
 
-def gen_list_modalities (missing_rate=0.5, num_modalities=2, NUM_USER=20):
+def gen_list_modalities (missing_rate=0.5, missing_ratio_2_modal=0.5, num_modalities=2, NUM_USER=20):
     mat_modals = []
     list_modals_tuples = []
     # num_sample_modals = np.zeros(num_modalities)

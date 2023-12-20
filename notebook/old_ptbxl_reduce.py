@@ -7,6 +7,7 @@ y_train = np.load('../benchmark/RAW_DATA/PTBXL/y_train.npy')
 y_test = np.load('../benchmark/RAW_DATA/PTBXL/y_test.npy')
 labels = np.concatenate((y_train, y_test), axis=0)
 n_samples, n_labels = labels.shape
+print(n_samples, n_labels)
 
 for t in tqdm(range(1, 71)):
     model = cp_model.CpModel()
@@ -16,7 +17,7 @@ for t in tqdm(range(1, 71)):
     b = dict()
     for x in range(0, n_samples):
         b[x] = model.NewIntVar(0, 1, 'b[%d]' % (x))
-        model.Add(sum([labels[x, y] * a[y] for y in range(0, n_labels)]) == 1).OnlyEnforceIf(b[x])
+        model.Add(sum([labels[x, y] * a[y] for y in range(0, n_labels)]) == 1).OnlyEnforceIf(b[x])      # add constraints
         model.Add(sum([labels[x, y] * a[y] for y in range(0, n_labels)]) != 1).OnlyEnforceIf(b[x].Not())
     model.Add(sum([a[y] for y in range(0, n_labels)]) >= t)
     model.Maximize(sum([b[x] for x in range(0, n_samples)]))

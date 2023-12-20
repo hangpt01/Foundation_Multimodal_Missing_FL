@@ -12,6 +12,8 @@ def read_option():
     parser.add_argument('--modal_equality', help='same number of modalities in clients;', action='store_true', default=False)
     parser.add_argument('--modal_missing_case3', help='missing case3 of modalities in clients (<=12);', action='store_true', default=False)
     parser.add_argument('--modal_missing_case4', help='missing case3 of modalities in clients (6<=#modals<=12);', action='store_true', default=False)
+    parser.add_argument('--missing_rate', help='Total missing rate', type=float, default=-1)
+    parser.add_argument('--missing_ratio_2_modal', help='For 2 modality dataset: missing rate of modality 1;', type=float, default=-1)
     
     try: option = vars(parser.parse_args())
     except IOError as msg: parser.error(str(msg))
@@ -29,6 +31,9 @@ if __name__ == '__main__':
         missing=option['missing'],
         modal_equality=option['modal_equality'],
         modal_missing_case3 = option['modal_missing_case3'],
-        modal_missing_case4 = option['modal_missing_case4']
+        modal_missing_case4 = option['modal_missing_case4'],
+        missing_rate = option['missing_rate'],
+        missing_ratio_2_modal = option['missing_ratio_2_modal']
     )
+    print(generator.taskname)
     generator.run()
