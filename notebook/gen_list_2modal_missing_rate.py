@@ -24,4 +24,4 @@ def gen_list_2_modalities (missing_rate=0.5, missing_ratio_2_modal=0.5, NUM_USER
     return list_modals_tuples      
     
 if __name__ == '__main__':
-    gen_list_2_modalities(0.25, 0.2, 20)
+    gen_list_2_modalities(0.2, 0.25, 20)
