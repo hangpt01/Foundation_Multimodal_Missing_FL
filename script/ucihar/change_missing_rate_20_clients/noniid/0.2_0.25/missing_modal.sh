@@ -1,5 +1,5 @@
 python main.py \
-    --task ucihar_classification_cnum20_dist0_skew0_seed0_missing_rate_0.2_miss_ratio_0.75 \
+    --task ucihar_classification_cnum20_dist1_skew0.5_seed0_missing_rate_0.2_miss_ratio_0.25 \
     --model missing_modal \
     --algorithm multimodal.ucihar_classification.missing_modal \
     --sample full \
