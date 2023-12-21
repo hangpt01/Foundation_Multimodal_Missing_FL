@@ -1,7 +1,7 @@
 python main.py \
-    --task ucihar_classification_cnum20_dist0_skew0_seed0_missing_rate_0.8_miss_ratio_0.5 \
-    --model fedavg \
-    --algorithm multimodal.ucihar_classification.fedavg \
+    --task ucihar_classification_cnum20_dist0_skew0_seed0_missing_rate_0.8_miss_ratio_0.25 \
+    --model fedmsplit \
+    --algorithm multimodal.ucihar_classification.fedmsplit \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \
@@ -15,5 +15,5 @@ python main.py \
     --learning_rate_decay 1.0 \
     --batch_size 128 \
     --test_batch_size 128 \
-    --gpu 1 \
+    --gpu 0 \
     --wandb
