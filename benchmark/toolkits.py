@@ -488,11 +488,14 @@ class DefaultTaskGen(BasicTaskGen):
         else:
             data_columns = [len(cidx) for cidx in train_cidxs]
             row_map = {k:i for k,i in zip(np.argsort(data_columns), [_ for _ in range(self.num_clients)])}  # sort clients accord. #samples
+            # import pdb; pdb.set_trace()
             # print(row_map)
             for cid, cidxs in enumerate(train_cidxs):       # list of all clients' sample indices
                 # import pdb; pdb.set_trace() 
                 # print(cid)
-                labels = [int(self.train_data[did][-1]) for did in cidxs]
+                # labels = [int(self.train_data[did][-1]) for did in cidxs]       # ucihar
+                labels = [int(self.train_data[did][-1]) for did in cidxs]       # ptbxl
+                
                 lb_counter = collections.Counter(labels)
                 offset = 0
                 y_bottom = row_map[cid] - client_height/2.0

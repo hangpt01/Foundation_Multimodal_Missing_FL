@@ -90,7 +90,7 @@ class Inception1DBase(FModule):
 class Classifier(FModule):
     def __init__(self):
         super(Classifier, self).__init__()
-        self.ln = nn.Linear(128, 10, True)
+        self.ln = nn.Linear(128, 5, True)
     
     def forward(self, x):
         return self.ln(x)

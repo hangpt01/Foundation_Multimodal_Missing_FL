@@ -4,7 +4,7 @@ import os
 import pickle
 import random
 
-class PTBXLReduceDataset(Dataset):
+class PTBXL_4CLASSES_Dataset(Dataset):
     def __init__(self, root, download=True, standard_scaler=True, train=True, crop_length=250, valid=False):
         self.root = root
         self.standard_scaler = standard_scaler
@@ -20,19 +20,12 @@ class PTBXLReduceDataset(Dataset):
             else:
                 raise RuntimeError('Dataset not found. You can use download=True to download it')
         if self.train:
-            self.x = np.load(os.path.join(self.root, 'x_train.npy'))        # (3170, 1000, 12)
-            self.y = np.load(os.path.join(self.root, 'y_train.npy'))        # (3170,)
-            # if valid:
-            #     self.x = self.x[2400:,:,:]
-            #     self.y = self.y[2400:]
-            # else:
-            #     self.x = self.x[:2400,:,:]
-            #     self.y = self.y[:2400]
+            self.x = np.load(os.path.join(self.root, 'x_train.npy'), allow_pickle=True)        # (14594, 1000, 12)
+            self.y = np.load(os.path.join(self.root, 'y_train.npy'), allow_pickle=True)        # (14594,)
 
-            # import pdb; pdb.set_trace()
         else:
-            self.x = np.load(os.path.join(self.root, 'x_test.npy'))
-            self.y = np.load(os.path.join(self.root, 'y_test.npy'))
+            self.x = np.load(os.path.join(self.root, 'x_test.npy'), allow_pickle=True)         # (1650, 1000, 12)
+            self.y = np.load(os.path.join(self.root, 'y_test.npy'), allow_pickle=True)
         if self.standard_scaler:
             self.ss = pickle.load(open(os.path.join(self.root, 'standard_scaler.pkl'), 'rb'))
             x_tmp = list()
@@ -50,8 +43,8 @@ class PTBXLReduceDataset(Dataset):
         y = self.y[index]
         start_idx = random.randint(0, x.shape[0] - self.crop_length - 1)
         x = x[start_idx:start_idx + self.crop_length].transpose().astype(np.float32)
-        y = y.astype(np.float32)
+        y = np.float32(y)
         return x, y
     
 if __name__ == '__main__':
-    dataset = PTBXLReduceDataset(root='./benchmark/RAW_DATA/PTBXL_REDUCE', standard_scaler=True, train=True)
+    dataset = PTBXL_4CLASSES_Dataset(root='./benchmark/RAW_DATA/PTBXL_REDUCE', standard_scaler=True, train=True)

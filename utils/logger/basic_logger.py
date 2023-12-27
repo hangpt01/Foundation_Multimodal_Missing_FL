@@ -136,7 +136,7 @@ class Logger(logging.Logger):
                 self.info(self.temp.format(key, val[-1]))
                 tmp[key] = val[-1]
         if self.meta['wandb']:
-            for i in range(7):
+            for i in range(8):
                 wandb.define_metric("test_loss"+str(i+1), summary="min")
                 wandb.define_metric("test_acc"+str(i+1), summary="max")
                 wandb.define_metric("test_f1_score_"+str(i+1), summary="max")

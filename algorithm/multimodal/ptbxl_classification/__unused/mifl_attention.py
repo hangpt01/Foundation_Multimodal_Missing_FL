@@ -1,4 +1,4 @@
-from ...fedbase import BasicServer, BasicClient
+from ....fedbase import BasicServer, BasicClient
 import utils.system_simulator as ss
 from utils import fmodule
 import copy
@@ -287,7 +287,7 @@ class Client(BasicClient):
                 continue
             model.zero_grad()
             # calculate the loss of the model on batched dataset through task-specified calculator
-            loss_leads, loss, outputs = self.calculator.train_one_step(
+            loss, outputs = self.calculator.train_one_step(
                 model=model,
                 data=batch_data,
                 leads=self.modalities

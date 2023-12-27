@@ -90,7 +90,8 @@ class Inception1DBase(FModule):
 class Classifier(FModule):
     def __init__(self):
         super(Classifier, self).__init__()
-        self.ln = nn.Linear(128, 10, True)
+        # self.ln = nn.Linear(128, 5, True)
+        self.ln = nn.Linear(128, 4, True)
     
     def forward(self, x):
         return self.ln(x)
@@ -105,7 +106,7 @@ class Model(FModule):
         self.classifier = Classifier()
         self.criterion = nn.CrossEntropyLoss()
 
-    def forward(self, x, y, leads):
+    def forward(self, x, y, leads, contrastive_weight):
         batch_size = y.shape[0]
         features = torch.zeros(size=(batch_size, 128), dtype=torch.float32, device=y.device)
         for lead in range(self.n_leads):

@@ -106,7 +106,8 @@ class Classifier(FModule):
     def __init__(self):
         super(Classifier, self).__init__()
         self.ln1 = nn.Linear(128*12, 128, True)
-        self.ln2 = nn.Linear(128, 10, True)
+        # self.ln2 = nn.Linear(128, 5, True)
+        self.ln2 = nn.Linear(128, 4, True)
     
     def forward(self, x):       #()
         return self.ln2(F.relu(self.ln1(x)))
@@ -124,7 +125,7 @@ class Model(FModule):
         self.classifier = Classifier()
         self.criterion = nn.CrossEntropyLoss()
         
-    def forward(self, x, y, leads):
+    def forward(self, x, y, leads, contrastive_weight):
         batch_size = y.shape[0]
         features = torch.zeros(size=(batch_size, self.hidden_dim*12), dtype=torch.float32, device=y.device)
         total_lead_ind = [*range(12)]
@@ -167,10 +168,11 @@ class Model(FModule):
                 contrative_loss -= torch.log(positive / (positive + negative)).sum()
                 count += positive_idx.shape[0] * 2
         if count > 0:
-            loss += 5.0 * contrative_loss / count
+            loss += contrastive_weight * contrative_loss / count
 
-        loss_leads = 0
-        return loss_leads, loss, outputs
+        # loss_leads = 0
+        # return loss_leads, loss, outputs
+        return loss, outputs
 
 if __name__ == '__main__':
     model = Model()

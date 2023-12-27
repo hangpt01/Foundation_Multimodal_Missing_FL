@@ -1,8 +1,9 @@
-from .dataset import PTBXLReduceDataset
+from .dataset import PTBXL_4CLASSES_Dataset
 from benchmark.toolkits import DefaultTaskGen
 from benchmark.toolkits import ClassificationCalculator
 from benchmark.toolkits import IDXTaskPipe
 import os
+import time
 import ujson
 import importlib
 import random
@@ -88,6 +89,126 @@ def save_task(generator):
     return
     
 
+def convert(o):
+    if isinstance(o, np.int64): return int(o)  
+    raise TypeError
+
+def iid_divide(l, g):
+    """
+    https://github.com/TalwalkarLab/leaf/blob/master/data/utils/sample.py
+    divide list `l` among `g` groups
+    each group has either `int(len(l)/g)` or `int(len(l)/g)+1` elements
+    returns a list of groups
+    """
+    num_elems = len(l)
+    group_size = int(len(l) / g)
+    num_big_groups = num_elems - g * group_size
+    num_small_groups = g - num_big_groups
+    glist = []
+    for i in range(num_small_groups):
+        glist.append(l[group_size * i: group_size * (i + 1)])
+    bi = group_size * num_small_groups
+    group_size += 1
+    for i in range(num_big_groups):
+        glist.append(l[bi + group_size * i:bi + group_size * (i + 1)])
+    return glist
+
+
+def split_list_by_indices(l, indices):
+    """
+    divide list `l` given indices into `len(indices)` sub-lists
+    sub-list `i` starts from `indices[i]` and stops at `indices[i+1]`
+    returns a list of sub-lists
+    """
+    res = []
+    current_index = 0
+    for index in indices:
+        res.append(l[current_index: index])
+        current_index = index
+
+    return res
+
+
+def by_labels_non_iid_split(dataset, n_classes, n_clients, n_clusters, alpha, frac, seed=1234):
+    """
+    split classification dataset among `n_clients`. The dataset is split as follow:
+        1) classes are grouped into `n_clusters`
+        2) for each cluster `c`, samples are partitioned across clients using dirichlet distribution
+
+    Inspired by the split in "Federated Learning with Matched Averaging"__(https://arxiv.org/abs/2002.06440)
+
+    :param dataset:
+    :type dataset: torch.utils.Dataset
+    :param n_classes: number of classes present in `dataset`
+    :param n_clients: number of clients
+    :param n_clusters: number of clusters to consider; if it is `-1`, then `n_clusters = n_classes`
+    :param alpha: parameter controlling the diversity among clients
+    :param frac: fraction of dataset to use
+    :param seed:
+    :return: list (size `n_clients`) of subgroups, each subgroup is a list of indices.
+    """
+    if n_clusters == -1:
+        n_clusters = n_classes
+
+    rng_seed = (seed if (seed is not None and seed >= 0) else int(time.time()))
+    rng = random.Random(rng_seed)
+    np.random.seed(rng_seed)
+
+    all_labels = list(range(n_classes))
+    rng.shuffle(all_labels)
+    clusters_labels = iid_divide(all_labels, n_clusters)        #cluster=class
+
+    label2cluster = dict()  # maps label to its cluster
+    for group_idx, labels in enumerate(clusters_labels):
+        for label in labels:
+            label2cluster[label] = group_idx
+    # get subset
+    n_samples = int(len(dataset) * frac)
+    selected_indices = np.random.randint(0, len(dataset), n_samples)
+
+    clusters_sizes = np.zeros(n_clusters, dtype=int)
+    clusters = {k: [] for k in range(n_clusters)}       # class:[indices]
+    for idx in selected_indices:
+        _, label = dataset[idx]
+        # import pdb; pdb.set_trace()
+        group_id = label2cluster[int(label)]
+        clusters_sizes[group_id] += 1
+        clusters[group_id].append(idx)
+
+    for _, cluster in clusters.items():
+        rng.shuffle(cluster)
+
+    clients_indices = [[] for _ in range(n_clients)]        
+    clients_counts = np.zeros((n_clusters, n_clients), dtype=np.int64)  # number of samples by client from each cluster
+    
+    for cluster_id in range(n_clusters):
+            weights = np.random.dirichlet(alpha=alpha * np.ones(n_clients))
+            clients_counts[cluster_id] = np.random.multinomial(clusters_sizes[cluster_id], weights)
+
+    
+    clients_counts = np.cumsum(clients_counts, axis=1)
+
+    for cluster_id in range(n_clusters):
+        cluster_split = split_list_by_indices(clusters[cluster_id], clients_counts[cluster_id])
+
+        for client_id, indices in enumerate(cluster_split):
+            # clients_indices[client_id] += list(indices)
+            clients_indices[client_id] += indices
+            # import pdb; pdb.set_trace()
+
+                    
+    return clients_indices
+
+
+def noniid_partition(generator):
+    print(generator)
+    labels = np.unique(generator.train_data.y)
+    # import pdb; pdb.set_trace()
+    clients_indices = by_labels_non_iid_split(generator.train_data, labels.shape[0], generator.num_clients, labels.shape[0], generator.skewness, frac=1, seed=generator.seed)
+    # import pdb; pdb.set_trace()
+    return clients_indices    
+
+
 def iid_partition(generator):
     print(generator)
     # import pdb; pdb.set_trace()
@@ -115,24 +236,27 @@ def iid_partition(generator):
     
 
 class TaskGen(DefaultTaskGen):
-    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, percentages=None, missing=False, modal_equality=False, modal_missing_case3=False, modal_missing_case4=False):
+    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing_1_6=False, missing_all_6=False, missing_1_12=False, missing_7_12=False, missing_rate=-1, missing_ratio_2_modal=-1):
         super(TaskGen, self).__init__(benchmark='ptbxl_classification',
                                       dist_id=dist_id,
                                       num_clients=num_clients,
                                       skewness=skewness,
-                                      rawdata_path='./benchmark/RAW_DATA/PTBXL_REDUCE',
+                                      rawdata_path='./benchmark/RAW_DATA/PTBXL_4CLASSES',
                                       local_hld_rate=local_hld_rate,
                                       seed = seed
                                       )
-        if self.dist_id == 0:
+        if self.dist_id == 1:
+            self.partition = noniid_partition
+        else:
             self.partition = iid_partition
         # self.local_holdout = local_holdout
-        self.num_classes = 10
+        # self.num_classes = 5
+        self.num_classes = 4
         self.save_task = save_task
         self.visualize = self.visualize_by_class
         self.source_dict = {
             'class_path': 'benchmark.ptbxl_classification.dataset',
-            'class_name': 'PTBXLReduceDataset',
+            'class_name': 'PTBXL_4CLASSES_Dataset',
             'train_args': {
                 'root': '"'+self.rawdata_path+'"',
                 'download': 'True',
@@ -146,112 +270,44 @@ class TaskGen(DefaultTaskGen):
                 'train': 'False'
             }
         }
-        self.missing = missing
-        self.modal_equality = modal_equality
-        self.modal_missing_case3 = modal_missing_case3
-        self.modal_missing_case4 = modal_missing_case4
+        self.missing_1_6 = missing_1_6
+        self.missing_all_6 = missing_all_6
+        self.missing_1_12 = missing_1_12
+        self.missing_7_12 = missing_7_12
         self.specific_training_leads = None
         self.local_holdout_rate = 0.1
-        if self.missing and self.num_clients == 20:
-            if self.modal_equality:
-                self.specific_training_leads = [
-                    (4, 7, 8, 9, 10, 11),
-                    (0, 2, 5, 7, 9, 11),
-                    (1, 2, 3, 7, 9, 11),
-                    (1, 3, 4, 6, 7, 9),
-                    (0, 1, 4, 5, 10, 11),
-                    (0, 1, 2, 3, 8, 9),
-                    (0, 1, 3, 6, 7, 8),
-                    (2, 3, 4, 5, 7, 11),
-                    (0, 3, 4, 7, 10, 11),
-                    (1, 3, 4, 5, 7, 10),
-                    (0, 3, 4, 9, 10, 11),
-                    (0, 2, 3, 4, 7, 8),
-                    (1, 3, 5, 6, 7, 8),
-                    (0, 1, 5, 7, 8, 10),
-                    (0, 6, 7, 8, 9, 11),
-                    (0, 4, 5, 6, 7, 8),
-                    (0, 5, 6, 7, 8, 9),
-                    (0, 1, 2, 3, 5, 9),
-                    (3, 4, 5, 7, 8, 9),
-                    (1, 5, 7, 8, 9, 11)
-                ]
-                self.taskname = self.taskname + '_missing_modal_equality'
-                self.taskpath = os.path.join(self.task_rootpath, self.taskname)
-            elif self.modal_missing_case3:
-                self.specific_training_leads = [
-                    (1, 11), 
-                    (0, 4, 6, 7, 10), 
-                    (3, 6), 
-                    (1, 2, 3, 4), 
-                    (5,), 
-                    (0, 1, 3, 5, 6, 9, 10), 
-                    (1, 2, 4, 6, 8), 
-                    (0, 1, 6), (1, 3, 8), 
-                    (1, 3, 9, 10), 
-                    (0,), 
-                    (0, 3, 7, 8), 
-                    (1, 5, 9, 11), 
-                    (0, 2, 4, 5, 6, 7, 8), 
-                    (0, 1, 2, 5, 6, 8), 
-                    (4,), 
-                    (1, 5), 
-                    (3, 4, 8, 9), 
-                    (6, 9), 
-                    (0, 1, 3, 7, 8, 9, 10, 11)
-                ]
-                self.taskname = self.taskname + '_missing_modal_case3'
-                self.taskpath = os.path.join(self.task_rootpath, self.taskname)
-            elif self.modal_missing_case4:
-                self.specific_training_leads = [
-                    (1, 2, 3, 8, 10, 11), 
-                    (1, 2, 5, 6, 7, 8), 
-                    (0, 3, 4, 5, 6, 7, 8, 9, 10), 
-                    (2, 5, 7, 9, 10, 11), 
-                    (0, 1, 3, 4, 5, 6, 7, 8, 10, 11), 
-                    (1, 3, 7, 9, 10, 11), 
-                    (0, 1, 2, 3, 4, 6, 8, 9, 10, 11), 
-                    (1, 2, 3, 5, 6, 7, 8, 10, 11), 
-                    (0, 1, 2, 3, 4, 5, 6, 7, 9, 10), 
-                    (2, 3, 4, 5, 7, 8, 11), 
-                    (0, 2, 3, 4, 7, 8, 9, 10, 11), 
-                    (0, 1, 2, 3, 5, 7, 9, 10, 11), 
-                    (1, 3, 4, 5, 9, 10, 11), 
-                    (0, 2, 4, 5, 6, 7, 9), 
-                    (0, 1, 2, 4, 5, 7, 8, 10, 11), 
-                    (1, 2, 4, 5, 6, 9), 
-                    (0, 1, 4, 7, 9, 10), 
-                    (0, 1, 3, 5, 6, 8, 9, 10, 11), 
-                    (0, 3, 5, 6, 9, 10), 
-                    (1, 2, 3, 5, 6, 7, 9)
-                ]
-                self.taskname = self.taskname + '_missing_modal_case4_mifl_gblend'
-                self.taskpath = os.path.join(self.task_rootpath, self.taskname)
-            else:
-                self.specific_training_leads = [       # 2-6 modalities
-                    (4, 5, 8),
-                    (4, 5),
-                    (2, 3, 5, 9),
-                    (1, 3, 7, 8, 11),
-                    (5, 6, 8, 9),
-                    (0, 2, 3, 5, 8, 9),
-                    (0, 2, 3, 5),
-                    (0, 1, 3, 5),
-                    (0, 3, 5, 10, 11),
-                    (1, 4, 6),
-                    (8, 9, 11),
-                    (0, 3, 5, 6, 7, 11),
-                    (2, 3, 4, 5, 7),
-                    (0, 4, 7, 8),
-                    (0, 3, 4, 6, 7),
-                    (1, 5, 6, 7, 8),
-                    (0, 1, 3, 4, 10),
-                    (2, 4, 5, 7, 9, 11),
-                    (3, 4, 5, 8, 10, 11),
-                    (0, 1, 3, 7, 9, 11)
-                ]
-                self.taskname = self.taskname + '_missing_mifl_gblend'
-                self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        if self.missing_all_6:
+            self.specific_training_leads = [(0, 11, 2, 6, 1, 10), (4, 3, 8, 0, 9, 10), (2, 4, 9, 1, 11, 8), (8, 2, 9, 7, 10, 3), (6, 7, 4, 0, 8, 3), (8, 10, 0, 2, 4, 7), 
+                                            (9, 3, 8, 11, 0, 4), (9, 7, 6, 2, 10, 0), (0, 11, 4, 3, 7, 10), (10, 5, 7, 4, 1, 8), (3, 5, 10, 0, 11, 6), (4, 0, 6, 1, 3, 11), 
+                                            (2, 0, 10, 6, 9, 11), (10, 6, 2, 1, 4, 3), (0, 7, 9, 5, 3, 4), (4, 7, 1, 5, 11, 0), (9, 4, 11, 8, 2, 3), (8, 10, 7, 2, 9, 0), 
+                                            (2, 8, 5, 4, 1, 10), (4, 11, 7, 3, 6, 1), (4, 7, 1, 8, 3, 5), (8, 4, 11, 10, 0, 9), (2, 10, 11, 6, 1, 4), (11, 3, 1, 9, 5, 0), 
+                                            (1, 7, 5, 4, 10, 9), (5, 0, 1, 2, 11, 7), (11, 5, 2, 7, 6, 0), (10, 0, 11, 3, 4, 9), (9, 4, 1, 7, 5, 11), (0, 1, 9, 11, 3, 5)]
+            self.taskname = self.taskname + '_missing_all_6'
+            self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        elif self.missing_1_12:
+            self.specific_training_leads = [(8,), (0, 11), (7, 0, 6), (4, 2, 8, 7), (4, 2, 6, 5, 11), (2, 4, 9, 11, 7, 5), 
+                                            (7, 10, 2, 4, 9, 11, 6), (6, 9, 0, 11, 1, 10, 2, 8), (7, 8, 5, 0, 6, 3, 9, 11, 1), (9, 3, 6, 2, 11, 7, 10, 1, 8, 0), (7, 11, 4, 6, 9, 2, 8, 1, 10, 0, 3), (2, 5, 7, 8, 9, 6, 3, 4, 1, 11, 10, 0), 
+                                            (0, 9, 6, 5, 1, 3, 7, 10, 8), (5, 7, 0, 1, 4, 6, 8, 3), (8, 11, 7, 2), (3,), (6, 1, 2, 5, 10, 8), (0, 7, 8, 2, 3, 11, 1, 4), 
+                                            (3, 6, 0, 1, 5), (3, 10, 4), (4,), (8, 7, 2, 11, 6, 1, 4, 5, 0), (11, 9, 6, 10, 2, 8, 3, 1, 7), (0, 4, 7, 1, 8, 11), 
+                                            (1,), (1, 9, 7, 11), (9, 1, 10, 6), (9, 0, 2, 6), (5, 10, 2, 8, 11, 4, 1, 9, 6), (8, 5, 4, 3, 6, 7, 1)]
+            self.taskname = self.taskname + '_missing_1_12'
+            self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        elif self.missing_7_12:
+            self.specific_training_leads = [(11, 1, 3, 5, 8, 0, 2), (1, 0, 2, 4, 8, 5, 6, 3), (11, 6, 8, 2, 0, 3, 4, 9, 5), (6, 8, 1, 9, 0, 7, 4, 11, 3, 2), (5, 7, 6, 4, 1, 11, 9, 0, 10, 2, 8), (2, 9, 10, 3, 7, 11, 6, 1, 0, 5, 4, 8), 
+                                            (5, 9, 4, 7, 6, 10, 8, 2, 0, 1, 3), (3, 0, 5, 9, 2, 4, 11, 6, 7), (2, 0, 1, 5, 3, 9, 7, 6, 11, 10), (11, 4, 8, 0, 9, 7, 5, 1, 2, 3, 6), (2, 0, 1, 8, 4, 10, 11, 5), (8, 1, 10, 5, 2, 4, 9, 3, 0), 
+                                            (3, 11, 6, 0, 4, 2, 7, 5, 9, 8, 10), (1, 5, 7, 4, 6, 3, 11, 0, 10, 8, 9), (1, 5, 11, 0, 9, 7, 3, 2, 6), (1, 8, 7, 11, 10, 6, 5, 2), (0, 6, 1, 8, 4, 10, 2, 5, 9), (4, 7, 8, 2, 0, 11, 10, 1, 9, 6, 5, 3), 
+                                            (0, 2, 5, 7, 10, 1, 9, 4), (0, 5, 8, 3, 1, 10, 9, 11, 4), (7, 6, 9, 2, 1, 10, 4, 5), (1, 0, 10, 6, 8, 4, 7), (11, 8, 1, 3, 0, 2, 6, 9), (11, 7, 6, 10, 2, 3, 0, 9, 5, 4, 8), 
+                                            (5, 8, 1, 2, 4, 3, 0, 11), (3, 6, 8, 9, 4, 11, 0, 5, 1, 2, 7), (10, 9, 0, 1, 5, 3, 6, 7, 8, 2), (11, 1, 3, 2, 8, 7, 4, 6, 5, 10, 9), (7, 4, 10, 0, 3, 6, 5, 9, 1, 8), (7, 9, 2, 11, 4, 1, 0, 3)]
+            self.taskname = self.taskname + '_missing_7_12'
+            self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        elif self.missing_1_6:
+            self.specific_training_leads = [(3,), (9, 6), (10, 11, 8), (8, 7, 4, 10), (7, 3, 0, 6, 11), (10, 11, 4, 0, 3, 8), 
+                                            (10, 5, 7, 11, 3, 6), (3, 10, 2, 9, 6, 0), (9, 4, 11), (4, 6, 8, 9, 7), (6, 10, 1, 2, 4, 0), (0,), 
+                                            (11, 5, 2), (2,), (11, 9), (9, 8, 10, 2, 7), (2, 11, 6), (10,), 
+                                            (7, 5), (6,), (0, 7, 4, 2), (2, 11, 7, 4), (5, 8, 3, 9), (11, 4, 10), 
+                                            (9, 0), (0, 11, 10, 9, 4), (3, 0, 9, 2), (11, 2), (2, 9, 11, 3), (3, 11)]
+            self.taskname = self.taskname + '_missing_1_6'
+            self.taskpath = os.path.join(self.task_rootpath, self.taskname)
 
     # def local_holdout(self, local_datas, shuffle=False):
     #     """split each local dataset into train data and valid data according the rate."""
@@ -266,21 +322,13 @@ class TaskGen(DefaultTaskGen):
     #     return train_cidxs, valid_cidxs
 
     def load_data(self):
-        self.train_data = PTBXLReduceDataset(
+        self.train_data = PTBXL_4CLASSES_Dataset(
             root=self.rawdata_path,
             download=True,
             standard_scaler=True,
             train=True
         )
-        # self.valid_data = PTBXLReduceDataset(
-        #     root=self.rawdata_path,
-        #     download=True,
-        #     standard_scaler=True,
-        #     train=True,
-        #     valid=True
-        # )
-        # import pdb; pdb.set_trace()
-        self.test_data = PTBXLReduceDataset(
+        self.test_data = PTBXL_4CLASSES_Dataset(
             root=self.rawdata_path,
             download=True,
             standard_scaler=True,
@@ -293,7 +341,7 @@ class TaskCalculator(ClassificationCalculator):
         self.n_leads = 12
         self.DataLoader = DataLoader
 
-    def train_one_step(self, model, data, leads):
+    def train_one_step(self, model, data, leads, contrastive_weight=0):
         """
         :param model: the model to train
         :param data: the training dataset
@@ -301,11 +349,11 @@ class TaskCalculator(ClassificationCalculator):
         """
         tdata = self.data_to_device(data)
         # import pdb; pdb.set_trace()
-        loss = model(tdata[0], tdata[-1], leads)
+        loss = model(tdata[0], tdata[-1], leads, contrastive_weight)
         return {'loss': loss}
 
     @torch.no_grad()
-    def test(self, model, dataset, leads, batch_size=64, num_workers=0):
+    def test(self, model, dataset, leads, contrastive_weight=0, batch_size=64, num_workers=0):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -324,7 +372,7 @@ class TaskCalculator(ClassificationCalculator):
             labels.extend(batch_data[1].cpu().tolist())
             # import pdb; pdb.set_trace()
             
-            loss_leads, loss, outputs = model(batch_data[0], batch_data[-1], leads)
+            loss, outputs = model(batch_data[0], batch_data[-1], leads, contrastive_weight)
             total_loss += loss.item() * len(batch_data[-1])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
         labels = np.array(labels)
@@ -381,7 +429,7 @@ class TaskCalculator(ClassificationCalculator):
 
 
     @torch.no_grad()
-    def server_test(self, model, dataset, leads, batch_size=64, num_workers=0):
+    def server_test(self, model, dataset, leads, contrastive_weight=0, batch_size=64, num_workers=0):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -402,7 +450,7 @@ class TaskCalculator(ClassificationCalculator):
             for batch_id, batch_data in enumerate(data_loader):
                 batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data[1].cpu().tolist())
-                loss_leads, loss, outputs = model(batch_data[0], batch_data[-1], leads[test_combi_index])
+                loss, outputs = model(batch_data[0], batch_data[-1], leads[test_combi_index], contrastive_weight)
                 # for i in range(self.n_leads):
                 #     loss_each_modal[i] += loss_leads[i] * len(batch_data[-1])
                 total_loss += loss.item() * len(batch_data[-1])

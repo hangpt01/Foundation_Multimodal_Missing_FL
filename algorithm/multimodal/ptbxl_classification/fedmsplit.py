@@ -12,14 +12,25 @@ class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 12
+        # self.list_testing_leads = [
+        #     [2, 6, 10],                         #1
+        #     [1, 2, 6, 10, 11],                  #2
+        #     [1, 2, 6, 9, 10],                   #3
+        #     [2, 4, 5, 9, 10, 11],               #4
+        #     [2, 3, 4, 5, 6, 7, 9, 10, 11],      #5
+        #     [2, 4, 5, 6, 7, 8, 9, 11],          #6
+        #     [0, 1, 2, 4, 5, 6, 7, 8, 9, 11]     #7
+        # ]
         self.list_testing_leads = [
-            [2, 6, 10],                         #1
-            [1, 2, 6, 10, 11],                  #2
-            [1, 2, 6, 9, 10],                   #3
-            [2, 4, 5, 9, 10, 11],               #4
-            [2, 3, 4, 5, 6, 7, 9, 10, 11],      #5
-            [2, 4, 5, 6, 7, 8, 9, 11],          #6
-            [0, 1, 2, 4, 5, 6, 7, 8, 9, 11]     #7
+            [1, 5],                             #1
+            [5, 6, 8],                          #2
+            [0, 1, 5, 8],                       #3
+            [2, 3, 4, 5, 10],                   #4
+            [2, 3, 5, 6, 8, 9],                 #5
+            [0, 1, 2, 3, 4, 6, 10, 11],         #6
+            [0, 2, 3, 4, 5, 7, 8, 9, 10, 11],    #7
+            [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11]     #8
+
         ]
 
     def run(self):
@@ -249,7 +260,7 @@ class Client(BasicClient):
                 continue
             model.zero_grad()
             # calculate the loss of the model on batched dataset through task-specified calculator
-            loss_leads, loss, outputs = self.calculator.train_one_step(
+            loss, outputs = self.calculator.train_one_step(
                 model=model,
                 data=batch_data,
                 leads=self.modalities

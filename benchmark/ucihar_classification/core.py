@@ -238,7 +238,7 @@ def gen_list_2_modalities (missing_rate=0.5, missing_ratio_2_modal=0.5, NUM_CLIE
     
 
 class TaskGen(DefaultTaskGen):
-    def __init__(self, dist_id, num_clients=23, skewness=0.5, local_hld_rate=0.0, seed=0, percentages=None, missing=False, modal_equality=False, modal_missing_case3=False, modal_missing_case4=False, missing_rate=0, missing_ratio_2_modal=False):
+    def __init__(self, dist_id, num_clients=23, skewness=0.5, local_hld_rate=0.0, seed=0, missing_1_6=False, missing_all_6=False, missing_1_12=False, missing_7_12=False, missing_rate=0, missing_ratio_2_modal=False):
         super(TaskGen, self).__init__(benchmark='ucihar_classification',
                                       dist_id=dist_id,
                                       num_clients=num_clients,
@@ -274,29 +274,29 @@ class TaskGen(DefaultTaskGen):
             }
         }
         self.num_clients = num_clients
-        self.missing = missing
-        self.modal_equality = modal_equality
-        self.missing_rate_0_3 = modal_missing_case3
-        self.modal_missing_case4 = modal_missing_case4
+        self.missing_1_6 = missing_1_6
+        self.missing_all_6 = missing_all_6
+        self.missing_1_12 = missing_1_12
+        self.modal_missing_case4 = missing_7_12
         self.missing_rate = missing_rate
         self.missing_ratio_2_modal = missing_ratio_2_modal
         self.local_holdout_rate = 0.1
         # if self.local_holdout_rate > 0:
         #     self.taskname = self.taskname + '_mifl_gblend'
         list_modality_tuples, count = gen_list_2_modalities(self.missing_rate, self.missing_ratio_2_modal, self.num_clients)
-        if self.modal_equality:         # p=1, #modals_sample = [9 11 0]
+        if self.missing_all_6:         # p=1, #modals_sample = [9 11 0]
             self.specific_training_leads = [(1,), (1,), (0,), (1,), (1,), (1,), (0,), (0,), (1,), (0,), (1,), (1,), (1,), (0,), (1,), (0,), (1,), (0,), (0,), (0,)]
             self.taskname = self.taskname + '_missing_rate_1'
             self.taskpath = os.path.join(self.task_rootpath, self.taskname)
-        elif self.missing_rate_0_3:       # p=0.3, #modals_sample = [5 1 14]  
-            self.specific_training_leads = [(0, 1), (0,), (1,), (0, 1), (0,), (0, 1), (0, 1), (0, 1), (0,), (0, 1), (0,), (0, 1), (0, 1), (0, 1), (0, 1), (0, 1), (0,), (0, 1), (0, 1), (0, 1)]
-            self.taskname = self.taskname + '_missing_rate_0.3'
-            self.taskpath = os.path.join(self.task_rootpath, self.taskname)
-        elif self.missing:
-            # p=0.7, #modals_sample = [10 7 3] 
-            self.specific_training_leads = [(1,), (1,), (1,), (0,), (1,), (0,), (0, 1), (1,), (0, 1), (0,), (0,), (0, 1), (0,), (1,), (0,), (0,), (0,), (1,), (0,), (0,)]
-            self.taskname = self.taskname + '_missing_rate_0.7'
-            self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        # elif self.missing_1_12:       # p=0.3, #modals_sample = [5 1 14]  
+        #     self.specific_training_leads = [(0, 1), (0,), (1,), (0, 1), (0,), (0, 1), (0, 1), (0, 1), (0,), (0, 1), (0,), (0, 1), (0, 1), (0, 1), (0, 1), (0, 1), (0,), (0, 1), (0, 1), (0, 1)]
+        #     self.taskname = self.taskname + '_missing_rate_0.3'
+        #     self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        # elif self.missing:
+        #     # p=0.7, #modals_sample = [10 7 3] 
+        #     self.specific_training_leads = [(1,), (1,), (1,), (0,), (1,), (0,), (0, 1), (1,), (0, 1), (0,), (0,), (0, 1), (0,), (1,), (0,), (0,), (0,), (1,), (0,), (0,)]
+        #     self.taskname = self.taskname + '_missing_rate_0.7'
+        #     self.taskpath = os.path.join(self.task_rootpath, self.taskname)
         # self.taskname = self.taskname + '_missing'
         elif self.missing_rate >= 0:
             self.specific_training_leads = list_modality_tuples

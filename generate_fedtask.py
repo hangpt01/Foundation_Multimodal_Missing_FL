@@ -8,10 +8,10 @@ def read_option():
     parser.add_argument('--skew', help='the degree of niid;', type=float, default=0)
     parser.add_argument('--num_clients', help='the number of clients;', type=int, default=100)
     parser.add_argument('--seed', help='random seed;', type=int, default=0)
-    parser.add_argument('--missing', help='missing-modality clients;', action='store_true', default=False)
-    parser.add_argument('--modal_equality', help='same number of modalities in clients;', action='store_true', default=False)
-    parser.add_argument('--modal_missing_case3', help='missing case3 of modalities in clients (<=12);', action='store_true', default=False)
-    parser.add_argument('--modal_missing_case4', help='missing case3 of modalities in clients (6<=#modals<=12);', action='store_true', default=False)
+    parser.add_argument('--missing_1_6', help='missing-modality clients;', action='store_true', default=False)
+    parser.add_argument('--missing_all_6', help='same number of modalities in clients;', action='store_true', default=False)
+    parser.add_argument('--missing_1_12', help='missing with #modalities in clients (<=12);', action='store_true', default=False)
+    parser.add_argument('--missing_7_12', help='missing with #modalities in clients (6<=#modals<=12);', action='store_true', default=False)
     parser.add_argument('--missing_rate', help='Total missing rate', type=float, default=-1)
     parser.add_argument('--missing_ratio_2_modal', help='For 2 modality dataset: missing rate of modality 1;', type=float, default=-1)
     
@@ -28,10 +28,10 @@ if __name__ == '__main__':
         skewness = option['skew'],
         num_clients=option['num_clients'],
         seed = option['seed'],
-        missing=option['missing'],
-        modal_equality=option['modal_equality'],
-        modal_missing_case3 = option['modal_missing_case3'],
-        modal_missing_case4 = option['modal_missing_case4'],
+        missing_1_6 = option['missing_1_6'],
+        missing_all_6 = option['missing_all_6'],
+        missing_1_12 = option['missing_1_12'],
+        missing_7_12 = option['missing_7_12'],
         missing_rate = option['missing_rate'],
         missing_ratio_2_modal = option['missing_ratio_2_modal']
     )
