@@ -166,6 +166,7 @@ class Model(FModule):
                 negative = exp_simi_mat[negative_idx, :][:, positive_idx].sum(dim=0)
                 contrative_loss -= torch.log(positive / (positive + negative)).sum()
                 count += positive_idx.shape[0] * 2
+        # import pdb; pdb.set_trace()
         if count > 0:
             loss += contrastive_weight * contrative_loss / count
 
