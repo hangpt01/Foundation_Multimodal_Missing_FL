@@ -70,6 +70,9 @@ class Server(BasicServer):
     def aggregate(self, models: list, modalities_list: list):
         new_model = copy.deepcopy(self.model)
         # feature extractor
+        n_models = len(models)
+        for k in range(n_models):
+            self.clients[self.selected_clients[k]].agg_model = copy.deepcopy(self.model)
         for m in range(self.n_leads):
             p = list()
             chosen_models = list()
@@ -87,6 +90,13 @@ class Server(BasicServer):
         new_model.classifier = fmodule._model_sum([
             model.classifier * pk for model, pk in zip(models, p)
         ]) / sum(p)
+        
+        # Update clients' model as the global model
+        for k in range(n_models):
+            for m in range(self.n_leads):
+                self.clients[self.selected_clients[k]].local_model.feature_extractors[m] = new_model.feature_extractors[m]
+            self.clients[self.selected_clients[k]].local_model.classifier = new_model.classifier
+        
         return new_model
     
     def test(self, model=None):
@@ -196,18 +206,22 @@ class Client(BasicClient):
                 continue
             model.zero_grad()
             # calculate the loss of the model on batched dataset through task-specified calculator
+            # import pdb; pdb.set_trace()
             loss, outputs = self.calculator.train_one_step(
                 model=model,
                 data=batch_data,
                 leads=self.modalities
             )['loss']
             regular_loss = 0.0
+            # import pdb; pdb.set_trace()
             if self.fedmsplit_prox_lambda > 0.0:
                 for m in self.modalities:
                     for parameter, agg_parameter in zip(model.feature_extractors[m].parameters(), self.agg_model.feature_extractors[m].parameters()):
                         regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
+                        # import pdb; pdb.set_trace()
                 for parameter, agg_parameter in zip(model.classifier.parameters(), self.agg_model.classifier.parameters()):
                     regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
+                # import pdb; pdb.set_trace()
                 loss += self.fedmsplit_prox_lambda * regular_loss
             loss.backward()
             optimizer.step()
