@@ -66,11 +66,50 @@ class Server(BasicServer):
         self.model = self.aggregate(models, modalities_list)
         return
 
+    # @torch.no_grad()
+    # def aggregate(self, models: list, modalities_list: list):
+    #     ds = copy.deepcopy(models)
+    #     delta = copy.deepcopy(self.model)
+
+    #     n_models = len(models)
+        
+    #     taus = []
+    #     for k in range(n_models):
+    #         taus.append(self.clients[self.selected_clients[k]].num_steps)
+        
+    #     p = [self.clients[client_id].datavol for client_id in self.selected_clients]    
+    #     p = [pk / sum(p) for pk in p]
+        
+    #     # create ds
+    #     for m in range(self.n_leads):
+    #         for k, client_id in enumerate(self.selected_clients):
+    #             if m in modalities_list[k]:
+    #                 ds[client_id].feature_extractors[m] = (models[client_id].feature_extractors[m] - self.model.feature_extractors[m]) / taus[client_id]
+    #     for k in range(n_models):
+    #         ds[k].classifier = (models[k].classifier - self.model.classifier) / taus[k]
+
+    #     # weighted com
+    #     # tau_eff = sum([tauk * pk for tauk, pk in zip(taus, p)])
+        
+    #     # for m in range(self.n_leads):
+    #     #     delta.feature_extractors[m] = fmodule._model_sum([dk.feature_extractors[m] * pk for dk, pk in zip(ds, p)])
+    #     # delta.classifier = fmodule._model_sum([dk.classifier * pk for dk, pk in zip(ds, p)])
+        
+    #     # uniform
+    #     tau_eff = sum(taus) / len(taus)
+    #     for m in range(self.n_leads):
+    #         delta.feature_extractors[m] = fmodule._model_average([dk.feature_extractors[m] for dk in ds])
+    #     delta.classifier = fmodule._model_average([dk.classifier for dk in ds])
+        
+        
+    #     # new global model
+    #     new_model = self.model + tau_eff * delta
+    #     return new_model
+    
+    
     @torch.no_grad()
     def aggregate(self, models: list, modalities_list: list):
-        ds = copy.deepcopy(models)
-        delta = copy.deepcopy(self.model)
-
+        new_model = copy.deepcopy(self.model)
         n_models = len(models)
         
         taus = []
@@ -80,36 +119,32 @@ class Server(BasicServer):
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]    
         p = [pk / sum(p) for pk in p]
         
-        # create ds
+        ds_fe = []
+        # create ds len (M+1)
         for m in range(self.n_leads):
-            for k, client_id in enumerate(self.selected_clients):
-                if m in modalities_list[k]:
-                    ds[client_id].feature_extractors[m] = (models[client_id].feature_extractors[m] - self.model.feature_extractors[m]) / taus[client_id]
-        for k in range(n_models):
-            ds[k].classifier = (models[k].classifier - self.model.classifier) / taus[k]
+            ds_element = [(models[client_id].feature_extractors[m] - self.model.feature_extractors[m]) / taus[client_id] for client_id in self.selected_clients]
+            ds_fe.append(ds_element)
+        ds_classifier = [(models[k].classifier - self.model.classifier) / taus[k] for k in range(self.n_leads)]
 
         # weighted com
-        # tau_eff = sum([tauk * pk for tauk, pk in zip(taus, p)])
+        tau_eff = sum([tauk * pk for tauk, pk in zip(taus, p)])
         
-        # for m in range(self.n_leads):
-        #     delta.feature_extractors[m] = fmodule._model_sum([dk.feature_extractors[m] * pk for dk, pk in zip(ds, p)])
-        # delta.classifier = fmodule._model_sum([dk.classifier * pk for dk, pk in zip(ds, p)])
-        
-        # uniform
-        tau_eff = sum(taus) / len(taus)
+        delta_fe = []
         for m in range(self.n_leads):
-            delta.feature_extractors[m] = fmodule._model_average([dk.feature_extractors[m] for dk in ds])
-        delta.classifier = fmodule._model_average([dk.classifier for dk in ds])
+            delta_fe.append(fmodule._model_sum([dk * pk for dk, pk in zip(ds_fe[m], p)]))
+        delta_classifier = fmodule._model_sum([dk * pk for dk, pk in zip(ds_classifier, p)])
+        
+        # # uniform
+        # tau_eff = sum(taus) / len(taus)
+        # for m in range(self.n_leads):
+        #     delta.feature_extractors[m] = fmodule._model_average([dk.feature_extractors[m] for dk in ds])
+        # delta.classifier = fmodule._model_average([dk.classifier for dk in ds])
         
         
         # new global model
-        new_model = self.model + tau_eff * delta
-        
-        # Update clients' model as the global model
-        # for k in range(n_models):
-        #     for m in range(self.n_leads):
-        #         self.clients[self.selected_clients[k]].feature_extractors[m] = new_model.feature_extractors[m]
-        #     self.clients[self.selected_clients[k]].classifier = new_model.classifier
+        for m in range(self.n_leads):
+            new_model.feature_extractors[m] = self.model.feature_extractors[m] + tau_eff * delta_fe[m]
+        new_model.classifier = self.model.classifier + tau_eff * delta_classifier
         
         return new_model
     
