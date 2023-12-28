@@ -1,4 +1,4 @@
-from ..dataset import PTBXL_SUPERCLASS_Dataset
+from benchmark.ptbxl_classification.dataset_superclass import PTBXL_SUPERCLASS_Dataset
 from benchmark.toolkits import DefaultTaskGen
 from benchmark.toolkits import ClassificationCalculator
 from benchmark.toolkits import IDXTaskPipe
@@ -275,6 +275,7 @@ class TaskGen(DefaultTaskGen):
         self.missing_7_12 = missing_7_12
         self.specific_training_leads = None
         self.local_holdout_rate = 0.1
+        self.taskname = self.taskname + '_superclass'
         if self.missing_all_6:
             self.specific_training_leads = [(0, 11, 2, 6, 1, 10), (4, 3, 8, 0, 9, 10), (2, 4, 9, 1, 11, 8), (8, 2, 9, 7, 10, 3), (6, 7, 4, 0, 8, 3), (8, 10, 0, 2, 4, 7), 
                                             (9, 3, 8, 11, 0, 4), (9, 7, 6, 2, 10, 0), (0, 11, 4, 3, 7, 10), (10, 5, 7, 4, 1, 8), (3, 5, 10, 0, 11, 6), (4, 0, 6, 1, 3, 11), 

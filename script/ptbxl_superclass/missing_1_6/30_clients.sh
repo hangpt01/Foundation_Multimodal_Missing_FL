@@ -1,4 +1,4 @@
-python generate_fedtask.py \
+python generate_fedtask_superclass.py \
     --benchmark ptbxl_classification \
     --dist 0 \
     --skew 0.0 \
