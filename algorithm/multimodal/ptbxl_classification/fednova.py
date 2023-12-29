@@ -83,51 +83,43 @@ class Server(BasicServer):
 
     @torch.no_grad()
     def aggregate(self, models: list, modalities_list: list):
-        global_model = copy.deepcopy(self.model)
         new_model = copy.deepcopy(self.model)
-        model_updates = copy.deepcopy(models)
-        global_update = copy.deepcopy(self.model)
         n_models = len(models)
         
-        num_local_updates = []
+        taus = []
         for k in range(n_models):
-            num_local_updates.append(int(self.clients[k].num_steps*self.clients[k].datavol / self.clients[k].batch_size))
-        average_local_updates = sum(num_local_updates) / len(num_local_updates)
-        # normalized factor
-        normalized_local_updates = [x / average_local_updates for x in num_local_updates]
-        total_normalized_update = sum(normalized_local_updates)
+            taus.append(self.clients[self.selected_clients[k]].num_steps)
         
-        # feature extractor
-        for m in range(self.n_leads):
-            p = list()
-            for k, client_id in enumerate(self.selected_clients):
-                if m in modalities_list[k]:
-                    model_updates[client_id].feature_extractors[m] = fmodule._model_sub(
-                        models[client_id].feature_extractors[m], global_model.feature_extractors[m]
-                    ) * normalized_local_updates[k]
-        # classifier            
-        for k in range(n_models):
-            model_updates[k].classifier = fmodule._model_sub(
-                    models[client_id].classifier, global_model.classifier
-            ) * normalized_local_updates[k] 
+        p = [self.clients[client_id].datavol for client_id in self.selected_clients]    
+        p = [pk / sum(p) for pk in p]
         
-        # server updates
+        ds_fe = []
+        # create ds len (M+1)
         for m in range(self.n_leads):
-            global_update.feature_extractors[m] = fmodule._model_sum([
-                        model.feature_extractors[m] for model in model_updates
-            ]) / total_normalized_update
-        global_update.classifier = fmodule._model_sum([
-            model.classifier for model in model_updates
-        ]) / total_normalized_update
+            ds_element = [(models[client_id].feature_extractors[m] - self.model.feature_extractors[m]) / taus[client_id] for client_id in self.selected_clients]
+            ds_fe.append(ds_element)
+        ds_classifier = [(models[k].classifier - self.model.classifier) / taus[k] for k in range(self.n_leads)]
 
-        # Server model
+        # weighted com
+        tau_eff = sum([tauk * pk for tauk, pk in zip(taus, p)])
+        
+        delta_fe = []
         for m in range(self.n_leads):
-            new_model.feature_extractors[m] = fmodule._model_add(
-                global_update.feature_extractors[m], global_model.feature_extractors[m]
-            )
-        new_model.classifier = fmodule._model_add(
-                global_update.classifier, global_model.classifier
-            )
+            delta_fe.append(fmodule._model_sum([dk * pk for dk, pk in zip(ds_fe[m], p)]))
+        delta_classifier = fmodule._model_sum([dk * pk for dk, pk in zip(ds_classifier, p)])
+        
+        # # uniform
+        # tau_eff = sum(taus) / len(taus)
+        # for m in range(self.n_leads):
+        #     delta.feature_extractors[m] = fmodule._model_average([dk.feature_extractors[m] for dk in ds])
+        # delta.classifier = fmodule._model_average([dk.classifier for dk in ds])
+        
+        
+        # new global model
+        for m in range(self.n_leads):
+            new_model.feature_extractors[m] = self.model.feature_extractors[m] + tau_eff * delta_fe[m]
+        new_model.classifier = self.model.classifier + tau_eff * delta_classifier
+        
         return new_model
     
     def test(self, model=None):

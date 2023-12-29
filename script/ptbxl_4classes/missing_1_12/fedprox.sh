@@ -1,7 +1,7 @@
 python main.py \
-    --task ucihar_classification_cnum20_dist0_skew0_seed0_missing_rate_0.5_miss_ratio_0.75 \
+    --task ptbxl_classification_cnum30_dist0_skew0_seed0_missing_1_12 \
     --model fedprox \
-    --algorithm multimodal.ucihar_classification.fedprox \
+    --algorithm multimodal.ptbxl_classification.fedprox \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \
