@@ -100,7 +100,7 @@ class Model(FModule):
     def __init__(self):
         super(Model, self).__init__()
         self.n_leads = 12
-        self.leads = [2, 6, 10]
+        # self.leads = [2, 6, 10]
         self.feature_extractors = nn.ModuleList()
         for i in range(self.n_leads):
             self.feature_extractors.append(Inception1DBase(input_channels=1))
@@ -110,7 +110,7 @@ class Model(FModule):
     def forward(self, x, y, leads, contrastive_weight):
         batch_size = y.shape[0]
         features = torch.zeros(size=(batch_size, 128), dtype=torch.float32, device=y.device)
-        for lead in self.leads:
+        for lead in leads:
             features += self.feature_extractors[lead](x[:, lead, :].view(batch_size, 1, -1))
         outputs = self.classifier(features)
         loss = self.criterion(outputs, y.type(torch.int64))
