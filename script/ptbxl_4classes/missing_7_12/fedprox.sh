@@ -1,5 +1,5 @@
 python main.py \
-    --task ptbxl_classification_cnum30_dist0_skew0_seed0_missing_all_6 \
+    --task ptbxl_classification_cnum30_dist0_skew0_seed0_missing_7_12 \
     --model fedprox \
     --algorithm multimodal.ptbxl_classification.fedprox \
     --sample full \
