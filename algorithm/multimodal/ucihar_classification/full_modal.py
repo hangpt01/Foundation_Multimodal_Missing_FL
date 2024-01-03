@@ -79,8 +79,8 @@ class Client(BasicClient):
     def __init__(self, option, modalities, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
-        # self.modalities = list(range(self.n_leads))
-        self.modalities = modalities
+        self.modalities = list(range(self.n_leads))
+        # self.modalities = modalities
 
     @ss.with_completeness
     @fmodule.with_multi_gpus
