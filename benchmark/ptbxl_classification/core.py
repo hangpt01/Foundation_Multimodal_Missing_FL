@@ -85,7 +85,7 @@ def save_task(generator):
                 'dvalid': generator.valid_cidxs[cid]
             }
     with open(os.path.join(generator.taskpath, 'data.json'), 'w') as outf:
-        ujson.dump(feddata, outf)
+        ujson.dump(feddata, outf, default=convert)
     return
     
 

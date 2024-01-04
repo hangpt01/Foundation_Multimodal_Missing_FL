@@ -1,7 +1,7 @@
 python main.py \
-    --task ucihar_classification_cnum20_dist1_skew0.5_seed0_missing_rate_0.2_miss_ratio_0.75 \
-    --model fedavg \
-    --algorithm multimodal.ucihar_classification.fedavg \
+    --task ptbxl_classification_cnum30_dist1_skew0.5_seed0_missing_all_6 \
+    --model fedmsplit \
+    --algorithm multimodal.ptbxl_classification.fedmsplit \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \
