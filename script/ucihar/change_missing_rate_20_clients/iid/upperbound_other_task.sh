@@ -1,7 +1,7 @@
 python main.py \
-    --task ptbxl_classification_cnum30_dist1_skew0.5_seed0_missing_7_12 \
+    --task ucihar_classification_cnum20_dist0_skew0_seed0_missing_rate_0.8_miss_ratio_0.25ư \
     --model upperbound \
-    --algorithm multimodal.ptbxl_classification.upperbound \
+    --algorithm multimodal.ucihar_classification.upperbound \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \
