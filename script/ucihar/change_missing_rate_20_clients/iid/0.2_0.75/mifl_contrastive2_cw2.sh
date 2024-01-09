@@ -1,5 +1,5 @@
 python main.py \
-    --task ucihar_classification_cnum20_dist0_skew0_seed0_missing_rate_0.2_miss_ratio_0.25 \
+    --task ucihar_classification_cnum20_dist0_skew0_seed0_missing_rate_0.2_miss_ratio_0.75 \
     --model mifl_contrastive2 \
     --algorithm multimodal.ucihar_classification.mifl \
     --sample full \
@@ -10,7 +10,7 @@ python main.py \
     --lr_scheduler 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0.01 \
-    --contrastive_weight 1.0 \
+    --contrastive_weight 2.0 \
     --learning_rate 0.1 \
     --num_epochs 3 \
     --learning_rate_decay 1.0 \
