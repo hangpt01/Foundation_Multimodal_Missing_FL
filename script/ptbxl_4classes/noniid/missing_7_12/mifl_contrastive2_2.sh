@@ -1,5 +1,5 @@
 python main.py \
-    --task ptbxl_classification_cnum30_dist1_skew0.5_seed0_missing_1_6 \
+    --task ptbxl_classification_cnum30_dist1_skew0.5_seed0_missing_7_12 \
     --model mifl_contrastive2 \
     --algorithm multimodal.ptbxl_classification.mifl \
     --sample full \
