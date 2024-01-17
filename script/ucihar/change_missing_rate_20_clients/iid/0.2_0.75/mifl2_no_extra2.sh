@@ -1,7 +1,7 @@
 python main.py \
-    --task ptbxl_classification_cnum30_dist1_skew0.5_seed0_missing_1_6 \
-    --model mifl_contrastive2 \
-    --algorithm multimodal.ptbxl_classification.mifl \
+    --task ucihar_classification_cnum20_dist0_skew0_seed0_missing_rate_0.2_miss_ratio_0.75 \
+    --model mifl2_no_extra2 \
+    --algorithm multimodal.ucihar_classification.mifl2_no_extra2 \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \
@@ -10,8 +10,8 @@ python main.py \
     --lr_scheduler 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0.01 \
-    --contrastive_weight 2 \
-    --learning_rate 0.5 \
+    --contrastive_weight 0.5 \
+    --learning_rate 0.1 \
     --num_epochs 3 \
     --learning_rate_decay 1.0 \
     --batch_size 128 \
