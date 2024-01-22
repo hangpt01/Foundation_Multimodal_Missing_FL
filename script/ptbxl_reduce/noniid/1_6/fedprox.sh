@@ -1,7 +1,7 @@
 python main.py \
     --task ptbxl_reduce_classification_cnum20_dist1_skew0.5_seed0_missing_1_6 \
     --model fedprox \
-    --algorithm multimodal.ptbxl_classification.fedprox \
+    --algorithm multimodal.ptbxl_reduce_classification.fedprox \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \

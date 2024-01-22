@@ -39,15 +39,18 @@ def take_least_combi(num_combi_test, ls_combi_train):
     
     
 if __name__ == '__main__':
-    min_ = 7
-    max_ = 12
-    s = '' 
-    for _ in range(20):
-        ls = gen_list_modalities(min_,max_, 20)
-        s += 'Modalist: {}\n'.format(ls)
-        for i in range(1,max_):
-            max_num_exist, string = take_least_combi(i, ls)
-            s += '{}'.format(i)
-            s += '{}\n'.format(string)
-    with open('notebook/ptbxl_reduce/ptbxl_missing_{}_{}.txt'.format(min_, max_), 'a') as f :
-        f.write(s)  
+    # min_ = 7
+    # max_ = 12
+    # s = '' 
+    # for _ in range(20):
+    #     ls = gen_list_modalities(min_,max_, 20)
+    #     s += 'Modalist: {}\n'.format(ls)
+    #     for i in range(1,max_):
+    #         max_num_exist, string = take_least_combi(i, ls)
+    #         s += '{}'.format(i)
+    #         s += '{}\n'.format(string)
+    # with open('notebook/ptbxl_reduce/ptbxl_missing_{}_{}.txt'.format(min_, max_), 'a') as f :
+    #     f.write(s)  
+
+    max_num_exist, string = take_least_combi(5, [(3, 6, 2, 7, 5, 1), (11, 2, 10, 9, 6, 1), (10, 0, 9, 6, 3, 5), (2, 1, 9, 5, 7, 6), (7, 11, 10, 8, 4, 5), (8, 9, 11, 7, 2, 10), (4, 11, 3, 0, 6, 2), (2, 0, 5, 9, 10, 11), (11, 6, 3, 9, 8, 2), (10, 9, 5, 7, 4, 11), (4, 1, 7, 2, 11, 10), (10, 1, 2, 4, 8, 9), (2, 4, 7, 0, 5, 10), (9, 10, 5, 6, 7, 1), (1, 4, 10, 8, 6, 11), (2, 9, 0, 6, 10, 1), (11, 9, 2, 5, 7, 4), (9, 4, 7, 8, 10, 5), (6, 11, 7, 1, 2, 9), (11, 5, 7, 9, 4, 2)])
+    print(string)

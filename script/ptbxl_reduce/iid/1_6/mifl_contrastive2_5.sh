@@ -1,7 +1,7 @@
 python main.py \
     --task ptbxl_reduce_classification_cnum20_dist0_skew0_seed0_missing_1_6 \
     --model mifl_contrastive2 \
-    --algorithm multimodal.ptbxl_classification.mifl \
+    --algorithm multimodal.ptbxl_reduce_classification.mifl \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \
@@ -16,5 +16,5 @@ python main.py \
     --learning_rate_decay 1.0 \
     --batch_size 128 \
     --test_batch_size 128 \
-    --gpu 1 \
+    --gpu 3 \
     --wandb
