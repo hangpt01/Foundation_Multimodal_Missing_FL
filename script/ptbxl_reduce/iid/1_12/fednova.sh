@@ -1,7 +1,7 @@
 python main.py \
-    --task ptbxl_reduce_classification_cnum20_dist0_skew0_seed0_missing_1_6 \
-    --model fedavg \
-    --algorithm multimodal.ptbxl_classification.fedavg \
+    --task ptbxl_reduce_classification_cnum20_dist0_skew0_seed0_missing_1_12 \
+    --model fednova \
+    --algorithm multimodal.ptbxl_classification.fednova \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \
