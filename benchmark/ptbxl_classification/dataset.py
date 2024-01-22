@@ -22,7 +22,7 @@ class PTBXL_4CLASSES_Dataset(Dataset):
         if self.train:
             self.x = np.load(os.path.join(self.root, 'x_train.npy'), allow_pickle=True)        # (14594, 1000, 12)
             self.y = np.load(os.path.join(self.root, 'y_train.npy'), allow_pickle=True)        # (14594,)
-
+            
         else:
             self.x = np.load(os.path.join(self.root, 'x_test.npy'), allow_pickle=True)         # (1650, 1000, 12)
             self.y = np.load(os.path.join(self.root, 'y_test.npy'), allow_pickle=True)

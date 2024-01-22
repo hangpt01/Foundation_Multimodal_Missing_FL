@@ -22,9 +22,19 @@ class PTBXL_REDUCE_Dataset(Dataset):
         if self.train:
             self.x = np.load(os.path.join(self.root, 'x_train.npy'), allow_pickle=True, fix_imports=True)        # (3170, 1000, 12)
             self.y = np.load(os.path.join(self.root, 'y_train.npy'), allow_pickle=True, fix_imports=True)        # (3170,)
+            self.y[self.y == 1] = 0
+            self.y[self.y == 5] = 1
+            self.y[self.y == 6] = 2
+            self.y[self.y == 7] = 3
+            self.y[self.y == 8] = 4
         else:
             self.x = np.load(os.path.join(self.root, 'x_test.npy'), allow_pickle=True, fix_imports=True)
             self.y = np.load(os.path.join(self.root, 'y_test.npy'), allow_pickle=True, fix_imports=True)
+            self.y[self.y == 1] = 0
+            self.y[self.y == 5] = 1
+            self.y[self.y == 6] = 2
+            self.y[self.y == 7] = 3
+            self.y[self.y == 8] = 4
         if self.standard_scaler:
             self.ss = pickle.load(open(os.path.join(self.root, 'standard_scaler.pkl'), 'rb'))
             x_tmp = list()
