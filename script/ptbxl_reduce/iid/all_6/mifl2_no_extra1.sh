@@ -1,5 +1,5 @@
 python main.py \
-    --task ptbxl_reduce_classification_cnum20_dist1_skew0.5_seed0_missing_1_6 \
+    --task ptbxl_reduce_classification_cnum20_dist0_skew0_seed0_missing_all_6 \
     --model mifl2_no_extra1 \
     --algorithm multimodal.ptbxl_reduce_classification.mifl \
     --sample full \

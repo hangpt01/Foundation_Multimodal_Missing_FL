@@ -140,11 +140,12 @@ class Model(FModule):
                 feature = feature + relation_info
                 features[:,lead*self.hidden_dim:(lead+1)*self.hidden_dim] = feature
                 self.relation_embedders[lead].relation_embedder.weight.data[0].zero_()
-            # else:
+            else:
             #     feature = self.relation_embedders[lead](y.device, has_modal=False).repeat(batch_size,1)        # self.hidden_dim, 256
             #     feature_extractor_outputs += feature
             #     features[:,lead*self.hidden_dim:(lead+1)*self.hidden_dim] = feature
-            #     self.relation_embedders[lead].relation_embedder.weight.data[1].zero_()
+                self.relation_embedders[lead].relation_embedder.weight.data[0].zero_()
+                self.relation_embedders[lead].relation_embedder.weight.data[1].zero_()
         outputs = self.classifier(features)
         loss = self.criterion(outputs, y.type(torch.int64))
 

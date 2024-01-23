@@ -1,7 +1,7 @@
 python main.py \
-    --task ptbxl_reduce_classification_cnum20_dist1_skew0.5_seed0_missing_1_6 \
-    --model mifl2_no_extra1 \
-    --algorithm multimodal.ptbxl_reduce_classification.mifl \
+    --task ptbxl_reduce_classification_cnum20_dist1_skew0.5_seed0_missing_7_12 \
+    --model fednova \
+    --algorithm multimodal.ptbxl_reduce_classification.fednova \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \
@@ -10,11 +10,10 @@ python main.py \
     --lr_scheduler 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0.01 \
-    --contrastive_weight 5 \
     --learning_rate 0.5 \
     --num_epochs 3 \
     --learning_rate_decay 1.0 \
     --batch_size 128 \
     --test_batch_size 128 \
-    --gpu 2 \
+    --gpu 1 \
     --wandb

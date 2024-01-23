@@ -10,7 +10,7 @@ python main.py \
     --lr_scheduler 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0.01 \
-    --contrastive_weight 2 \
+    --contrastive_weight 5 \
     --learning_rate 0.5 \
     --num_epochs 3 \
     --learning_rate_decay 1.0 \

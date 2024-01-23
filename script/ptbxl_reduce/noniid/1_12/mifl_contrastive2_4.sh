@@ -1,6 +1,6 @@
 python main.py \
-    --task ptbxl_reduce_classification_cnum20_dist1_skew0.5_seed0_missing_1_6 \
-    --model mifl2_no_extra1 \
+    --task ptbxl_reduce_classification_cnum20_dist1_skew0.5_seed0_missing_1_12 \
+    --model mifl_contrastive2 \
     --algorithm multimodal.ptbxl_reduce_classification.mifl \
     --sample full \
     --aggregate other \
@@ -10,11 +10,11 @@ python main.py \
     --lr_scheduler 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0.01 \
-    --contrastive_weight 5 \
+    --contrastive_weight 4 \
     --learning_rate 0.5 \
     --num_epochs 3 \
     --learning_rate_decay 1.0 \
     --batch_size 128 \
     --test_batch_size 128 \
-    --gpu 2 \
+    --gpu 1 \
     --wandb
