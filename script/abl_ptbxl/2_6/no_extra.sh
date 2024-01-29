@@ -1,7 +1,7 @@
 python main.py \
-    --task ptbxl_reduce_classification_cnum20_dist1_skew0.5_seed0_missing_1_12 \
-    --model mifl_contrastive2 \
-    --algorithm multimodal.ptbxl_reduce_classification.mifl \
+    --task ptbxl_reduce_ablation_cnum20_dist0_skew0_seed0_missing_2_6 \
+    --model no_extra \
+    --algorithm multimodal.ptbxl_reduce_ablation.no_extra \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \
@@ -14,7 +14,7 @@ python main.py \
     --learning_rate 0.5 \
     --num_epochs 3 \
     --learning_rate_decay 1.0 \
-    --batch_size 128 \
-    --test_batch_size 128 \
-    --gpu 3 \
+    --batch_size 64 \
+    --test_batch_size 64 \
+    --gpu 1 \
     --wandb
