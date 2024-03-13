@@ -1,3 +1,6 @@
+benchmark/food101_classification/model/pretrained_model_weight/
+vilt_200k_mlm_itm.ckpt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

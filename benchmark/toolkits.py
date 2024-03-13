@@ -472,7 +472,7 @@ class DefaultTaskGen(BasicTaskGen):
         client_height = 1
         if hasattr(self, 'dirichlet_dist'):
         # if self.dist_id:
-            import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
             client_dist = self.dirichlet_dist.tolist()
             data_columns = [sum(cprop) for cprop in client_dist]
             row_map = {k:i for k,i in zip(np.argsort(data_columns), [_ for _ in range(self.num_clients)])}
@@ -491,7 +491,7 @@ class DefaultTaskGen(BasicTaskGen):
             # import pdb; pdb.set_trace()
             # print(row_map)
             for cid, cidxs in enumerate(train_cidxs):       # list of all clients' sample indices
-                # import pdb; pdb.set_trace() 
+                import pdb; pdb.set_trace() 
                 # print(cid)
                 # labels = [int(self.train_data[did][-1]) for did in cidxs]       # ucihar
                 labels = [int(self.train_data[did][-1]) for did in cidxs]       # ptbxl
@@ -521,6 +521,71 @@ class DefaultTaskGen(BasicTaskGen):
         plt.savefig(os.path.join(self.taskpath,'data_dist.jpg'))
         plt.show()
 
+    def visualize_by_class_food101(self, train_cidxs):
+        import collections
+        import matplotlib.pyplot as plt
+        import matplotlib.colors
+        import random
+        ax = plt.subplots()
+        # import pdb; pdb.set_trace()
+        
+        colors = [key for key in matplotlib.colors.CSS4_COLORS.keys()]
+        random.shuffle(colors)
+        # random.shuffle(colors)
+        client_height = 1
+        if hasattr(self, 'dirichlet_dist'):
+        # if self.dist_id:
+            # import pdb; pdb.set_trace()
+            client_dist = self.dirichlet_dist.tolist()
+            data_columns = [sum(cprop) for cprop in client_dist]
+            row_map = {k:i for k,i in zip(np.argsort(data_columns), [_ for _ in range(self.num_clients)])}
+            for cid, cprop in enumerate(client_dist):
+                offset = 0
+                y_bottom = row_map[cid] - client_height/2.0
+                y_top = row_map[cid] + client_height/2.0
+                for lbi in range(len(cprop)):
+                    plt.fill_between([offset,offset+cprop[lbi]], y_bottom, y_top, facecolor = colors[lbi])
+                    # plt.barh(cid, cprop[lbi], client_height, left=offset, color=)
+                    offset += cprop[lbi]
+        
+        else:
+            data_columns = [len(cidx) for cidx in train_cidxs]
+            row_map = {k:i for k,i in zip(np.argsort(data_columns), [_ for _ in range(self.num_clients)])}  # sort clients accord. #samples
+            # import pdb; pdb.set_trace()
+            # print(row_map)
+            for cid, cidxs in enumerate(train_cidxs):       # list of all clients' sample indices
+                # import pdb; pdb.set_trace() 
+                print(cid)
+                labels = [int(self.train_data[did]['label']) for did in cidxs]       # ptbxl
+                # labels = []
+                # for did in cidxs:
+                #     print(did)
+                #     lab = int(self.train_data[did]['label'])
+                #     labels.append(lab)
+                lb_counter = collections.Counter(labels)
+                offset = 0
+                y_bottom = row_map[cid] - client_height/2.0
+                y_top = row_map[cid] + client_height/2.0
+                for lbi in range(self.num_classes):
+                    # import pdb; pdb.set_trace()
+                    # print(lbi)
+                    if cid == 0:
+                        plt.fill_between([offset,offset+lb_counter[lbi]], y_bottom, y_top, facecolor = colors[lbi], label='Class '+str(lbi))
+                    
+                    else:
+                        plt.fill_between([offset,offset+lb_counter[lbi]], y_bottom, y_top, facecolor = colors[lbi])
+                    
+                    offset += lb_counter[lbi]
+        # import pdb; pdb.set_trace()
+        plt.xlim(0,max(data_columns))
+        plt.ylim(-0.5,len(train_cidxs)-0.5)
+        plt.ylabel('Client ID')
+        plt.xlabel('Number of Samples')
+        # import pdb; pdb.set_trace()
+        plt.title(self.get_taskname())
+        plt.legend(loc='lower right')
+        plt.savefig(os.path.join(self.taskpath,'data_dist.jpg'))
+        plt.show()
 # =======================================Task Calculator===============================================
 # This module is to seperate the task-specific calculating part from the federated algorithms, since the
 # way of calculation (e.g. loss, evaluating metrics, optimizer) and the format of data (e.g. image, text)
