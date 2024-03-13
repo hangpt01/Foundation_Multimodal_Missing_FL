@@ -154,12 +154,12 @@ class TaskGen(DefaultTaskGen):
             'class_name': 'Food101Dataset',
             'train_args': {
                 'root': '"'+self.rawdata_path+'"',
-                'download': 'False',
+                'download': 'True',
                 'train': 'True',
             },
             'test_args': {
                 'root': '"'+self.rawdata_path+'"',
-                'download': 'False',
+                'download': 'True',
                 'train':' False'
             }
         }
@@ -197,13 +197,13 @@ class TaskGen(DefaultTaskGen):
     def load_data(self):
         self.train_data = Food101Dataset(
             root=self.rawdata_path,
-            download=False,
+            download=True,
             train=True
         )
         # import pdb; pdb.set_trace()
         self.test_data = Food101Dataset(
             root=self.rawdata_path,
-            download=False,
+            download=True,
             train=False
         )
         

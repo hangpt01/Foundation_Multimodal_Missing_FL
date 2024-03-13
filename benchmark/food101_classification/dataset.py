@@ -17,12 +17,13 @@ from torchvision import transforms
 
 # from .model.clip import tokenize, _transform, load
 class Food101Dataset(Dataset):
-    def __init__(self, root, download=False, train=True):
+    def __init__(self, root, download=True, train=True):
         super(Food101Dataset, self).__init__()
         self.root = root
-        # if not os.path.exists(self.root):
-        #     print("Download dataset ...")
-        #     os.system('bash ./benchmark/food101_classification/download.sh')
+        if not os.path.exists(self.root):
+            if download:
+                print("Download dataset ...")
+                os.system('bash ./benchmark/food101_classification/download.sh')
         self.train = train 
         self.mode = 'train' if train else 'test'
         
