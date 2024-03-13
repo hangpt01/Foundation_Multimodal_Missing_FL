@@ -23,7 +23,9 @@ class Food101Dataset(Dataset):
         if not os.path.exists(self.root):
             if download:
                 print("Download dataset ...")
+                os.makedirs(root, exist_ok=True)
                 os.system('bash ./benchmark/food101_classification/download.sh')
+                print('done!')
         self.train = train 
         self.mode = 'train' if train else 'test'
         
