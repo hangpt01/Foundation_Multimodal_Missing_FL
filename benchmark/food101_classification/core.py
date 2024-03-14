@@ -9,6 +9,11 @@ import random
 import torch
 from torch.utils.data import DataLoader
 from sklearn.metrics import accuracy_score
+from transformers import (
+    ViltProcessor,
+    DataCollatorForLanguageModeling,
+    BertTokenizer,
+)
 import numpy as np
 from tqdm import tqdm
 import warnings
@@ -26,6 +31,7 @@ class TaskPipe(IDXTaskPipe):
         origin_class = getattr(importlib.import_module(class_path), class_name)
         origin_train_data = cls.args_to_dataset(origin_class, feddata['datasrc']['train_args'])
         origin_test_data = cls.args_to_dataset(origin_class, feddata['datasrc']['test_args'])
+        # import pdb; pdb.set_trace()
         test_data = cls.TaskDataset(origin_test_data, [_ for _ in range(len(origin_test_data))])
         train_datas = []
         valid_datas = []
@@ -47,6 +53,38 @@ class TaskPipe(IDXTaskPipe):
             modalities_list.append(feddata[name]['modalities'])
             # modalities_list.append(list(range(12)))
         return train_datas, valid_datas, test_data, feddata['client_names'], modalities_list
+
+def collate(batch):
+    # import pdb; pdb.set_trace()
+    batch_ = batch
+    batch = []
+    labels = []
+    for input, label in batch_:
+        batch.append(input)
+        labels.append(label)
+    input_ids = [item['input_ids'] for item in batch]
+    pixel_values = [item['pixel_values'][0] for item in batch]
+    attention_mask = [item['attention_mask'] for item in batch]
+    token_type_ids = [item['token_type_ids'] for item in batch]
+    # import pdb; pdb.set_trace()
+    # labels = [item['labels'].item() for item in batch]
+
+    processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
+    # create padded pixel values and corresponding pixel mask
+    encoding = processor.image_processor.pad(pixel_values, return_tensors="pt")
+
+    # create new batch
+    
+    # import pdb; pdb.set_trace()
+    batch = {}
+    batch['input_ids'] = torch.cat(input_ids)
+    batch['attention_mask'] = torch.cat(attention_mask)
+    batch['token_type_ids'] = torch.cat(token_type_ids)
+    batch['pixel_values'] = encoding['pixel_values']
+    batch['pixel_mask'] = encoding['pixel_mask']
+    # batch['labels'] = torch.tensor(labels)
+
+    return batch, torch.tensor(labels)   
 
 def save_task(generator):
     """
@@ -173,6 +211,10 @@ class TaskGen(DefaultTaskGen):
             self.specific_training_leads = [[0, 1]]*10 + [[0]]*5 + [[1]]*5 
             self.taskname = self.taskname + '_missing'
             self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        if self.missing and self.num_clients!=20:
+            self.specific_training_leads = [[0,1]]
+            self.taskname = self.taskname + '_missing'
+            self.taskpath = os.path.join(self.task_rootpath, self.taskname)
         # if self.missing and self.num_clients==20:
         #     self.specific_training_leads = [[0, 1]]*10, [[0]]*5 + [[1]]*5 
         #     self.taskname = self.taskname + '_clip_local_missing'
@@ -209,18 +251,18 @@ class TaskGen(DefaultTaskGen):
         )
         
         
-    def local_holdout(self, local_datas, shuffle=False):
-        """split each local dataset into train data and valid data according the rate."""
-        train_cidxs = []
-        valid_cidxs = []
-        for local_data in local_datas:
-            if shuffle:
-                np.random.shuffle(local_data)
-            k = int(len(local_data) * (1-self.local_holdout_rate))
-            train_cidxs.append(local_data[:k])
-            valid_cidxs.append(local_data[k:])
+    # def local_holdout(self, local_datas, shuffle=False):
+    #     """split each local dataset into train data and valid data according the rate."""
+    #     train_cidxs = []
+    #     valid_cidxs = []
+    #     for local_data in local_datas:
+    #         if shuffle:
+    #             np.random.shuffle(local_data)
+    #         k = int(len(local_data) * (1-self.local_holdout_rate))
+    #         train_cidxs.append(local_data[:k])
+    #         valid_cidxs.append(local_data[k:])
         
-        return train_cidxs, valid_cidxs
+    #     return train_cidxs, valid_cidxs
     
 class TaskCalculator(ClassificationCalculator):
     def __init__(self, device, optimizer_name='sgd'):
@@ -230,30 +272,35 @@ class TaskCalculator(ClassificationCalculator):
         
     def get_data_loader(self, dataset, batch_size=40, shuffle=True, num_workers=8, vocab_size=30522):
         # import pdb; pdb.set_trace()
-        # return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, collate_fn=dataset.collate)
-        return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
+        return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, collate_fn=collate)
+        # return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
     
         
-    def get_optimizer(self, model=None, lr=0.1, weight_decay=0, momentum=0):
-        # if self._OPTIM == None:
-        #     raise RuntimeError("TaskCalculator._OPTIM Not Initialized.")
-        OPTIM = getattr(importlib.import_module('torch.optim'),  self.optimizer_name)
-        # filter_fn = filter(lambda p: p.requires_grad, model.parameters())
-        clip_params = [p for n, p in model.named_parameters() if (p.requires_grad and ('clip' in n))]
-        base_params = [p for n, p in model.named_parameters() if (p.requires_grad and ('clip' not in n))]
+    # def get_optimizer(self, model=None, lr=0.1, weight_decay=0, momentum=0):
+    #     # if self._OPTIM == None:
+    #     #     raise RuntimeError("TaskCalculator._OPTIM Not Initialized.")
+    #     OPTIM = getattr(importlib.import_module('torch.optim'),  self.optimizer_name)
+    #     # filter_fn = filter(lambda p: p.requires_grad, model.parameters())
+    #     pretrain_params = [p for n, p in model.named_parameters() if not p.requires_grad]
+    #     trainable_params = [p for n, p in model.named_parameters() if (p.requires_grad)]
+    #     # base_params = [p for n, p in model.named_parameters() if (p.requires_grad and ('vilt' not in n))]
 
-        print("Number of CLIP parameters:", len(clip_params))
-        print("Number of additional parameters:", len(base_params))
-        if self.optimizer_name.lower() == 'sgd':
-            return OPTIM(base_params, lr=lr, momentum=momentum, weight_decay=weight_decay)
-        elif self.optimizer_name.lower() in ['adam', 'rmsprop', 'adagrad']:
-            return OPTIM(base_params, lr=lr, weight_decay=weight_decay)
-        else:
-            raise RuntimeError("Invalid Optimizer.")
+    #     print("Number of ViLT Backbone Params:", len(pretrain_params))  206 
+    #     print("Number of Trainable parameters:", len(trainable_params)) 6
+        
+    #     if self.optimizer_name.lower() == 'sgd':
+    #         return OPTIM(trainable_params, lr=lr, momentum=momentum, weight_decay=weight_decay)
+    #     elif self.optimizer_name.lower() in ['adam', 'rmsprop', 'adagrad']:
+    #         return OPTIM(trainable_params, lr=lr, weight_decay=weight_decay)
+    #     else:
+    #         raise RuntimeError("Invalid Optimizer.")
 
     def data_to_device(self, data):
-        new_data = [x.to(self.device) for x in data]
-        return new_data
+        # for k, v in data:
+        #     print(k,v.shape)
+        batch, labels = data
+        batch = {k:v.to(self.device) for k,v in batch.items()}
+        return batch, labels.to(self.device)
         
     def train_one_step(self, model, data, leads):
         """
@@ -261,11 +308,11 @@ class TaskCalculator(ClassificationCalculator):
         :param data: the training dataset
         :return: dict of train-one-step's result, which should at least contains the key 'loss'
         """
-        tdata = self.data_to_device(data)
+        batch, labels = self.data_to_device(data)
         # import pdb; pdb.set_trace()
         model.to(self.device) # y.device
         # print(tdata[0])
-        loss, _ = model([tdata[0], tdata[1]], tdata[-1], leads)
+        loss, _ = model(batch, labels, leads)
         # print(loss.cpu().item())
         return {'loss': loss}
     
@@ -299,45 +346,7 @@ class TaskCalculator(ClassificationCalculator):
             'acc': accuracy
         }
     
-    @torch.no_grad()
-    def server_test(self, model, prompt_pools, dataset, leads, batch_size=1, num_workers=0, ada=False):
-        """
-        Test metric on global model
-        Metric = [mean_accuracy, mean_loss]
-        :param model:
-        :param prompt_pools:
-        :param dataset:
-        :param batch_size:
-        :return: [mean_accuracy, mean_loss]
-        """
-        model.eval()
-        model.to(self.device)
-        assert batch_size==1, 'Only infer a single sample'
-        data_loader = self.get_data_loader(dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
-        total_loss = 0.0
-        labels = list()
-        predicts = list()
-        mode = "Adaptive forward" if ada else "Normal forward"
-        print("Current forward mode: ", mode)
-        for batch_id, batch_data in tqdm(enumerate(data_loader), total=len(data_loader)):
-            batch_data = self.data_to_device(batch_data)
-            if ada==1:
-                loss, output = model.adaptive_forward([batch_data[0], batch_data[1]], batch_data[-1], prompt_pools=prompt_pools)
-            else:
-                loss, output = model([batch_data[0], batch_data[1]], batch_data[-1], leads)
-            total_loss += loss.item() # batch size = 1
-            predicts.extend(torch.argmax(torch.softmax(output, dim=1), dim=1).cpu().tolist())
-            labels.extend(batch_data[-1].cpu().tolist())
-        labels = np.array(labels)
-        predicts = np.array(predicts)
-        accuracy = accuracy_score(labels, predicts)
-        
-        print("Test accuracy:", accuracy)
-        return {
-            'loss': total_loss / (batch_id + 1),
-            'acc': accuracy
-        }
-        
+
     @torch.no_grad()
     def evaluate(self, model, dataset, leads, batch_size=64, num_workers=0):
         """
@@ -363,4 +372,48 @@ class TaskCalculator(ClassificationCalculator):
                 total_loss = loss + total_loss
         loss_eval = loss / (batch_id + 1) 
         return loss_eval
+
+    
+    @torch.no_grad()
+    def server_test(self, model, dataset, leads, contrastive_weight=0, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        result = dict() 
+        for test_combi_index in range(len(leads)):
+            total_loss = 0.0
+            labels = list()
+            predicts = list()   
+            # loss_each_modal = [[] for i in range(self.n_leads)]
+            # loss_each_modal = [0]*12
+            for batch_id, batch_data in enumerate(data_loader):
+                batch_data = self.data_to_device(batch_data)
+                labels.extend(batch_data[1].cpu().tolist())
+                loss, outputs = model(batch_data[0], batch_data[-1], leads[test_combi_index], contrastive_weight)
+                # for i in range(self.n_leads):
+                #     loss_each_modal[i] += loss_leads[i] * len(batch_data[-1])
+                total_loss += loss.item() * len(batch_data[-1])
+                predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+            # import pdb; pdb.set_trace()
+            # import pdb; pdb.set_trace()
+            labels = np.array(labels)
+            predicts = np.array(predicts)
+            accuracy = accuracy_score(labels, predicts)
+            # for i in range(self.n_leads):
+            #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
+            result['loss'+str(test_combi_index+1)] = total_loss / len(dataset)
+            result['acc'+str(test_combi_index+1)] = accuracy
+        # return {
+        #     'loss': total_loss / len(dataset),
+        #     'acc': accuracy
+        # }
+        # import pdb;pdb.set_trace()
+        return result
         

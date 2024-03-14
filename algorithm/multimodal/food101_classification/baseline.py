@@ -79,9 +79,9 @@ class Server(BasicServer):
                     chosen_models.append(models[k])
             if len(p) == 0:
                 continue
-            new_model.feature_extractors[m] = fmodule._model_sum([
-                model.feature_extractors[m] * pk for model, pk in zip(models, p)
-            ]) / sum(p)
+            # new_model.feature_extractors[m] = fmodule._model_sum([
+            #     model.feature_extractors[m] * pk for model, pk in zip(models, p)
+            # ]) / sum(p)
         # classifier
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         new_model.classifier = fmodule._model_sum([
@@ -165,16 +165,18 @@ class Client(BasicClient):
         for iter in range(self.num_steps):
             # get a batch of data
             batch_data = self.get_batch_data()
-            
-            if batch_data[-1].shape[0] == 1:
-                continue
+            # if batch_data[-1].shape[0] == 1:
+            #     continue
             model.zero_grad()
             # calculate the loss of the model on batched dataset through task-specified calculator
-            loss, outputs = self.calculator.train_one_step(
+            
+            # import pdb; pdb.set_trace()
+            loss = self.calculator.train_one_step(
                 model=model,
                 data=batch_data,
                 leads=self.modalities
             )['loss']
+            print(iter, loss)
             loss.backward()
             optimizer.step()
         return

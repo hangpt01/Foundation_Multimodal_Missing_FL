@@ -1,312 +1,241 @@
-from torch.utils.data import Dataset, DataLoader, ConcatDataset, Subset
+from torch.utils.data import Dataset, DataLoader
 import numpy as np
+import re
 import os
-import io
 import torch
-import pyarrow as pa
 import random
 from PIL import Image
 import pandas as pd
-from transformers import (
-    DataCollatorForLanguageModeling,
-    BertTokenizer,
-)
+from transformers import ViltProcessor
 
-from torchvision import transforms
-
-# from .model.clip import tokenize, _transform, load
 class Food101Dataset(Dataset):
-    def __init__(self, root, download=True, train=True):
+    def __init__(self, root, download=False, train=True, subset=False):
         super(Food101Dataset, self).__init__()
         self.root = root
+        
         if not os.path.exists(self.root):
-            if download:
-                print("Download dataset ...")
-                os.makedirs(root, exist_ok=True)
-                os.system('bash ./benchmark/food101_classification/download.sh')
-                print('done!')
+            print("Download dataset ...")
+            os.system('bash ./benchmark/food101_classification/download.sh')
+        
+        # self.stop_chars = ["#","|","%","@","&",";",".com",":","\\","/",">","<","=","{","}"]
         self.train = train 
         self.mode = 'train' if train else 'test'
+        self.label2idx = LABEL2IDX
         
-        # arrow file
-        tables = [
-                pa.ipc.RecordBatchFileReader(
-                pa.memory_map(f"{self.root}/food101_{self.mode}.arrow", "r")
-            ).read_all()
-        ]
-        
-        remove_duplicate = False
-        self.table = pa.concat_tables(tables, promote=True)
-        
-        #-------------------------------------------------------
-        # use a subset of data 
-        total_rows = self.table.num_rows
-        # Determine the range of rows you want to extract (for example, the first quarter of the data)
-        start_index = 0
-        if self.mode == 'train':    
-            end_index = total_rows // 2
-        else:
-            end_index = total_rows // 40
-        # Extract the subset of the table
-        self.table = self.table.slice(start_index, end_index)
-        #-------------------------------------------------------
-        
-        self.all_texts = self.table['text'].to_pandas().tolist()
-        self.all_texts = (      # len: 61227
-            [list(set(texts)) for texts in self.all_texts]
-            if remove_duplicate
-            else self.all_texts
-        )
-        # import pdb; pdb.set_trace()
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        self.collator = DataCollatorForLanguageModeling(tokenizer=self.tokenizer, mlm=True, mlm_probability=0.15)
-        
-        self.transforms = [pixelbert_transform(size=384)]
-        # import pdb; pdb.set_trace()
-        self.max_text_len = 40
-        self.index_mapper = dict()
-        j = 0
-        for i, texts in enumerate(self.all_texts):
-            for _j in range(len(texts)):
-                self.index_mapper[j] = (i, _j)
-                j += 1
-        # import pdb; pdb.set_trace()
-        
-        
-    def get_raw_image(self, index, image_key="image"):
-        index, caption_index = self.index_mapper[index]
-        image_bytes = io.BytesIO(self.table[image_key][index].as_py())
-        image_bytes.seek(0)
-        return Image.open(image_bytes).convert("RGB")
+        self.image_dir = os.path.join(self.root, 'images', self.mode)
+        text_dir = os.path.join(self.root, 'texts')
+        for f in os.listdir(text_dir):
+            if (self.mode+'_titles') in f and os.path.isfile(os.path.join(text_dir, f)):
+                text_file = os.path.join(text_dir, f)
 
-    def get_image(self, index, image_key="image"):
-        image = self.get_raw_image(index, image_key=image_key)
-        # import pdb; pdb.set_trace()
-        image_tensor = [tr(image) for tr in self.transforms]
-        return {
-            "image": image_tensor,
-            "img_index": self.index_mapper[index][0],
-            "cap_index": self.index_mapper[index][1],
-            "raw_index": index,
-        }
+        self.text_labels = pd.read_csv(text_file, header=None)
+        self.text_labels.columns = ['image', 'caption', 'label']
+        
+        self.processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
+        print(len(set(self.text_labels['label'].tolist())))
+        
+    def preprocess_text(self, sen):
 
-    def get_text(self, raw_index):
-        index, caption_index = self.index_mapper[raw_index]
+        def remove_tags(text):
+            TAG_RE = re.compile(r'<[^>]+>')
+            return TAG_RE.sub('', text)
+        
+        # Removing html tags
+        sentence = remove_tags(sen)
 
-        text = self.all_texts[index][caption_index]
-        encoding = self.tokenizer(
-            text,
-            padding="max_length",
-            truncation=True,
-            max_length=self.max_text_len,
-            return_special_tokens_mask=True,
-        )
-        return {
-            "text": (text, encoding),
-            "img_index": index,
-            "cap_index": caption_index,
-            "raw_index": raw_index,
-        }
+        # Remove punctuations and numbers
+        sentence = re.sub('[^a-zA-Z]', ' ', sentence)
 
-    def get_all_labels(self):
-        # import pdb; pdb.set_trace()
-        return self.table['label'].to_numpy()
-    
+        # Single character removal
+        sentence = re.sub(r"\s+[a-zA-Z]\s+", ' ', sentence)
+
+        # Removing multiple spaces
+        sentence = re.sub(r'\s+', ' ', sentence)
+
+        sentence = sentence.lower()
+
+        return sentence
+
     def __len__(self):
-        # return self.text_labels.shape[0]
-        return len(self.index_mapper)
+        return self.text_labels.shape[0]
     
-    
-    def __getitem__(self, index):
-        # print(index)
-        if isinstance(index, torch.Tensor):
-            index = index.item()
-        image_index, question_index = self.index_mapper[index]
+    def __getitem__(self, idx):
+        text_label = self.text_labels.iloc[idx]
+        im_name, caption, label = text_label['image'], text_label['caption'], text_label['label']
+        img_path = os.path.join(self.image_dir, label, im_name)
+        image = Image.open(img_path)
+        text = self.preprocess_text(caption)
+        input = self.processor(image, text, padding="max_length", truncation=True, max_length=40, return_tensors="pt")
+        # input['labels'] = torch.tensor(self.label2idx[label]).type(torch.LongTensor)
+        label = torch.tensor(self.label2idx[label]).type(torch.LongTensor)
         
-        # For the case of training with modality-complete data
-        # Simulate missing modality with random assign the missing type of samples
-        # simulate_missing_type = 0
-        # if self.split == 'train' and self.simulate_missing and self.missing_table[image_index] == 0:
-        #     simulate_missing_type = random.choice([0,1,2])
-            
-        image_tensor = self.get_image(index)["image"]
-        text = self.get_text(index)["text"]
-        
-        # missing image, dummy image is all-one image
-        # if self.missing_table[image_index] == 2 or simulate_missing_type == 2:
-        #     for idx in range(len(image_tensor)):
-        #         image_tensor[idx] = torch.ones(image_tensor[idx].size()).float()
-            
-        # #missing text, dummy text is ''
-        # if self.missing_table[image_index] == 1 or simulate_missing_type == 1:
-        #     text = ''
-        #     encoding = self.tokenizer(
-        #         text,
-        #         padding="max_length",
-        #         truncation=True,
-        #         max_length=self.max_text_len,
-        #         return_special_tokens_mask=True,
-        #     )   
-        #     text = (text, encoding)
-        # else:
-        #     text = self.get_text(index)["text"]
-
-        
-        labels = self.table["label"][image_index].as_py()
         # import pdb; pdb.set_trace()
-        return {
-            "image": image_tensor,
-            "text": text,
-            "label": labels
-            # "missing_type": self.missing_table[image_index].item()+simulate_missing_type,
-        }
+        
+        return input, label
     
-    def collate(self, batch):
-        batch_size = len(batch)
-        keys = set([key for b in batch for key in b.keys()])
-        dict_batch = {k: [dic[k] if k in dic else None for dic in batch] for k in keys}
-
-        img_keys = [k for k in list(dict_batch.keys()) if "image" in k]
-        img_sizes = list()
-
-        for img_key in img_keys:
-            img = dict_batch[img_key]
-            img_sizes += [ii.shape for i in img if i is not None for ii in i]
-
-        for size in img_sizes:
-            assert (
-                len(size) == 3
-            ), f"Collate error, an image should be in shape of (3, H, W), instead of given {size}"
-
-        if len(img_keys) != 0:
-            max_height = max([i[1] for i in img_sizes])
-            max_width = max([i[2] for i in img_sizes])
-
-        for img_key in img_keys:
-            img = dict_batch[img_key]
-            view_size = len(img[0])
-
-            new_images = [
-                torch.zeros(batch_size, 3, max_height, max_width)
-                for _ in range(view_size)
-            ]
-
-            for bi in range(batch_size):
-                orig_batch = img[bi]
-                for vi in range(view_size):
-                    if orig_batch is None:
-                        new_images[vi][bi] = None
-                    else:
-                        orig = img[bi][vi]
-                        new_images[vi][bi, :, : orig.shape[1], : orig.shape[2]] = orig
-
-            dict_batch[img_key] = new_images
-
-        txt_keys = [k for k in list(dict_batch.keys()) if "text" in k]
-
-        if len(txt_keys) != 0:
-            texts = [[d[0] for d in dict_batch[txt_key]] for txt_key in txt_keys]
-            encodings = [[d[1] for d in dict_batch[txt_key]] for txt_key in txt_keys]
-            draw_text_len = len(encodings)
-            flatten_encodings = [e for encoding in encodings for e in encoding]
-            flatten_mlms = self.collator(flatten_encodings)
-
-            for i, txt_key in enumerate(txt_keys):
-                texts, encodings = (
-                    [d[0] for d in dict_batch[txt_key]],
-                    [d[1] for d in dict_batch[txt_key]],
-                )
-
-                mlm_ids, mlm_labels = (
-                    flatten_mlms["input_ids"][batch_size * (i) : batch_size * (i + 1)],
-                    flatten_mlms["labels"][batch_size * (i) : batch_size * (i + 1)],
-                )
-
-                input_ids = torch.zeros_like(mlm_ids)
-                attention_mask = torch.zeros_like(mlm_ids)
-                for _i, encoding in enumerate(encodings):
-                    _input_ids, _attention_mask = (
-                        torch.tensor(encoding["input_ids"]),
-                        torch.tensor(encoding["attention_mask"]),
-                    )
-                    input_ids[_i, : len(_input_ids)] = _input_ids
-                    attention_mask[_i, : len(_attention_mask)] = _attention_mask
-
-                dict_batch[txt_key] = texts
-                dict_batch[f"{txt_key}_ids"] = input_ids
-                dict_batch[f"{txt_key}_labels"] = torch.full_like(input_ids, -100)
-                dict_batch[f"{txt_key}_ids_mlm"] = mlm_ids
-                dict_batch[f"{txt_key}_labels_mlm"] = mlm_labels
-                dict_batch[f"{txt_key}_masks"] = attention_mask
-                # import pdb; pdb.set_trace()
-                
-        return dict_batch
-
-# def keys_to_transforms(keys: list, size=224):
-#         return [pixelbert_transform(size=size) for key in keys]
-def pixelbert_transform(size=224):
-    longer = int((1333 / 800) * size)
-    return transforms.Compose(
-        [
-            MinMaxResize(shorter=size, longer=longer),
-            transforms.ToTensor(),
-            inception_normalize,
-        ]
-    )
     
-class MinMaxResize:
-    def __init__(self, shorter=800, longer=1333):
-        self.min = shorter
-        self.max = longer
+def collate(batch):
+    # import pdb; pdb.set_trace()
+    batch_ = batch
+    batch = []
+    labels = []
+    for input, label in batch_:
+        batch.append(input)
+        labels.append(label)
+    input_ids = [item['input_ids'] for item in batch]
+    pixel_values = [item['pixel_values'][0] for item in batch]
+    attention_mask = [item['attention_mask'] for item in batch]
+    token_type_ids = [item['token_type_ids'] for item in batch]
+    # import pdb; pdb.set_trace()
+    # labels = [item['labels'].item() for item in batch]
 
-    def __call__(self, x):
-        w, h = x.size
-        scale = self.min / min(w, h)
-        if h < w:
-            newh, neww = self.min, scale * w
-        else:
-            newh, neww = scale * h, self.min
+    processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
+    # create padded pixel values and corresponding pixel mask
+    encoding = processor.image_processor.pad(pixel_values, return_tensors="pt")
 
-        if max(newh, neww) > self.max:
-            scale = self.max / max(newh, neww)
-            newh = newh * scale
-            neww = neww * scale
+    # create new batch
+    
+    # import pdb; pdb.set_trace()
+    batch = {}
+    batch['input_ids'] = torch.cat(input_ids)
+    batch['attention_mask'] = torch.cat(attention_mask)
+    batch['token_type_ids'] = torch.cat(token_type_ids)
+    batch['pixel_values'] = encoding['pixel_values']
+    batch['pixel_mask'] = encoding['pixel_mask']
+    # batch['labels'] = torch.tensor(labels)
 
-        newh, neww = int(newh + 0.5), int(neww + 0.5)
-        newh, neww = newh // 32 * 32, neww // 32 * 32
+    return batch, torch.tensor(labels)   
 
-        return x.resize((neww, newh), resample=Image.BICUBIC)
 
-inception_normalize = transforms.Compose(
-    [transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])]
-)
+LABEL2IDX = {
+    "apple_pie": 0,
+    "baby_back_ribs": 1,
+    "baklava": 2,
+    "beef_carpaccio": 3,
+    "beef_tartare": 4,
+    "beet_salad": 5,
+    "beignets": 6,
+    "bibimbap": 7,
+    "bread_pudding": 8,
+    "breakfast_burrito": 9,
+    "bruschetta": 10,
+    "caesar_salad": 11,
+    "cannoli": 12,
+    "caprese_salad": 13,
+    "carrot_cake": 14,
+    "ceviche": 15,
+    "cheesecake": 16,
+    "cheese_plate": 17,
+    "chicken_curry": 18,
+    "chicken_quesadilla": 19,
+    "chicken_wings": 20,
+    "chocolate_cake": 21,
+    "chocolate_mousse": 22,
+    "churros": 23,
+    "clam_chowder": 24,
+    "club_sandwich": 25,
+    "crab_cakes": 26,
+    "creme_brulee": 27,
+    "croque_madame": 28,
+    "cup_cakes": 29,
+    "deviled_eggs": 30,
+    "donuts": 31,
+    "dumplings": 32,
+    "edamame": 33,
+    "eggs_benedict": 34,
+    "escargots": 35,
+    "falafel": 36,
+    "filet_mignon": 37,
+    "fish_and_chips": 38,
+    "foie_gras": 39,
+    "french_fries": 40,
+    "french_onion_soup": 41,
+    "french_toast": 42,
+    "fried_calamari": 43,
+    "fried_rice": 44,
+    "frozen_yogurt": 45,
+    "garlic_bread": 46,
+    "gnocchi": 47,
+    "greek_salad": 48,
+    "grilled_cheese_sandwich": 49,
+    "grilled_salmon": 50,
+    "guacamole": 51,
+    "gyoza": 52,
+    "hamburger": 53,
+    "hot_and_sour_soup": 54,
+    "hot_dog": 55,
+    "huevos_rancheros": 56,
+    "hummus": 57,
+    "ice_cream": 58,
+    "lasagna": 59,
+    "lobster_bisque": 60,
+    "lobster_roll_sandwich": 61,
+    "macaroni_and_cheese": 62,
+    "macarons": 63,
+    "miso_soup": 64,
+    "mussels": 65,
+    "nachos": 66,
+    "omelette": 67,
+    "onion_rings": 68,
+    "oysters": 69,
+    "pad_thai": 70,
+    "paella": 71,
+    "pancakes": 72,
+    "panna_cotta": 73,
+    "peking_duck": 74,
+    "pho": 75,
+    "pizza": 76,
+    "pork_chop": 77,
+    "poutine": 78,
+    "prime_rib": 79,
+    "pulled_pork_sandwich": 80,
+    "ramen": 81,
+    "ravioli": 82,
+    "red_velvet_cake": 83,
+    "risotto": 84,
+    "samosa": 85,
+    "sashimi": 86,
+    "scallops": 87,
+    "seaweed_salad": 88,
+    "shrimp_and_grits": 89,
+    "spaghetti_bolognese": 90,
+    "spaghetti_carbonara": 91,
+    "spring_rolls": 92,
+    "steak": 93,
+    "strawberry_shortcake": 94,
+    "sushi": 95,
+    "tacos": 96,
+    "takoyaki": 97,
+    "tiramisu": 98,
+    "tuna_tartare": 99,
+    "waffles": 100
+}
 
+        
 if __name__=='__main__':
-    my_dataset = Food101Dataset(root='./benchmark/RAW_DATA/FOOD101')
-    my_dataset.get_all_labels()
-    # my_dataset = Food101Dataset(root='./benchmark/RAW_DATA/FOOD101', train=False)
-    data_loader = DataLoader(my_dataset, batch_size=1, shuffle=True, collate_fn=my_dataset.collate) # len: 61127 - batch1; 1529 0 batch 40
+    my_dataset = Food101Dataset(root='./benchmark/RAW_DATA/FOOD101', train=True)
+    
+    data_loader = DataLoader(my_dataset, batch_size=4, shuffle=True, collate_fn=collate) # len: 61127 - batch1; 1529 0 batch 40
+    batch, labels = next(iter(data_loader))
+    print(labels.shape)
+    for k,v in batch.items():
+        print(k, v.shape)
                                                                                                     # test:22716                    
 # Iterate over the dataset and print a sample
-    for batch in data_loader:
-        # sample = batch[0]  # Assuming batch size is 1
-        print(batch)
-        import pdb; pdb.set_trace()
-        
-    # dataset_length = len(my_dataset)
-    # one_fourth_length = dataset_length // 4
-
-    # # Create indices for one fourth of the dataset
-    # indices = torch.randperm(dataset_length)[:one_fourth_length]
-    # # import pdb; pdb.set_trace()
-
-    # # Create a Subset of the dataset with one fourth of the data
-    # subset_dataset = Subset(my_dataset, indices)
-
-    # # Create a DataLoader for the subset dataset if needed
-    # subset_data_loader = DataLoader(subset_dataset, batch_size=1, shuffle=True, collate_fn=my_dataset.collate)
-    # for batch in subset_data_loader:
-    #     # sample = batch[0]  # Assuming batch size is 1 - len 15281
+    # for batch in data_loader:
+    #     # sample = batch[0]  # Assuming batch size is 1
     #     print(batch)
     #     import pdb; pdb.set_trace()
+    
+    # subset = Food101Subset(dataset, range(100))
+    # subset.local_missing_setup([0, 1], 0.2, 0.2)
+    # print(len(dataset))
+    # x, y = dataset[0]
+    # print(x[1], y)
+    
+    # labels = np.array(dataset.text_labels['label'].unique(), dtype=object)
+    # permutation = np.random.permutation(np.where(dataset.text_labels['label']=='ceviche')[0])
+    # split = np.array_split(permutation, 20)
+    # print(split)
+        
         
