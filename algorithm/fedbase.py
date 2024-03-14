@@ -521,6 +521,7 @@ class BasicClient():
         :return:
             a batch of data
         """
+        # import pdb; pdb.set_trace()
         try:
             batch_data = next(self.data_loader)
         except:

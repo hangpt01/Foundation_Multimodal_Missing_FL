@@ -1,3 +1,5 @@
+# from transformers import ViltProcessor, ViltForQuestionAnswering
+# from transformers import ViltModel
 import utils.fflow as flw
 import torch
 import wandb

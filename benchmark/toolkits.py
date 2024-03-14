@@ -161,6 +161,7 @@ class DefaultTaskGen(BasicTaskGen):
             'train_args': {},
             'test_args': {},
         }
+        # self.train_cidxs, self.valid_cidxs = None, None
 
     def run(self):
         """ Generate federated task"""
@@ -181,6 +182,7 @@ class DefaultTaskGen(BasicTaskGen):
         print('Partitioning data...')
         local_datas = self.partition(self)
         self.train_cidxs, self.valid_cidxs = self.local_holdout(local_datas, shuffle=True)
+        # import pdb; pdb.set_trace()
         print('Done.')
         # save task infomation as .json file and the federated dataset
         print('-----------------------------------------------------')
@@ -555,7 +557,7 @@ class DefaultTaskGen(BasicTaskGen):
             # print(row_map)
             for cid, cidxs in enumerate(train_cidxs):       # list of all clients' sample indices
                 # import pdb; pdb.set_trace() 
-                print(cid)
+                # print(cid)
                 labels = [int(self.train_data[did]['label']) for did in cidxs]       # ptbxl
                 # labels = []
                 # for did in cidxs:
@@ -586,6 +588,8 @@ class DefaultTaskGen(BasicTaskGen):
         plt.legend(loc='lower right')
         plt.savefig(os.path.join(self.taskpath,'data_dist.jpg'))
         plt.show()
+        # import pdb; pdb.set_trace()
+        
 # =======================================Task Calculator===============================================
 # This module is to seperate the task-specific calculating part from the federated algorithms, since the
 # way of calculation (e.g. loss, evaluating metrics, optimizer) and the format of data (e.g. image, text)
@@ -839,6 +843,7 @@ class XYTaskPipe(BasicTaskPipe):
 
 class IDXTaskPipe(BasicTaskPipe):
     TaskDataset = Subset
+    # TaskDataset = Dataset
     @classmethod
     def save_task(cls, generator):
         """

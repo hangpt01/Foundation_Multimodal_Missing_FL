@@ -43,10 +43,7 @@ class Food101Dataset(Dataset):
         total_rows = self.table.num_rows
         # Determine the range of rows you want to extract (for example, the first quarter of the data)
         start_index = 0
-        if self.mode == 'train':    
-            end_index = total_rows // 2
-        else:
-            end_index = total_rows // 40
+        end_index = total_rows // 10
         # Extract the subset of the table
         self.table = self.table.slice(start_index, end_index)
         #-------------------------------------------------------
