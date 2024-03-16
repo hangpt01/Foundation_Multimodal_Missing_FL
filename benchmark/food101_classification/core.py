@@ -375,7 +375,7 @@ class TaskCalculator(ClassificationCalculator):
 
     
     @torch.no_grad()
-    def server_test(self, model, dataset, leads, contrastive_weight=0, batch_size=64, num_workers=0):
+    def server_test(self, model, dataset, leads, batch_size=64, num_workers=0):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -396,7 +396,7 @@ class TaskCalculator(ClassificationCalculator):
             for batch_id, batch_data in enumerate(data_loader):
                 batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data[1].cpu().tolist())
-                loss, outputs = model(batch_data[0], batch_data[-1], leads[test_combi_index], contrastive_weight)
+                loss, outputs = model(batch_data[0], batch_data[-1], leads[test_combi_index])
                 # for i in range(self.n_leads):
                 #     loss_each_modal[i] += loss_leads[i] * len(batch_data[-1])
                 total_loss += loss.item() * len(batch_data[-1])
