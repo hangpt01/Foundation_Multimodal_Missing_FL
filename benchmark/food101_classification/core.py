@@ -335,7 +335,7 @@ class TaskCalculator(ClassificationCalculator):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data[-1].cpu().tolist())
             # import pdb; pdb.set_trace()
-            loss, outputs = model([batch_data[0], batch_data[1]], batch_data[-1], leads)
+            loss, outputs = model(batch_data[0], batch_data[-1], leads)
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
         labels = np.array(labels)

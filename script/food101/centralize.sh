@@ -14,7 +14,7 @@ python main.py \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
     --batch_size 128 \
-    --test_batch_size 40 \
+    --test_batch_size 256 \
     --gpu 0 
     # \
     # --wandb

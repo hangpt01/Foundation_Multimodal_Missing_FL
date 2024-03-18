@@ -288,7 +288,7 @@ class TaskCalculator(ClassificationCalculator):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data[-1].cpu().tolist())
             # import pdb; pdb.set_trace()
-            loss, outputs = model([batch_data[0], batch_data[1]], batch_data[-1], leads)
+            loss, outputs = model(batch_data[0], batch_data[-1], leads)
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
         labels = np.array(labels)
@@ -322,9 +322,9 @@ class TaskCalculator(ClassificationCalculator):
         for batch_id, batch_data in tqdm(enumerate(data_loader), total=len(data_loader)):
             batch_data = self.data_to_device(batch_data)
             if ada==1:
-                loss, output = model.adaptive_forward([batch_data[0], batch_data[1]], batch_data[-1], prompt_pools=prompt_pools)
+                loss, output = model.adaptive_forward(batch_data[0], batch_data[-1], prompt_pools=prompt_pools)
             else:
-                loss, output = model([batch_data[0], batch_data[1]], batch_data[-1], leads)
+                loss, output = model(batch_data[0], batch_data[-1], leads)
             total_loss += loss.item() # batch size = 1
             predicts.extend(torch.argmax(torch.softmax(output, dim=1), dim=1).cpu().tolist())
             labels.extend(batch_data[-1].cpu().tolist())
