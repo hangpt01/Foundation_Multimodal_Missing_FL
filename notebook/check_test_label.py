@@ -18,7 +18,7 @@ for mode in ['train','test']:
     total_rows = table.num_rows
     # Determine the range of rows you want to extract (for example, the first quarter of the data)
     start_index = 0
-    end_index = total_rows // 30
+    end_index = total_rows // 10.04
     # Extract the subset of the table
     table = table.slice(start_index, end_index)
     #-------------------------------------------------------
@@ -35,4 +35,4 @@ for mode in ['train','test']:
     print(mode)
     print(label_np.shape, np.unique(label_np))
     print(Counter(labels))
-import pdb; pdb.set_trace()
+# import pdb; pdb.set_trace()

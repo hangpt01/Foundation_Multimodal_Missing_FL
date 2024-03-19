@@ -286,7 +286,7 @@ class TaskCalculator(ClassificationCalculator):
         batch = {k:v.to(self.device) for k,v in batch.items()}
         return batch, labels.to(self.device)
         
-    def train_one_step(self, model, backbone, data, leads):
+    def train_one_step(self, model, data, leads):
         """
         :param model: the model to train
         :param data: the training dataset
@@ -295,15 +295,13 @@ class TaskCalculator(ClassificationCalculator):
         batch, labels = self.data_to_device(data)
         # import pdb; pdb.set_trace()
         model.to(self.device) # y.device
-        backbone.to(self.device)
         # print(tdata[0])
-        loss, _ = model(backbone, batch, labels, leads)
-        backbone.to('cpu')
+        loss, _ = model(batch, labels, leads)
         # print(loss.cpu().item())
         return {'loss': loss}
     
     @torch.no_grad()
-    def test(self, model, backbone, dataset, leads, batch_size=64, num_workers=0):
+    def test(self, model, dataset, leads, batch_size=64, num_workers=0):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -321,7 +319,7 @@ class TaskCalculator(ClassificationCalculator):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data[-1].cpu().tolist())
             # import pdb; pdb.set_trace()
-            loss, outputs = model(backbone, batch_data[0], batch_data[-1], leads)
+            loss, outputs = model(batch_data[0], batch_data[-1], leads)
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
         labels = np.array(labels)
@@ -334,7 +332,7 @@ class TaskCalculator(ClassificationCalculator):
     
 
     @torch.no_grad()
-    def evaluate(self, model, backbone, dataset, leads, batch_size=64, num_workers=0):
+    def evaluate(self, model, dataset, leads, batch_size=64, num_workers=0):
         """
         Evaluate metric on client model
         Metric = [mean_accuracy, mean_loss]
@@ -351,7 +349,7 @@ class TaskCalculator(ClassificationCalculator):
         predicts = list()
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
-            loss, outputs = model(backbone, batch_data[0], batch_data[1], leads)
+            loss, outputs = model(batch_data[0], batch_data[1], leads)
             if batch_id==0:
                 total_loss = loss
             else:
@@ -361,7 +359,7 @@ class TaskCalculator(ClassificationCalculator):
 
     
     @torch.no_grad()
-    def server_test(self, model, backbone, dataset, leads, batch_size=64, num_workers=0):
+    def server_test(self, model, dataset, leads, batch_size=64, num_workers=0):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -382,7 +380,7 @@ class TaskCalculator(ClassificationCalculator):
             for batch_id, batch_data in enumerate(data_loader):
                 batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data[1].cpu().tolist())
-                loss, outputs = model(backbone,batch_data[0], batch_data[-1], leads[test_combi_index])
+                loss, outputs = model(batch_data[0], batch_data[-1], leads[test_combi_index])
                 # for i in range(self.n_leads):
                 #     loss_each_modal[i] += loss_leads[i] * len(batch_data[-1])
                 total_loss += loss.item() * len(batch_data[-1])
