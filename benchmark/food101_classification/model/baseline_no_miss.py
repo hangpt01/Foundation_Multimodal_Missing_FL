@@ -34,20 +34,8 @@ class Model(FModule):
         
     def forward(self, backbone, batch, labels, leads):
         # import pdb; pdb.set_trace()
-        missing_batch = dict()
-        batch_size = labels.shape[0]
-        device = labels.device
-        for k,v in batch.items():
-            if leads == [0] and k == 'input_ids':
-                v = torch.tensor([101, 102, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], device=device).repeat(batch_size, 1)
-            if leads == [0] and k == 'attention_mask':
-                v == torch.tensor([1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], device=device).repeat(batch_size, 1)
-            if leads == [1] and k == 'pixel_values':
-                v == torch.ones(v.shape, device=device)
-            missing_batch[k] = v
-            # import pdb; pdb.set_trace()
-
-        features = backbone(**missing_batch)
+        
+        features = backbone(**batch)
         outputs = self.classifier(features.last_hidden_state[:, 0, :])
         
         loss = self.criterion(outputs, labels.type(torch.int64))

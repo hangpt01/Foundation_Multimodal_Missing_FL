@@ -15,9 +15,9 @@ class Server(BasicServer):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 2
         self.list_testing_leads = [
-            [0],                    #1
-            [1],                    #2
-            [0,1],                  #3
+            [0],                    #1: Image-only
+            [1],                    #2: Text-only
+            [0,1],                  #3: Full
         ]
         self.backbone = ViltModel.from_pretrained("dandelin/vilt-b32-mlm")
         for param in self.backbone.parameters():
