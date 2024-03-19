@@ -298,7 +298,7 @@ class TaskCalculator(ClassificationCalculator):
         backbone.to(self.device)
         # print(tdata[0])
         loss, _ = model(backbone, batch, labels, leads)
-        backbone.to('cpu')
+        # backbone.to('cpu')
         # print(loss.cpu().item())
         return {'loss': loss}
     
