@@ -493,7 +493,7 @@ class DefaultTaskGen(BasicTaskGen):
             # import pdb; pdb.set_trace()
             # print(row_map)
             for cid, cidxs in enumerate(train_cidxs):       # list of all clients' sample indices
-                import pdb; pdb.set_trace() 
+                # import pdb; pdb.set_trace() 
                 # print(cid)
                 # labels = [int(self.train_data[did][-1]) for did in cidxs]       # ucihar
                 labels = [int(self.train_data[did][-1]) for did in cidxs]       # ptbxl

@@ -18,7 +18,7 @@ for mode in ['train','test']:
     total_rows = table.num_rows
     # Determine the range of rows you want to extract (for example, the first quarter of the data)
     start_index = 0
-    end_index = total_rows // 10.04
+    end_index = total_rows // 50
     # Extract the subset of the table
     table = table.slice(start_index, end_index)
     #-------------------------------------------------------

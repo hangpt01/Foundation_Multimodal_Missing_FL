@@ -147,10 +147,10 @@ def save_task(generator):
 def iid_partition(generator):
     print(generator)
     # import pdb; pdb.set_trace()
-    labels = np.unique(generator.train_data.get_all_labels())
+    labels = np.unique(generator.train_data.y)
     local_datas = [[] for _ in range(generator.num_clients)]
     for label in labels:
-        permutation = np.random.permutation(np.where(generator.train_data.get_all_labels() == label)[0])
+        permutation = np.random.permutation(np.where(generator.train_data.y == label)[0])
         split = np.array_split(permutation, generator.num_clients)
         for i, idxs in enumerate(split):
             local_datas[i] += idxs.tolist()
@@ -187,7 +187,7 @@ class TaskGen(DefaultTaskGen):
         
         self.num_classes=101
         self.save_task=save_task
-        self.visualize=self.visualize_by_class_food101
+        self.visualize=self.visualize_by_class
         self.source_dict = {
             'class_path': 'benchmark.food101_classification.dataset',
             'class_name': 'Food101Dataset',
