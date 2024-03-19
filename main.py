@@ -11,7 +11,7 @@ def main():
     if option['wandb']:
         wandb.init(
             entity="aiotlab",
-            project='FLMultimodal',
+            project='Foundation_Multimodal_FL',
             # name="{}_CW{:.2f}_CT{:.2f}_KL{:.2f}_P{:.2f}".format(option['task'], option['contrastive_weight'], option['temperature'], option['kl_weight'], option['proportion']),
             name=option['model'],
             group=option['task'],
