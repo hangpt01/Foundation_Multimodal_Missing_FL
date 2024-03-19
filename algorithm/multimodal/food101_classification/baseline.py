@@ -227,7 +227,7 @@ class Client(BasicClient):
                 data=batch_data,
                 leads=self.modalities
             )['loss']
-            print(datetime.now(),iter, loss)
+            # print(datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
         return

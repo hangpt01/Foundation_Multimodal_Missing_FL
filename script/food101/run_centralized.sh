@@ -4,8 +4,8 @@ python main.py \
     --algorithm multimodal.food101_classification.baseline \
     --sample full \
     --aggregate other \
-    --num_rounds 2 \
-    --early_stop 2  \
+    --num_rounds 300 \
+    --early_stop 30  \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
@@ -13,8 +13,7 @@ python main.py \
     --learning_rate 0.01 \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
-    --batch_size 128 \
-    --test_batch_size 128 \
-    --gpu 0 
-    # \
-    # --wandb
+    --batch_size 256 \
+    --test_batch_size 256 \
+    --gpu 0 \
+    --wandb
