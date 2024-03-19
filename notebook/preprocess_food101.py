@@ -147,7 +147,7 @@ for mode in ["train", "test"]:
     processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
     input_dict = []
     label_dict = []
-    for idx in range(int(len(df)/10.16)):
+    for idx in range(int(len(df)/33.4)):
         text_label = df.iloc[idx]
         im_name, caption, label = text_label['image'], text_label['caption'], text_label['label']
         img_path = os.path.join(img_dir, label, im_name)

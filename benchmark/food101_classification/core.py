@@ -213,11 +213,11 @@ class TaskGen(DefaultTaskGen):
             self.taskpath = os.path.join(self.task_rootpath, self.taskname)
         if self.missing and self.num_clients==10:
             self.specific_training_leads = [[0, 1]]*6 + [[0]]*2 + [[1]]*2 
-            self.taskname = self.taskname + '_missing'
+            self.taskname = self.taskname + '_missing_each_0.2'
             self.taskpath = os.path.join(self.task_rootpath, self.taskname)    
-        if self.missing and self.num_clients!=20 and self.num_clients!=10:
+        if self.missing and self.num_clients==1:
             self.specific_training_leads = [[0,1]]
-            self.taskname = self.taskname + '_missing'
+            self.taskname = self.taskname + '_centralized_no_missing'
             self.taskpath = os.path.join(self.task_rootpath, self.taskname)
         # if self.missing and self.num_clients==20:
         #     self.specific_training_leads = [[0, 1]]*10, [[0]]*5 + [[1]]*5 

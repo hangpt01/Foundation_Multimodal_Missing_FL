@@ -25,17 +25,17 @@ class Model(FModule):
         self.n_leads = 2
         self.hidden_size = 768
         
-        self.backbone = ViltModel.from_pretrained("dandelin/vilt-b32-mlm")
-        for param in self.backbone.parameters():
-            param.requires_grad = False
+        # self.backbone = ViltModel.from_pretrained("dandelin/vilt-b32-mlm")
+        # for param in self.backbone.parameters():
+        #     param.requires_grad = False
             
         self.classifier = Classifier()
         self.criterion = nn.CrossEntropyLoss()
         
-    def forward(self, batch, labels, leads):
+    def forward(self, backbone, batch, labels, leads):
         # import pdb; pdb.set_trace()
         
-        features = self.backbone(**batch)
+        features = backbone(**batch)
         outputs = self.classifier(features.last_hidden_state[:, 0, :])
         
         loss = self.criterion(outputs, labels.type(torch.int64))

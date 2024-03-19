@@ -114,7 +114,7 @@ for mode in ['train','test']:
     print(len(df))
     # import pdb; pdb.set_trace()
     df.columns = ['image', 'caption', 'label']
-    df = df.head(int(len(df)/10.16))
+    df = df.head(int(len(df)/33.4))
     labels = list(df['label'])
     labels = [LABEL2IDX[lab] for lab in labels]
     label_np = np.array(labels)

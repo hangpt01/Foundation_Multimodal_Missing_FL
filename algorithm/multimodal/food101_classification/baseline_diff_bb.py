@@ -7,7 +7,6 @@ import utils.fflow as flw
 import os
 import torch
 import numpy as np
-from transformers import ViltModel
 from datetime import datetime
 
 class Server(BasicServer):
@@ -19,9 +18,6 @@ class Server(BasicServer):
             [1],                    #2
             [0,1],                  #3
         ]
-        self.backbone = ViltModel.from_pretrained("dandelin/vilt-b32-mlm")
-        for param in self.backbone.parameters():
-            param.requires_grad = False
 
     def run(self):
         """
@@ -94,20 +90,6 @@ class Server(BasicServer):
         ]) / sum(p)
         return new_model
     
-    def pack(self, client_id):
-        """
-        Pack the necessary information for the client's local training.
-        Any operations of compression or encryption should be done here.
-        :param
-            client_id: the id of the client to communicate with
-        :return
-            a dict that only contains the global model as default.
-        """
-        return {
-            "model" : copy.deepcopy(self.model),
-            "backbone": self.backbone
-        }
-
     def test(self, model=None):
         """
         Evaluate the model on the test dataset owned by the server.
@@ -121,7 +103,6 @@ class Server(BasicServer):
         if self.test_data:
             return self.calculator.server_test(
                 model=model,
-                backbone=self.backbone,
                 dataset=self.test_data,
                 batch_size=self.option['test_batch_size'],
                 leads=self.list_testing_leads
@@ -140,7 +121,7 @@ class Server(BasicServer):
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
-            client_metrics = c.test(self.model, self.backbone, dataflag)
+            client_metrics = c.test(self.model, dataflag)
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
         return all_metrics
@@ -151,35 +132,6 @@ class Client(BasicClient):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
         self.modalities = modalities
-
-    def reply(self, svr_pkg):
-        """
-        Reply to server with the transmitted package.
-        The whole local procedure should be planned here.
-        The standard form consists of three procedure:
-        unpacking the server_package to obtain the global model,
-        training the global model, and finally packing the updated
-        model into client_package.
-        :param
-            svr_pkg: the package received from the server
-        :return:
-            client_pkg: the package to be send to the server
-        """
-        model, backbone = self.unpack(svr_pkg)
-        self.train(model, backbone)
-        cpkg = self.pack(model)
-        return cpkg
-    
-    def unpack(self, received_pkg):
-        """
-        Unpack the package received from the server
-        :param
-            received_pkg: a dict contains the global model as default
-        :return:
-            the unpacked information that can be rewritten
-        """
-        # unpack the received package
-        return received_pkg['model'], received_pkg['backbone']
 
     def pack(self, model):
         """
@@ -197,7 +149,7 @@ class Client(BasicClient):
 
     @ss.with_completeness
     @fmodule.with_multi_gpus
-    def train(self, model, backbone):
+    def train(self, model):
         """
         Standard local training procedure. Train the transmitted model with local training dataset.
         :param
@@ -207,7 +159,6 @@ class Client(BasicClient):
         model.train()
         optimizer = self.calculator.get_optimizer(
             model=model,
-            # backbone=backbone,
             lr=self.learning_rate,
             weight_decay=self.weight_decay,
             momentum=self.momentum
@@ -223,7 +174,6 @@ class Client(BasicClient):
             # import pdb; pdb.set_trace()
             loss = self.calculator.train_one_step(
                 model=model,
-                backbone=backbone,
                 data=batch_data,
                 leads=self.modalities
             )['loss']
@@ -233,7 +183,7 @@ class Client(BasicClient):
         return
 
     @fmodule.with_multi_gpus
-    def test(self, model, backbone, dataflag='train'):
+    def test(self, model, dataflag='train'):
         """
         Evaluate the model with local data (e.g. training data or validating data).
         :param
@@ -248,7 +198,6 @@ class Client(BasicClient):
             dataset = self.valid_data
         return self.calculator.test(
             model=model,
-            backbone=backbone,
             dataset=dataset,
             leads=self.modalities
         )
