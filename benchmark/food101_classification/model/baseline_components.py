@@ -17,13 +17,25 @@ class ViltComponents(FModule):
         token_type_ids = input['token_type_ids']
         pixel_values = input['pixel_values']
         pixel_mask = input['pixel_mask']
+        head_mask = None
         inputs_embeds = None
         image_embeds = None
-        image_token_type_idx = None,
-        output_attentions = None,
-        output_hidden_states  = None,
-        return_dict = None,
+        image_token_type_idx = None
+        output_attentions = None
+        output_hidden_states  = None
+        return_dict = None
 
+
+        # if input_ids is not None and inputs_embeds is not None:
+        #     raise ValueError("You cannot specify both input_ids and inputs_embeds at the same time")
+        # elif input_ids is not None:
+        #     self.warn_if_padding_and_no_attention_mask(input_ids, attention_mask)
+        input_shape = input_ids.size()
+        # elif inputs_embeds is not None:
+        #     input_shape = inputs_embeds.size()[:-1]
+        # else:
+        #     raise ValueError("You have to specify either input_ids or inputs_embeds")
+        
         # text_batch_size, seq_length = input_shape
         # image_batch_size = pixel_values.shape[0] if pixel_values is not None else image_embeds.shape[0]
 
@@ -58,8 +70,8 @@ class ViltComponents(FModule):
             return_dict=return_dict,
         )
         sequence_output = encoder_outputs[0]
-        sequence_output = self.layernorm(sequence_output)
-        pooled_output = self.pooler(sequence_output) if self.pooler is not None else None
+        sequence_output = backbone.layernorm(sequence_output)
+        pooled_output = backbone.pooler(sequence_output) if backbone.pooler is not None else None
 
         if not return_dict:
             return (sequence_output, pooled_output) + encoder_outputs[1:]
@@ -116,6 +128,8 @@ class Model(FModule):
 
         # features = backbone(**missing_batch)
         features = self.backbone_components(missing_batch, backbone)
+        import pdb; pdb.set_trace()
+
         outputs = self.classifier(features.last_hidden_state[:, 0, :])
         
         loss = self.criterion(outputs, labels.type(torch.int64))
