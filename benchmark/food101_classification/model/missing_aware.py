@@ -15,19 +15,23 @@ class TextPrompt(FModule):
         ctx_vectors = torch.empty(num_context_vectors, embed_dim)
         nn.init.normal_(ctx_vectors, std=0.02)
         self.prompt_learner = nn.Parameter(ctx_vectors)
-        self.dim_reduce = nn.Linear(40*2, 40)
+        self.dim_reduce_input_ids = nn.Linear(40*2, 40)
+        self.dim_reduce_att_mask = nn.Linear(40*2, 40)
+
         
-    def forward(self, batch, processor, device):
+    def forward(self, batch, batch_size, processor, device):
         new_batch = batch.copy()
         prompt = self.prompt_learner
         
-        prompt_input_ids = processor(text=prompt, padding="max_length", truncation=True, max_length=40, return_tensors="pt")['input_ids']
+        dummy_image = torch.ones((batch_size,224,224))
+
+        prompt_input_ids = processor(image=dummy_image, text=prompt, padding="max_length", truncation=True, max_length=40, return_tensors="pt")['input_ids']
         input_ids_concat = torch.cat((prompt_input_ids, batch['input_ids']), dim=1)
-        new_batch['input_ids'] = self.dim_reduce(input_ids_concat)
+        new_batch['input_ids'] = self.dim_reduce_input_ids(input_ids_concat)
         
-        prompt_attention_mask = processor(text=prompt, padding="max_length", truncation=True, max_length=40, return_tensors="pt")['attention_mask']
+        prompt_attention_mask = processor(image=dummy_image, text=prompt, padding="max_length", truncation=True, max_length=40, return_tensors="pt")['attention_mask']
         attention_mask_concat = torch.cat((prompt_attention_mask, batch['attention_mask']), dim=1)
-        new_batch['attention_mask'] = self.dim_reduce(attention_mask_concat)
+        new_batch['attention_mask'] = self.dim_reduce_att_mask(attention_mask_concat)
 
         # No image
         new_batch['pixel_values'] = torch.ones(batch['pixel_values'].shape, device=device)
@@ -46,13 +50,15 @@ class ImagePrompt(FModule):
         self.prompt_learner = nn.Parameter(ctx_vectors)
         # self.dim_reduce = nn.Linear(40*2, 40)
         
-    def forward(self, batch, processor):
+    def forward(self, batch, batch_size, processor):
         new_batch = batch.copy()
         prompt = self.prompt_learner
         
+        dummy_image = torch.ones((batch_size,224,224))
+
         # No text -> add prompt as input text
-        new_batch['input_ids'] = processor(text=prompt, padding="max_length", truncation=True, max_length=40, return_tensors="pt")['input_ids']
-        new_batch['attention_mask'] = processor(text=prompt, padding="max_length", truncation=True, max_length=40, return_tensors="pt")['attention_mask']
+        new_batch['input_ids'] = processor(image=dummy_image, text=prompt, padding="max_length", truncation=True, max_length=40, return_tensors="pt")['input_ids']
+        new_batch['attention_mask'] = processor(image=dummy_image, text=prompt, padding="max_length", truncation=True, max_length=40, return_tensors="pt")['attention_mask']
 
         return new_batch
 
@@ -67,15 +73,17 @@ class CompletePrompt(FModule):
         self.prompt_learner = nn.Parameter(ctx_vectors)
         self.dim_reduce = nn.Linear(40*2, 40)
         
-    def forward(self, batch, processor):
+    def forward(self, batch, batch_size, processor):
         new_batch = batch.copy()
         prompt = self.prompt_learner
         
-        prompt_input_ids = processor(text=prompt, padding="max_length", truncation=True, max_length=40, return_tensors="pt")['input_ids']
+        dummy_image = torch.ones((batch_size,224,224))
+
+        prompt_input_ids = processor(image=dummy_image, text=prompt, padding="max_length", truncation=True, max_length=40, return_tensors="pt")['input_ids']
         input_ids_concat = torch.cat((prompt_input_ids, batch['input_ids']), dim=1)
         new_batch['input_ids'] = self.dim_reduce(input_ids_concat)
         
-        prompt_attention_mask = processor(text=prompt, padding="max_length", truncation=True, max_length=40, return_tensors="pt")['attention_mask']
+        prompt_attention_mask = processor(image=dummy_image, text=prompt, padding="max_length", truncation=True, max_length=40, return_tensors="pt")['attention_mask']
         attention_mask_concat = torch.cat((prompt_attention_mask, batch['attention_mask']), dim=1)
         new_batch['attention_mask'] = self.dim_reduce(attention_mask_concat)
 
@@ -116,12 +124,13 @@ class Model(FModule):
         # import pdb; pdb.set_trace()
         missing_batch = dict()
         device = labels.device
+        batch_size = labels.shape[0]
         if leads == [0]:          # image-only
-            missing_batch = self.image_prompt(batch, self.processor)
+            missing_batch = self.image_prompt(batch, batch_size, self.processor)
         elif leads == [1]:        # text-only
-            missing_batch = self.text_prompt(batch, self.processor, device)
+            missing_batch = self.text_prompt(batch, batch_size, self.processor, device)
         else: 
-            missing_batch = self.complete_prompt(batch, self.processor)
+            missing_batch = self.complete_prompt(batch, batch_size, self.processor)
 
         features = backbone(**missing_batch)
         outputs = self.classifier(features.last_hidden_state[:, 0, :])
