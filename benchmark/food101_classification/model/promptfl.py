@@ -4,6 +4,8 @@ from torch import nn
 import torch.nn.functional as F
 from transformers import ViltModel, ViltProcessor, BertTokenizerFast
 import numpy as np
+from benchmark.food101classification.util.clip import clip
+from clip.simple_tokenizer import SimpleTokenizer
 from utils.fmodule import FModule
 
 
@@ -33,12 +35,18 @@ class PromptLearner(FModule):
 
 
         classnames = ["apple_pie", "baby_back_ribs" , "baklava"]
-        _tokenizer = BertTokenizerFast.from_pretrained("bert-base-uncased")
-        classnames = [name.replace("_", " ") for name in classnames]
-        name_lens = [len(_tokenizer.encode(name)) for name in classnames]
-        prompts = [prompt_prefix + " " + name + "." for name in classnames]
+        _tokenizer = SimpleTokenizer()
+        # tokenizer = BertTokenizerFast.from_pretrained("bert-base-uncased")
 
-        tokenized_prompts = torch.cat([_tokenizer.tokenize(p) for p in prompts])
+        classnames = [name.replace("_", " ") for name in classnames]
+        # name_lens = [len(_tokenizer.encode(name)) for name in classnames]
+        prompts = [prompt_prefix + " " + name + "." for name in classnames]
+        # import pdb; pdb.set_trace()
+        for p in prompts:
+            print(p)
+        import pdb; pdb.set_trace()
+        # tokenized_prompts = torch.cat([tokenizer.tokenize(p, return_tensors="pt") for p in prompts])
+        tokenized_prompts = torch.cat([clip.tokenizer.tokenize(p, return_tensors="pt") for p in prompts])
         
         # with torch.no_grad():
         #     embedding = clip_model.token_embedding(tokenized_prompts).type(dtype)
@@ -51,7 +59,7 @@ class PromptLearner(FModule):
 
         self.num_classes = num_classes
         self.tokenized_prompts = tokenized_prompts  # torch.Tensor
-        self.name_lens = name_lens
+        # self.name_lens = name_lens
 
     def forward(self, x):
         # input x: (batch, 40)
