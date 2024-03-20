@@ -17,9 +17,8 @@ class TextPrompt(FModule):
         self.prompt_learner = nn.Parameter(ctx_vectors)
         self.dim_reduce = nn.Linear(40*2, 40)
         
-    def forward(self, batch, processor):
+    def forward(self, batch, processor, device):
         new_batch = batch.copy()
-        device = batch.device
         prompt = self.prompt_learner
         
         prompt_input_ids = processor(prompt)['input_ids']
@@ -47,7 +46,7 @@ class ImagePrompt(FModule):
         self.prompt_learner = nn.Parameter(ctx_vectors)
         # self.dim_reduce = nn.Linear(40*2, 40)
         
-    def forward(self, batch, processor):
+    def forward(self, batch, processor, device):
         new_batch = batch.copy()
         prompt = self.prompt_learner
         
@@ -68,9 +67,8 @@ class CompletePrompt(FModule):
         self.prompt_learner = nn.Parameter(ctx_vectors)
         self.dim_reduce = nn.Linear(40*2, 40)
         
-    def forward(self, batch, processor):
+    def forward(self, batch, processor, device):
         new_batch = batch.copy()
-        device = batch.device
         prompt = self.prompt_learner
         
         prompt_input_ids = processor(prompt)['input_ids']
@@ -103,34 +101,29 @@ class Model(FModule):
         self.hidden_size = 768
         self.processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
         # self.backbone = ViltModel.from_pretrained("dandelin/vilt-b32-mlm")
-        for param in self.processor.parameters():
-            param.requires_grad = False
+        # for param in self.processor.parameters():
+        #     param.requires_grad = False
         self.text_prompt = TextPrompt()
+        self.image_prompt = ImagePrompt()
+        self.complete_prompt = CompletePrompt()
+        
         self.classifier = Classifier()
         self.criterion = nn.CrossEntropyLoss()
         
     def forward(self, backbone, batch, labels, leads):
         # import pdb; pdb.set_trace()
         missing_batch = dict()
-        batch_size = labels.shape[0]
         device = labels.device
-        # for k,v in batch.items():
-        #     if leads == [0] and k == 'input_ids':
-        #         v = torch.tensor([101, 102, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], device=device).repeat(batch_size, 1)
-        #     if leads == [0] and k == 'attention_mask':
-        #         v = torch.tensor([1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], device=device).repeat(batch_size, 1)
-        #     if leads == [1] and k == 'pixel_values':
-        #         # import pdb; pdb.set_trace()
-        #         v = torch.ones(v.shape, device=device)
-        #     missing_batch[k] = v
-            # import pdb; pdb.set_trace()
-        if leads == [1]:        # text-only
-            missing_batch = self.text_prompt(batch, self.processor)
-        else:
-            missing_batch = batch
+        if leads == [0]:          # image-only
+            missing_batch = self.image_prompt(batch, self.processor, device)
+        elif leads == [1]:        # text-only
+            missing_batch = self.text_prompt(batch, self.processor, device)
+        else: 
+            missing_batch = self.complete_prompt(batch, self.processor, device)
+
         features = backbone(**missing_batch)
         outputs = self.classifier(features.last_hidden_state[:, 0, :])
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         loss = self.criterion(outputs, labels.type(torch.int64))
 
         return loss, outputs

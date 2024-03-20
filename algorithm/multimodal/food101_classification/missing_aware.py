@@ -84,11 +84,21 @@ class Server(BasicServer):
                     chosen_models.append(models[k])
             if len(p) == 0:
                 continue
-            # new_model.feature_extractors[m] = fmodule._model_sum([
-            #     model.feature_extractors[m] * pk for model, pk in zip(models, p)
-            # ]) / sum(p)
-        # classifier
+
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
+        
+        # prompt
+        new_model.image_prompt = fmodule._model_sum([
+            model.image_prompt * pk for model, pk in zip(models, p)
+        ]) / sum(p)
+        new_model.text_prompt = fmodule._model_sum([
+            model.text_prompt * pk for model, pk in zip(models, p)
+        ]) / sum(p)
+        new_model.complete_prompt = fmodule._model_sum([
+            model.complete_prompt * pk for model, pk in zip(models, p)
+        ]) / sum(p)
+        
+        # classifier
         new_model.classifier = fmodule._model_sum([
             model.classifier * pk for model, pk in zip(models, p)
         ]) / sum(p)
