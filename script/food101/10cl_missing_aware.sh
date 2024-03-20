@@ -1,6 +1,6 @@
 python main.py \
     --task food101_classification_cnum10_dist0_skew0_seed0_missing_each_0.2 \
-    --model baseline \
+    --model missing_aware \
     --algorithm multimodal.food101_classification.baseline \
     --sample full \
     --aggregate other \

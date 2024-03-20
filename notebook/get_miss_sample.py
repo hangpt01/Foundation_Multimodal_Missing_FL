@@ -16,12 +16,12 @@ vilt_processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
 text = "Crock-Pot Ladies  Crock-Pot Apple Pie Moonshine"
 image_path = "benchmark/RAW_DATA/FOOD101/images/train/beef_carpaccio/beef_carpaccio_0.jpg"  # Provide the path to your image
 image = Image.open(image_path)
-print('---------------------------------------------')
-print('Original image',transform(image))
-# Preprocess text and image
-features = vilt_processor(image, text, padding="max_length", truncation=True, max_length=40, return_tensors="pt")
-print('---------------------------------------------')
-print('Full modal',features)
+# print('---------------------------------------------')
+# print('Original image',transform(image))
+# # Preprocess text and image
+# features = vilt_processor(image, text, padding="max_length", truncation=True, max_length=40, return_tensors="pt")
+# print('---------------------------------------------')
+# print('Full modal',features)
 #   input_ids           [101,x,y,,,,.,z,102,0,0,...,0]
 #   token_type_ids      Full 0
 #   attention_mask      [1,1,1,1,1,1,1,1,1,1,0,0,...,0]
@@ -52,6 +52,22 @@ print('Text only',no_img)
 #   attention_mask        Same
 #   pixel_values          Set to all 1
 #   pixel_mask            Same
+
+text2 = text + "this is class pie"
+no_img_2 = vilt_processor(torch.ones(transform(image).shape), text2, padding="max_length", truncation=True, max_length=40, return_tensors="pt")
+print('---------------------------------------------')
+print('Text only 2',no_img_2)
+'''
+=>  Append prompt: change only input_ids & attention_mask
+    input ids: add the additional part to 
+e.g: [  101, 13675,  7432,  1011,  8962,  6456, 13675,  7432,  1011,  8962,
+          6207, 11345, 23377, 14014,                                      102,...]
+to [  101, 13675,  7432,  1011,  8962,  6456, 13675,  7432,  1011,  8962,
+          6207, 11345, 23377, 14014, 15222,  2015,  2003,  2465, 11345,   102,...]
+and: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,                  ...]
+to:  [[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1   ...]
+
+'''
 
 import pdb; pdb.set_trace()
 
