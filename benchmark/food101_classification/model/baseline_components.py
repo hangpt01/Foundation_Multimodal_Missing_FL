@@ -23,7 +23,7 @@ class ViltComponents(FModule):
         image_token_type_idx = None
         output_attentions = None
         output_hidden_states  = None
-        return_dict = None
+        return_dict = True
 
 
         # if input_ids is not None and inputs_embeds is not None:
@@ -75,7 +75,7 @@ class ViltComponents(FModule):
 
         if not return_dict:
             return (sequence_output, pooled_output) + encoder_outputs[1:]
-
+        # import pdb; pdb.set_trace()
         return BaseModelOutputWithPooling(
             last_hidden_state=sequence_output,
             pooler_output=pooled_output,
@@ -128,7 +128,7 @@ class Model(FModule):
 
         # features = backbone(**missing_batch)
         features = self.backbone_components(missing_batch, backbone)
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
 
         outputs = self.classifier(features.last_hidden_state[:, 0, :])
         

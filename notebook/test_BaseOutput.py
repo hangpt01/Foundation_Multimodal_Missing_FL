@@ -25,7 +25,7 @@ output = BaseModelOutputWithPooling(
     hidden_states=hidden_states_list,
     attentions=attentions_list
 )
-
+import pdb; pdb.set_trace()
 # Access attributes
 last_hidden_state = output.last_hidden_state
 pooler_output = output.pooler_output
