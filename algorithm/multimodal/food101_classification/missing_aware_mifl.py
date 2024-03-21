@@ -71,28 +71,152 @@ class Server(BasicServer):
         self.model = self.aggregate(models, modalities_list)
         return
 
+
     @torch.no_grad()
     def aggregate(self, models: list, modalities_list: list):
-        new_model = copy.deepcopy(self.model)
-        # feature extractor
-        for m in range(self.n_leads):
-            p = list()
-            chosen_models = list()
-            for k, client_id in enumerate(self.selected_clients):
-                if m in modalities_list[k]:
-                    p.append(self.clients[client_id].datavol)
-                    chosen_models.append(models[k])
-            if len(p) == 0:
-                continue
-            # new_model.feature_extractors[m] = fmodule._model_sum([
-            #     model.feature_extractors[m] * pk for model, pk in zip(models, p)
-            # ]) / sum(p)
+        print("Calculating clients' aggregated models ...")
+        n_models = len(models)
+        for k in range(n_models):
+            self.clients[self.selected_clients[k]].agg_model = copy.deepcopy(self.model)
+        d_q = torch.zeros(size=(n_models, n_models))
+        for k in range(n_models):
+            for l in range(n_models):
+                d_q[k, l] = 1 + len(set(modalities_list[k]).intersection(set(modalities_list[l])))
+        # modal_dict = dict()
+        A = torch.zeros(size=(self.n_leads+2, n_models, n_models))
+        # A = torch.zeros(size=(self.n_leads + 1, n_models, n_models))
+
+        params = torch.stack([
+            torch.cat([
+                mi.data.view(-1) for mi in \
+                self.clients[self.selected_clients[k]].local_model.image_prompt.parameters()
+            ]) for k in range(n_models)
+        ])
+        dim = params.shape[1]
+        att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
+        for k in range(n_models):
+            for l in range(n_models):
+                A[0, k, l] = att_mat[k, l]
+        
+        params = torch.stack([
+            torch.cat([
+                mi.data.view(-1) for mi in \
+                self.clients[self.selected_clients[k]].local_model.text_prompt.parameters()
+            ]) for k in range(n_models)
+        ])
+        dim = params.shape[1]
+        att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
+        for k in range(n_models):
+            for l in range(n_models):
+                A[1, k, l] = att_mat[k, l]
+
+                params = torch.stack([
+            torch.cat([
+                mi.data.view(-1) for mi in \
+                self.clients[self.selected_clients[k]].local_model.complete_prompt.parameters()
+            ]) for k in range(n_models)
+        ])
+        dim = params.shape[1]
+        att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
+        for k in range(n_models):
+            for l in range(n_models):
+                A[2, k, l] = att_mat[k, l]
+        
         # classifier
-        p = [self.clients[client_id].datavol for client_id in self.selected_clients]
-        new_model.classifier = fmodule._model_sum([
-            model.classifier * pk for model, pk in zip(models, p)
-        ]) / sum(p)
+        params = torch.stack([
+            torch.cat([
+                mi.data.view(-1) for mi in \
+                self.clients[self.selected_clients[k]].local_model.classifier.parameters()
+            ]) for k in range(n_models)
+        ])
+        dim = params.shape[1]
+        att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
+        for k in range(n_models):
+            for l in range(n_models):
+                A[-1, k, l] = att_mat[k, l]
+
+        # Assign local models       
+        for k in range(n_models):
+            self.clients[self.selected_clients[k]].local_model.image_prompt = fmodule._model_sum([
+                self.clients[self.selected_clients[l]].local_model.image_prompt * \
+                A[0, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in range(n_models)
+            ]) / sum([
+                A[0, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in range(n_models)
+            ])
+            self.clients[self.selected_clients[k]].local_model.text_prompt = fmodule._model_sum([
+                self.clients[self.selected_clients[l]].local_model.text_prompt * \
+                A[1, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in range(n_models)
+            ]) / sum([
+                A[1, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in range(n_models)
+            ])
+            self.clients[self.selected_clients[k]].local_model.complete_prompt = fmodule._model_sum([
+                self.clients[self.selected_clients[l]].local_model.complete_prompt * \
+                A[2, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in range(n_models)
+            ]) / sum([
+                A[2, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in range(n_models)
+            ])
+
+            self.clients[self.selected_clients[k]].local_model.classifier = fmodule._model_sum([
+                self.clients[self.selected_clients[l]].local_model.classifier * \
+                A[-1, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in range(n_models)
+            ]) / sum([
+                A[-1, k, l] * A[:, k, l].abs().sum() / d_q[k, l] for l in range(n_models)
+            ])
+        
+        new_model = copy.deepcopy(self.model)
+        union_testing_leads = self.list_testing_leads[0]
+        for i in range(1,len(self.list_testing_leads)):
+            union_testing_leads = list(set(union_testing_leads) | set(self.list_testing_leads[i]))
+        
+        # set new model
+        new_model.image_prompt = fmodule._model_average([
+            self.clients[self.selected_clients[l]].local_model.image_prompt for l in range(n_models)
+        ])
+        new_model.text_prompt = fmodule._model_average([
+            self.clients[self.selected_clients[l]].local_model.text_prompt for l in range(n_models)
+        ])
+        new_model.complete_prompt = fmodule._model_average([
+            self.clients[self.selected_clients[l]].local_model.complete_prompt for l in range(n_models)
+        ])
+
+        new_model.classifier = fmodule._model_average([
+            self.clients[self.selected_clients[l]].local_model.classifier for l in range(n_models)
+        ])
         return new_model
+
+
+    @torch.no_grad()
+    # def aggregate(self, models: list, modalities_list: list):
+    #     new_model = copy.deepcopy(self.model)
+    #     # feature extractor
+    #     for m in range(self.n_leads):
+    #         p = list()
+    #         chosen_models = list()
+    #         for k, client_id in enumerate(self.selected_clients):
+    #             if m in modalities_list[k]:
+    #                 p.append(self.clients[client_id].datavol)
+    #                 chosen_models.append(models[k])
+    #         if len(p) == 0:
+    #             continue
+
+    #     p = [self.clients[client_id].datavol for client_id in self.selected_clients]
+        
+    #     # prompt
+    #     new_model.image_prompt = fmodule._model_sum([
+    #         model.image_prompt * pk for model, pk in zip(models, p)
+    #     ]) / sum(p)
+    #     new_model.text_prompt = fmodule._model_sum([
+    #         model.text_prompt * pk for model, pk in zip(models, p)
+    #     ]) / sum(p)
+    #     new_model.complete_prompt = fmodule._model_sum([
+    #         model.complete_prompt * pk for model, pk in zip(models, p)
+    #     ]) / sum(p)
+        
+    #     # classifier
+    #     new_model.classifier = fmodule._model_sum([
+    #         model.classifier * pk for model, pk in zip(models, p)
+    #     ]) / sum(p)
+    #     return new_model
     
     def pack(self, client_id):
         """
@@ -150,7 +274,10 @@ class Client(BasicClient):
     def __init__(self, option, modalities, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
+        self.fedmsplit_prox_lambda = option['fedmsplit_prox_lambda']
         self.modalities = modalities
+        self.local_model = None
+        self.agg_model = None
 
     def reply(self, svr_pkg):
         """
@@ -165,9 +292,17 @@ class Client(BasicClient):
         :return:
             client_pkg: the package to be send to the server
         """
+        # model, backbone = self.unpack(svr_pkg)
+        # self.train(model, backbone)
+        # cpkg = self.pack(model)
+
         model, backbone = self.unpack(svr_pkg)
-        self.train(model, backbone)
-        cpkg = self.pack(model)
+        if self.local_model is None:
+            self.local_model = copy.deepcopy(model)
+        if self.agg_model is None:
+            self.agg_model = copy.deepcopy(model)
+        self.train(self.local_model, backbone)
+        cpkg = self.pack(self.local_model)
         return cpkg
     
     def unpack(self, received_pkg):
@@ -204,9 +339,12 @@ class Client(BasicClient):
             model: the global model
         :return
         """
+        for parameter in self.agg_model.parameters():
+            parameter.requires_grad = False
         model.train()
         optimizer = self.calculator.get_optimizer(
             model=model,
+            # backbone=backbone,
             lr=self.learning_rate,
             weight_decay=self.weight_decay,
             momentum=self.momentum
@@ -227,6 +365,17 @@ class Client(BasicClient):
                 leads=self.modalities
             )['loss']
             # print(datetime.now(),iter, loss)
+            regular_loss = 0.0
+            if self.fedmsplit_prox_lambda > 0.0:
+                for parameter, agg_parameter in zip(model.image_prompt.parameters(), self.agg_model.image_prompt.parameters()):
+                    regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
+                for parameter, agg_parameter in zip(model.text_prompt.parameters(), self.agg_model.text_prompt.parameters()):
+                    regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
+                for parameter, agg_parameter in zip(model.complete_prompt.parameters(), self.agg_model.complete_prompt.parameters()):
+                    regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
+                for parameter, agg_parameter in zip(model.classifier.parameters(), self.agg_model.classifier.parameters()):
+                    regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
+                loss += self.fedmsplit_prox_lambda * regular_loss
             loss.backward()
             optimizer.step()
         return
