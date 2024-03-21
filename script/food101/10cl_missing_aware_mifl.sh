@@ -1,6 +1,6 @@
 python main.py \
     --task food101_classification_cnum10_dist0_skew0_seed0_missing_each_0.2 \
-    --model missing_aware_comp \
+    --model missing_aware_mifl \
     --algorithm multimodal.food101_classification.missing_aware_mifl \
     --sample full \
     --aggregate other \
@@ -15,6 +15,5 @@ python main.py \
     --learning_rate_decay 1.0 \
     --batch_size 40 \
     --test_batch_size 40 \
-    --gpu 1 
-    # \
-    # --wandb
+    --gpu 1 \
+    --wandb
