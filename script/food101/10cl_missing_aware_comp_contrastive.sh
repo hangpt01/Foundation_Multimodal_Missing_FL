@@ -1,6 +1,6 @@
 python main.py \
     --task food101_classification_cnum10_dist0_skew0_seed0_missing_each_0.2 \
-    --model missing_aware_comp \
+    --model missing_aware_comp_contrastive \
     --algorithm multimodal.food101_classification.missing_aware_comp \
     --sample full \
     --aggregate other \
