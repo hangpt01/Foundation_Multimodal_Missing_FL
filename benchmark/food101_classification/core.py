@@ -174,7 +174,7 @@ def iid_partition(generator):
     
 
 class TaskGen(DefaultTaskGen):
-    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False):
+    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False, num_classes=10):
         super(TaskGen, self).__init__(benchmark='food101_classification',
                                       dist_id=dist_id, 
                                       num_clients=num_clients,
@@ -185,9 +185,10 @@ class TaskGen(DefaultTaskGen):
         if self.dist_id==0:
             self.partition = iid_partition
         
-        self.num_classes=101
+        self.num_classes=num_classes
         self.save_task=save_task
         self.visualize=self.visualize_by_class
+        self.rawdata_path = os.path.join(self.rawdata_path, self.num_classes+'_classes')
         self.source_dict = {
             'class_path': 'benchmark.food101_classification.dataset',
             'class_name': 'Food101Dataset',
@@ -209,16 +210,17 @@ class TaskGen(DefaultTaskGen):
         
         if self.missing and self.num_clients==20:
             self.specific_training_leads = [[0, 1]]*10 + [[0]]*5 + [[1]]*5 
-            self.taskname = self.taskname + '_missing'
-            self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+            self.taskname = self.taskname + '_missing_each_0.25'
         if self.missing and self.num_clients==10:
             self.specific_training_leads = [[0, 1]]*6 + [[0]]*2 + [[1]]*2 
-            self.taskname = self.taskname + '_missing_each_0.2'
-            self.taskpath = os.path.join(self.task_rootpath, self.taskname)    
+            self.taskname = self.taskname + '_missing_each_0.2'  
         if self.missing and self.num_clients==1:
             self.specific_training_leads = [[0,1]]
             self.taskname = self.taskname + '_centralized_no_missing'
-            self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        
+        self.taskname = self.taskname + str(self.num_classes) + '_classes'    
+        
+        self.taskpath = os.path.join(self.task_rootpath, self.taskname)
         # if self.missing and self.num_clients==20:
         #     self.specific_training_leads = [[0, 1]]*10, [[0]]*5 + [[1]]*5 
         #     self.taskname = self.taskname + '_clip_local_missing'
