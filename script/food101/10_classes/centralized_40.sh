@@ -4,14 +4,14 @@ python main.py \
     --algorithm multimodal.food101_classification.baseline \
     --sample full \
     --aggregate other \
-    --num_rounds 300 \
+    --num_rounds 500 \
     --early_stop 30  \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0.01 \
     --learning_rate 0.01 \
-    --num_epochs 1 \
+    --num_epochs 3 \
     --learning_rate_decay 1.0 \
     --batch_size 40 \
     --test_batch_size 40 \
