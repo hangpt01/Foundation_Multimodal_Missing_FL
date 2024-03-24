@@ -164,5 +164,5 @@ for mode in ["train", "test"]:
     if not os.path.exists(folder_path):
         os.makedirs(folder_path)
     torch.save(input_dict, os.path.join(folder_path,f'{mode}_inputs.pt'))
-    torch.save(input_dict, os.path.join(folder_path,f'{mode}_labels.pt'))
+    torch.save(label_dict, os.path.join(folder_path,f'{mode}_labels.pt'))
     print("Saved", mode)

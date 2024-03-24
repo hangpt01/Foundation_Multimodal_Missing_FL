@@ -1,3 +1,5 @@
+python notebook/preprocess_food101_10_classes.py
+
 python generate_fedtask.py \
     --benchmark food101_classification \
     --dist 0 \
