@@ -188,7 +188,7 @@ class TaskGen(DefaultTaskGen):
         self.num_classes=num_classes
         self.save_task=save_task
         self.visualize=self.visualize_by_class
-        self.rawdata_path = os.path.join(self.rawdata_path, self.num_classes+'_classes')
+        self.rawdata_path = os.path.join(self.rawdata_path, str(self.num_classes)+'_classes')
         self.source_dict = {
             'class_path': 'benchmark.food101_classification.dataset',
             'class_name': 'Food101Dataset',
@@ -218,7 +218,7 @@ class TaskGen(DefaultTaskGen):
             self.specific_training_leads = [[0,1]]
             self.taskname = self.taskname + '_centralized_no_missing'
         
-        self.taskname = self.taskname + str(self.num_classes) + '_classes'    
+        self.taskname = self.taskname + '_' + str(self.num_classes) + '_classes'    
         
         self.taskpath = os.path.join(self.task_rootpath, self.taskname)
         # if self.missing and self.num_clients==20:
