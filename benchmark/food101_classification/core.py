@@ -188,6 +188,7 @@ class TaskGen(DefaultTaskGen):
         self.num_classes=num_classes
         self.save_task=save_task
         self.visualize=self.visualize_by_class
+        # import pdb; pdb.set_trace()
         self.rawdata_path = os.path.join(self.rawdata_path, str(self.num_classes)+'_classes')
         self.source_dict = {
             'class_path': 'benchmark.food101_classification.dataset',

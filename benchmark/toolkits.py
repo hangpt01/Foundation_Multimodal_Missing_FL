@@ -31,6 +31,7 @@ import importlib
 import collections
 from torchvision import datasets, transforms
 import utils.fmodule
+from datetime import datetime
 
 # ========================================Task Generator============================================
 # This part is for generating federated dataset from original dataset. The generation process should be
@@ -494,9 +495,9 @@ class DefaultTaskGen(BasicTaskGen):
             # print(row_map)
             for cid, cidxs in enumerate(train_cidxs):       # list of all clients' sample indices
                 # import pdb; pdb.set_trace() 
-                # print(cid)
+                print(datetime.now(), cid)
                 # labels = [int(self.train_data[did][-1]) for did in cidxs]       # ucihar
-                labels = [int(self.train_data[did][-1]) for did in cidxs]       # ptbxl
+                labels = [int(self.train_data[did]['label']) for did in cidxs]       # ptbxl
                 
                 lb_counter = collections.Counter(labels)
                 offset = 0
@@ -512,12 +513,12 @@ class DefaultTaskGen(BasicTaskGen):
                         plt.fill_between([offset,offset+lb_counter[lbi]], y_bottom, y_top, facecolor = colors[lbi])
                     
                     offset += lb_counter[lbi]
-        # import pdb; pdb.set_trace()
+        import pdb; pdb.set_trace()
         plt.xlim(0,max(data_columns))
         plt.ylim(-0.5,len(train_cidxs)-0.5)
         plt.ylabel('Client ID')
         plt.xlabel('Number of Samples')
-        # import pdb; pdb.set_trace()
+        import pdb; pdb.set_trace()
         plt.title(self.get_taskname())
         plt.legend(loc='lower right')
         plt.savefig(os.path.join(self.taskpath,'data_dist.jpg'))
