@@ -7,6 +7,7 @@ import random
 from PIL import Image
 import pandas as pd
 from transformers import ViltProcessor
+from datetime import datetime
 
 class Food101Dataset(Dataset):
     def __init__(self, root, download=False, train=True, subset=False):
@@ -70,14 +71,26 @@ def collate(batch):
 
         
 if __name__=='__main__':
-    my_dataset = Food101Dataset(root='./benchmark/RAW_DATA/FOOD101', train=True)
+    print(datetime.now(), "Start creating Datasets")
+    train_dataset = Food101Dataset(root='./benchmark/RAW_DATA/FOOD101/10_classes', train=True)      # len: 61127 - batch1; 1529 0 batch 40
+    test_dataset = Food101Dataset(root='./benchmark/RAW_DATA/FOOD101/10_classes', train=False)
     
-    data_loader = DataLoader(my_dataset, batch_size=4, shuffle=True, collate_fn=collate) # len: 61127 - batch1; 1529 0 batch 40
-    batch, labels = next(iter(data_loader))
+    print(datetime.now(), "Done creating dataset, creating Dataloaders")
+    import pdb; pdb.set_trace()
+    train_dataloader = DataLoader(train_dataset, batch_size=4, shuffle=True, collate_fn=collate)
+    test_dataloader = DataLoader(test_dataset, batch_size=4, shuffle=True, collate_fn=collate)
+    
+    batch, labels = next(iter(train_dataloader))
     print(labels.shape)
     for k,v in batch.items():
-        print(k, v.shape)
-                                                                                                    # test:22716                    
+        print(datetime.now(), "Train sample", k, v.shape)
+        
+    batch, labels = next(iter(test_dataloader))
+    print(labels.shape)
+    for k,v in batch.items():
+        print(datetime.now(), "Test sample", k, v.shape)
+        
+    import pdb; pdb.set_trace()                                                                  # test:22716                    
 # Iterate over the dataset and print a sample
     # for batch in data_loader:
     #     # sample = batch[0]  # Assuming batch size is 1
