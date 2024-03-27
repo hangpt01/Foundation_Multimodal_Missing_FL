@@ -432,7 +432,9 @@ class PatchEmbed(nn.Module):
 
     def forward(self, x):
         B, C, H, W = x.shape
+        # import pdb; pdb.set_trace()
         # FIXME look at relaxing size constraints
+        # self.proj = self.proj.to(x.device)
         x = self.proj(x)
         return x
 

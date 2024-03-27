@@ -30,13 +30,65 @@ class TaskPipe(IDXTaskPipe):
         class_name = feddata['datasrc']['class_name']
         
         origin_class = getattr(importlib.import_module(class_path), class_name)
-        origin_train_data = cls.args_to_dataset(origin_class, feddata['datasrc']['train_args'])
-        origin_test_data = cls.args_to_dataset(origin_class, feddata['datasrc']['test_args'])
+        # import pdb; pdb.set_trace()
+        data_dir = "./benchmark/RAW_DATA/FOOD101/generate_arrows"
+        transform_keys = ['pixelbert']
+        split="train"
+        image_size = 384
+        max_text_len = 40
+        draw_false_image = 0
+        draw_false_text = 0
+        image_only = False
+        _config = {
+            'missing_ratio':
+                {'test': 0.7,
+                'train': 0.7},
+            'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables/',
+            'missing_type':
+                {'test': 'both',
+                'train': 'both'},
+            'both_ratio': 0.5,
+            'simulate_missing': False
+        }
+        missing_info = {
+                'ratio' : _config["missing_ratio"],
+                'type' : _config["missing_type"],
+                'both_ratio' : _config["both_ratio"],
+                'missing_table_root': _config["missing_table_root"],
+                'simulate_missing' : _config["simulate_missing"]
+            }        
+        
+        # origin_train_data = cls.args_to_dataset(origin_class, feddata['datasrc']['train_args'])
+        # origin_test_data = cls.args_to_dataset(origin_class, feddata['datasrc']['test_args'])
+        # import pdb; pdb.set_trace()
+        collator = DataCollatorForLanguageModeling
+
+        origin_train_data = FOOD101Dataset(data_dir, transform_keys, split='train', 
+                                image_size=image_size,
+                                max_text_len=max_text_len,
+                                draw_false_image=draw_false_image,
+                                draw_false_text=draw_false_text,
+                                image_only=image_only,
+                                missing_info=missing_info)
+        origin_train_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        # origin_train_data.mlm_collator = collator(tokenizer=origin_train_data.tokenizer, mlm=True, mlm_probability=0.15)
+        # origin_train_data.collate = functools.partial(origin_train_data.collate, mlm_collator=origin_train_data.mlm_collator)
+
+        origin_test_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+                                image_size=image_size,
+                                max_text_len=max_text_len,
+                                draw_false_image=draw_false_image,
+                                draw_false_text=draw_false_text,
+                                image_only=image_only,
+                                missing_info=missing_info)
+        origin_test_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        # origin_test_data.mlm_collator = collator(tokenizer=origin_test_data.tokenizer, mlm=True, mlm_probability=0.15)
+        # origin_test_data.collate = functools.partial(origin_test_data.collate, mlm_collator=origin_test_data.mlm_collator)
         # import pdb; pdb.set_trace()
         test_data = cls.TaskDataset(origin_test_data, [_ for _ in range(len(origin_test_data))])
         train_datas = []
         valid_datas = []
-        modalities_list = []
+        # modalities_list = []
         for name in feddata['client_names']:
             train_data = feddata[name]['dtrain']    # sample idx
             valid_data = feddata[name]['dvalid']
@@ -51,41 +103,122 @@ class TaskPipe(IDXTaskPipe):
                 train_data.extend(valid_data)
             train_datas.append(cls.TaskDataset(origin_train_data, train_data))
             valid_datas.append(cls.TaskDataset(origin_train_data, valid_data))
-            modalities_list.append(feddata[name]['modalities'])
+            # modalities_list.append(feddata[name]['modalities'])
             # modalities_list.append(list(range(12)))
-        return train_datas, valid_datas, test_data, feddata['client_names'], modalities_list
+        return train_datas, valid_datas, test_data, feddata['client_names']
 
-def collate(batch):
-    # import pdb; pdb.set_trace()
-    batch_ = batch
-    batch = []
-    labels = []
-    for input, label in batch_:
-        batch.append(input)
-        labels.append(label)
-    input_ids = [item['input_ids'] for item in batch]
-    pixel_values = [item['pixel_values'][0] for item in batch]
-    attention_mask = [item['attention_mask'] for item in batch]
-    token_type_ids = [item['token_type_ids'] for item in batch]
-    # import pdb; pdb.set_trace()
-    # labels = [item['labels'].item() for item in batch]
+def collate(batch, mlm_collator):
+    batch_size = len(batch)
+    keys = set([key for b in batch for key in b.keys()])
+    dict_batch = {k: [dic[k] if k in dic else None for dic in batch] for k in keys}
 
-    processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
-    # create padded pixel values and corresponding pixel mask
-    encoding = processor.image_processor.pad(pixel_values, return_tensors="pt")
+    img_keys = [k for k in list(dict_batch.keys()) if "image" in k]
+    img_sizes = list()
 
-    # create new batch
+    for img_key in img_keys:
+        img = dict_batch[img_key]
+        img_sizes += [ii.shape for i in img if i is not None for ii in i]
+
+    for size in img_sizes:
+        assert (
+            len(size) == 3
+        ), f"Collate error, an image should be in shape of (3, H, W), instead of given {size}"
+
+    if len(img_keys) != 0:
+        max_height = max([i[1] for i in img_sizes])
+        max_width = max([i[2] for i in img_sizes])
+
+    for img_key in img_keys:
+        img = dict_batch[img_key]
+        view_size = len(img[0])
+
+        new_images = [
+            torch.zeros(batch_size, 3, max_height, max_width)
+            for _ in range(view_size)
+        ]
+
+        for bi in range(batch_size):
+            orig_batch = img[bi]
+            for vi in range(view_size):
+                if orig_batch is None:
+                    new_images[vi][bi] = None
+                else:
+                    orig = img[bi][vi]
+                    new_images[vi][bi, :, : orig.shape[1], : orig.shape[2]] = orig
+
+        dict_batch[img_key] = new_images
+
+    txt_keys = [k for k in list(dict_batch.keys()) if "text" in k]
+
+    if len(txt_keys) != 0:
+        texts = [[d[0] for d in dict_batch[txt_key]] for txt_key in txt_keys]
+        encodings = [[d[1] for d in dict_batch[txt_key]] for txt_key in txt_keys]
+        draw_text_len = len(encodings)
+        flatten_encodings = [e for encoding in encodings for e in encoding]
+        flatten_mlms = mlm_collator(flatten_encodings)
+
+        for i, txt_key in enumerate(txt_keys):
+            texts, encodings = (
+                [d[0] for d in dict_batch[txt_key]],
+                [d[1] for d in dict_batch[txt_key]],
+            )
+
+            mlm_ids, mlm_labels = (
+                flatten_mlms["input_ids"][batch_size * (i) : batch_size * (i + 1)],
+                flatten_mlms["labels"][batch_size * (i) : batch_size * (i + 1)],
+            )
+
+            input_ids = torch.zeros_like(mlm_ids)
+            attention_mask = torch.zeros_like(mlm_ids)
+            for _i, encoding in enumerate(encodings):
+                _input_ids, _attention_mask = (
+                    torch.tensor(encoding["input_ids"]),
+                    torch.tensor(encoding["attention_mask"]),
+                )
+                input_ids[_i, : len(_input_ids)] = _input_ids
+                attention_mask[_i, : len(_attention_mask)] = _attention_mask
+
+            dict_batch[txt_key] = texts
+            dict_batch[f"{txt_key}_ids"] = input_ids
+            dict_batch[f"{txt_key}_labels"] = torch.full_like(input_ids, -100)
+            dict_batch[f"{txt_key}_ids_mlm"] = mlm_ids
+            dict_batch[f"{txt_key}_labels_mlm"] = mlm_labels
+            dict_batch[f"{txt_key}_masks"] = attention_mask
+            # import pdb; pdb.set_trace()
+            
+    return dict_batch
+
+# def collate(batch):
+#     # import pdb; pdb.set_trace()
+#     batch_ = batch
+#     batch = []
+#     labels = []
+#     for input, label in batch_:
+#         batch.append(input)
+#         labels.append(label)
+#     input_ids = [item['input_ids'] for item in batch]
+#     pixel_values = [item['pixel_values'][0] for item in batch]
+#     attention_mask = [item['attention_mask'] for item in batch]
+#     token_type_ids = [item['token_type_ids'] for item in batch]
+#     # import pdb; pdb.set_trace()
+#     # labels = [item['labels'].item() for item in batch]
+
+#     processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
+#     # create padded pixel values and corresponding pixel mask
+#     encoding = processor.image_processor.pad(pixel_values, return_tensors="pt")
+
+#     # create new batch
     
-    # import pdb; pdb.set_trace()
-    batch = {}
-    batch['input_ids'] = torch.cat(input_ids)
-    batch['attention_mask'] = torch.cat(attention_mask)
-    batch['token_type_ids'] = torch.cat(token_type_ids)
-    batch['pixel_values'] = encoding['pixel_values']
-    batch['pixel_mask'] = encoding['pixel_mask']
-    # batch['labels'] = torch.tensor(labels)
+#     # import pdb; pdb.set_trace()
+#     batch = {}
+#     batch['input_ids'] = torch.cat(input_ids)
+#     batch['attention_mask'] = torch.cat(attention_mask)
+#     batch['token_type_ids'] = torch.cat(token_type_ids)
+#     batch['pixel_values'] = encoding['pixel_values']
+#     batch['pixel_mask'] = encoding['pixel_mask']
+#     # batch['labels'] = torch.tensor(labels)
 
-    return batch, torch.tensor(labels)   
+#     return batch, torch.tensor(labels)   
 
 def save_task(generator):
     """
@@ -230,7 +363,7 @@ class TaskGen(DefaultTaskGen):
         self.draw_false_image = 0
         self.draw_false_text = 0
         self.image_only = False
-        
+
         self.missing=missing
         self.local_holdout_rate = 0.1
         self.specific_training_leads = None
@@ -316,34 +449,45 @@ class TaskCalculator(ClassificationCalculator):
         
     def get_data_loader(self, dataset, batch_size=40, shuffle=True, num_workers=8, vocab_size=30522):
         # import pdb; pdb.set_trace()
-        return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, collate_fn=collate)
+        collator = DataCollatorForLanguageModeling
+        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        mlm_collator = collator(tokenizer=tokenizer, mlm=True, mlm_probability=0.15)
+        return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=True, collate_fn=functools.partial(collate, mlm_collator=mlm_collator))
         # return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
 
     def data_to_device(self, data):
-        # for k, v in data:
-        #     print(k,v.shape)
-        batch, labels = data
-        batch = {k:v.to(self.device) for k,v in batch.items()}
-        return batch, labels.to(self.device)
+        # for k, v in data.items():
+        #     print(k,len(v))
+        batch = data
+        # import pdb; pdb.set_trace()
+        batch['image'][0] = batch['image'][0].to(self.device)
+        for key in ['text_ids', 'text_labels', 'text_ids_mlm', 'text_labels_mlm', 'text_masks']:
+            new_ls = []
+            for tensor in data[key]:
+                new_ls.append(tensor.to(self.device)) 
+            batch[key] = torch.stack(new_ls)
+        # batch = {k:v.to(self.device) for k,v in data.items()}
+        # import pdb; pdb.set_trace()
+        return batch
         
-    def train_one_step(self, model, backbone, data, leads):
+    def train_one_step(self, model, backbone, data):
         """
         :param model: the model to train
         :param data: the training dataset
         :return: dict of train-one-step's result, which should at least contains the key 'loss'
         """
-        batch, labels = self.data_to_device(data)
+        batch = self.data_to_device(data)
         # import pdb; pdb.set_trace()
         model.to(self.device) # y.device
         backbone.to(self.device)
         # print(tdata[0])
-        loss, _ = model(backbone, batch, labels, leads)
+        loss, _ = model(backbone,batch)
         # backbone.to('cpu')
         # print(loss.cpu().item())
         return {'loss': loss}
     
     @torch.no_grad()
-    def test(self, model, backbone, dataset, leads, batch_size=64, num_workers=0):
+    def test(self, model, backbone, dataset, batch_size=64, num_workers=0):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -359,9 +503,9 @@ class TaskCalculator(ClassificationCalculator):
         predicts = list()
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
-            labels.extend(batch_data[-1].cpu().tolist())
+            labels.extend(batch_data['label'].cpu().tolist())
             # import pdb; pdb.set_trace()
-            loss, outputs = model(backbone, batch_data[0], batch_data[-1], leads)
+            loss, outputs = model(backbone, batch_data)
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
         labels = np.array(labels)
@@ -374,7 +518,7 @@ class TaskCalculator(ClassificationCalculator):
     
 
     @torch.no_grad()
-    def evaluate(self, model, backbone, dataset, leads, batch_size=64, num_workers=0):
+    def evaluate(self, model, backbone, dataset, batch_size=64, num_workers=0):
         """
         Evaluate metric on client model
         Metric = [mean_accuracy, mean_loss]
@@ -391,7 +535,7 @@ class TaskCalculator(ClassificationCalculator):
         predicts = list()
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
-            loss, outputs = model(backbone, batch_data[0], batch_data[1], leads)
+            loss, outputs = model(backbone, batch_data)
             if batch_id==0:
                 total_loss = loss
             else:
@@ -401,7 +545,7 @@ class TaskCalculator(ClassificationCalculator):
 
     
     @torch.no_grad()
-    def server_test(self, model, backbone, dataset, leads, batch_size=64, num_workers=0):
+    def server_test(self, model, backbone, dataset, batch_size=64, num_workers=0):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -413,7 +557,7 @@ class TaskCalculator(ClassificationCalculator):
         if batch_size==-1:batch_size=len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
         result = dict() 
-        for test_combi_index in range(len(leads)):
+        for test_combi_index in range(len(2)):
             total_loss = 0.0
             labels = list()
             predicts = list()   
@@ -422,7 +566,7 @@ class TaskCalculator(ClassificationCalculator):
             for batch_id, batch_data in enumerate(data_loader):
                 batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data[1].cpu().tolist())
-                loss, outputs = model(backbone,batch_data[0], batch_data[-1], leads[test_combi_index])
+                loss, outputs = model(batch_data[0], batch_data[-1])
                 # for i in range(self.n_leads):
                 #     loss_each_modal[i] += loss_leads[i] * len(batch_data[-1])
                 total_loss += loss.item() * len(batch_data[-1])

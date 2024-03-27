@@ -5,6 +5,7 @@ import torch.nn.functional as F
 from transformers.models.bert.modeling_bert import BertConfig, BertEmbeddings
 import numpy as np
 from utils.fmodule import FModule
+import benchmark.food101_classification_arrow.model.vision_transformer_prompts as vit
 from torchmetrics import Metric
 
 
@@ -135,14 +136,25 @@ class Model(FModule):
                         'load_path': 'benchmark/food101_classification_arrow/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
         self.device = None
-        # self.transformer = getattr(vit, self.hparams_config["vit"])(
-        #     pretrained=False, config=self.hparams_config
-        # )
-        self.transformer = None
+        self.transformer = getattr(vit, self.hparams_config["vit"])(
+            pretrained=False, config=self.hparams_config
+        )
         # import pdb; pdb.set_trace()  
 
         self.pooler = Pooler(config["hidden_size"])
         self.pooler.apply(init_weights)
+
+        # ===================== Downstream ===================== #
+        ckpt = torch.load(self.hparams_config["load_path"], map_location="cpu")
+        state_dict = ckpt["state_dict"]
+        # since the pre-trained max_text_len is 40,
+        # we upsample the weight of position embedding to determined max_text_len
+        if config["max_text_len"] != 40:
+            state_dict['text_embeddings.position_ids'] = torch.Tensor(range(config["max_text_len"])).long().view(1,-1)
+            pos_emb = state_dict['text_embeddings.position_embeddings.weight']
+            pos_emb = torch.nn.functional.interpolate(pos_emb.view(1,1,40,768), size=(config["max_text_len"],768), mode='bilinear').squeeze()
+            state_dict['text_embeddings.position_embeddings.weight'] = pos_emb
+        self.load_state_dict(state_dict, strict=False)
 
         hs = self.hparams_config["hidden_size"]
 
@@ -178,18 +190,21 @@ class Model(FModule):
         missing_img_prompt[:,1:2,:].fill_(1)            
         self.missing_img_prompt = nn.Parameter(missing_img_prompt)
 
-        # for param in self.transformer.parameters():
-        #     param.requires_grad=False
+        for param in self.transformer.parameters():
+            param.requires_grad=False
         for param in self.text_embeddings.parameters():
             param.requires_grad=False
         for param in self.token_type_embeddings.parameters():
             param.requires_grad=False
 
+        set_metrics(self)
+        self.current_tasks = list()
+
+        self.records = {}
         
     def infer(
             self,
             batch,
-            backbone,
             mask_text=False,
             mask_image=False,
             image_token_type_idx=1,
@@ -197,7 +212,6 @@ class Model(FModule):
             image_masks=None,
             is_train=None,
         ):
-        self.transformer = backbone
         # import pdb; pdb.set_trace()
         if f"image_{image_token_type_idx - 1}" in batch:
             imgkey = f"image_{image_token_type_idx - 1}"
@@ -212,8 +226,6 @@ class Model(FModule):
         text_embeds = self.text_embeddings(text_ids)
         img = batch[imgkey][0]     
         self.device = img.device
-
-        # import pdb; pdb.set_trace()
         if image_embeds is None and image_masks is None:
                    
             (
@@ -323,17 +335,36 @@ class Model(FModule):
         return ret
 
 
-    def forward(self, backbone, batch):
-        infer = self.infer(batch, backbone, mask_text=False, mask_image=False)
+    def forward(self, batch):
+        ret = dict()
+        # ret.update(objectives.compute_food101(self, batch))      
+
+        phase = "train" if self.training else "val"
+        if phase == "train":
+            infer = self.infer(batch, mask_text=False, mask_image=False)
+        else:
+            infer = self.infer(batch, mask_text=False, mask_image=False)
+
         imgcls_logits = self.food101_classifier(infer["cls_feats"])
 
         imgcls_labels = batch["label"]
         imgcls_labels = torch.tensor(imgcls_labels).to(self.device).long()
         imgcls_loss = F.cross_entropy(imgcls_logits, imgcls_labels)
-        # import pdb; pdb.set_trace()
 
-        return imgcls_loss, imgcls_logits
+        ret = {
+            "food101_loss": imgcls_loss,
+            "food101_logits": imgcls_logits,
+            "food101_labels": imgcls_labels,
+        }
 
+        loss = getattr(self, f"{phase}_food101_loss")(ret["food101_loss"])
+        acc = getattr(self, f"{phase}_food101_accuracy")(
+            ret["food101_logits"], ret["food101_labels"]
+        )
+        self.log(f"food101/{phase}/loss", loss)
+
+
+        return ret
 
 if __name__ == '__main__':
     model = Model()

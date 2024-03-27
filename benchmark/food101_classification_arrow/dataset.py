@@ -8,14 +8,14 @@ from transformers import BertTokenizer, DataCollatorForLanguageModeling
 
 class FOOD101Dataset(BaseDataset):
     def __init__(self, *args, split="", missing_info={}, **kwargs):
-        assert split in ["train", "test"]
+        # assert split in ["train", "test"]
         self.split = split
 
         if split == "train":
             names = ["food101_train"]
-        elif split == "test":
+        else:
             names = ["food101_test"] 
-
+        # import pdb; pdb.set_trace()
         super().__init__(
             *args,
             **kwargs,
@@ -107,7 +107,7 @@ class FOOD101Dataset(BaseDataset):
 
 if __name__=='__main__':
     print(datetime.now(), "Start creating Datasets")
-    data_dir = "../../benchmark/RAW_DATA/FOOD101/generate_arrows"
+    data_dir = "./benchmark/RAW_DATA/FOOD101/generate_arrows"
     transform_keys = ['pixelbert']
     split="train"
     image_size = 384
@@ -119,7 +119,7 @@ if __name__=='__main__':
         'missing_ratio':
             {'test': 0.7,
             'train': 0.7},
-        'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables/',
+        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables/',
         'missing_type':
             {'test': 'both',
             'train': 'both'},

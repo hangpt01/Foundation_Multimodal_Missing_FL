@@ -513,12 +513,12 @@ class DefaultTaskGen(BasicTaskGen):
                         plt.fill_between([offset,offset+lb_counter[lbi]], y_bottom, y_top, facecolor = colors[lbi])
                     
                     offset += lb_counter[lbi]
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         plt.xlim(0,max(data_columns))
         plt.ylim(-0.5,len(train_cidxs)-0.5)
         plt.ylabel('Client ID')
         plt.xlabel('Number of Samples')
-        import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
         plt.title(self.get_taskname())
         plt.legend(loc='lower right')
         plt.savefig(os.path.join(self.taskpath,'data_dist.jpg'))
