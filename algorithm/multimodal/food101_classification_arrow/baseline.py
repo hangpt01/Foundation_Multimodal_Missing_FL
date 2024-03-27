@@ -4,19 +4,19 @@ from utils import fmodule
 import copy
 import collections
 import utils.fflow as flw
-import os
 import torch
-import numpy as np
-from transformers import ViltModel
+from torch import nn
+from transformers.models.bert.modeling_bert import BertConfig, BertEmbeddings
 import algorithm.multimodal.food101_classification_arrow.vision_transformer_prompts as vit
 from datetime import datetime
+from collections import Counter
 
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 2
-        # self.backbone = ViltModel.from_pretrained("dandelin/vilt-b32-mlm")
-        # for param in self.backbone.parameters():
+        # self.transformer = ViltModel.from_pretrained("dandelin/vilt-b32-mlm")
+        # for param in self.transformer.parameters():
         #     param.requires_grad = False
         self.hparams_config = {'batch_size': 32, 
                         'prompt_type': 'input', 
@@ -31,13 +31,28 @@ class Server(BasicServer):
                         'num_heads': 12, 
                         'num_layers': 12, 
                         'drop_rate': 0.1,
+                        'mlp_ratio': 4,
                         'max_image_len': 40,
                         'load_path': 'benchmark/food101_classification_arrow/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
-        self.backbone = getattr(vit, self.hparams_config["vit"])(
+        self.transformer = getattr(vit, self.hparams_config["vit"])(
             pretrained=False, config=self.hparams_config
         )
-        for param in self.backbone.parameters():
+        bert_config = BertConfig(
+            vocab_size=self.hparams_config["vocab_size"],
+            hidden_size=self.hparams_config["hidden_size"],
+            num_hidden_layers=self.hparams_config["num_layers"],
+            num_attention_heads=self.hparams_config["num_heads"],
+            intermediate_size=self.hparams_config["hidden_size"] * self.hparams_config["mlp_ratio"],
+            max_position_embeddings=self.hparams_config["max_text_len"],
+            hidden_dropout_prob=self.hparams_config["drop_rate"],
+            attention_probs_dropout_prob=self.hparams_config["drop_rate"],
+        )
+        self.text_embeddings = BertEmbeddings(bert_config)
+        self.text_embeddings.apply(init_weights)
+        for param in self.transformer.parameters():
+            param.requires_grad=False
+        for param in self.text_embeddings.parameters():
             param.requires_grad=False
 
     def run(self):
@@ -123,7 +138,8 @@ class Server(BasicServer):
         """
         return {
             "model" : copy.deepcopy(self.model), 
-            "backbone": self.backbone
+            "transformer": self.transformer,
+            "text_embeddings": self.text_embeddings
         }
 
     def test(self, model=None):
@@ -139,7 +155,8 @@ class Server(BasicServer):
         if self.test_data:
             return self.calculator.server_test(
                 model=model,
-                backbone=self.backbone,
+                transformer=self.transformer,
+                text_embeddings=self.text_embeddings,
                 dataset=self.test_data,
                 batch_size=self.option['test_batch_size']
             )
@@ -157,16 +174,42 @@ class Server(BasicServer):
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
-            client_metrics = c.test(self.model, self.backbone, dataflag)
+            client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
         return all_metrics
+
+def init_weights(module):
+    if isinstance(module, (nn.Linear, nn.Embedding)):
+        module.weight.data.normal_(mean=0.0, std=0.02)
+    elif isinstance(module, nn.LayerNorm):
+        module.bias.data.zero_()
+        module.weight.data.fill_(1.0)
+
+    if isinstance(module, nn.Linear) and module.bias is not None:
+        module.bias.data.zero_()
+
 
 
 class Client(BasicClient):
     def __init__(self, option, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
+        self.get_missing_type()
+        import pdb; pdb.set_trace()
+
+    def get_missing_type (self, dataflag='train'):
+        if dataflag == "train":
+            dataset = self.train_data
+        elif dataflag == "valid":
+            dataset = self.valid_data
+        missing_types = []
+        for data_sample in dataset:
+            missing_type = data_sample["missing_type"]
+            missing_types.append(missing_type)
+
+        print(datetime.now(), Counter(missing_types))
+
 
     def reply(self, svr_pkg):
         """
@@ -181,8 +224,8 @@ class Client(BasicClient):
         :return:
             client_pkg: the package to be send to the server
         """
-        model, backbone = self.unpack(svr_pkg)
-        self.train(model, backbone)
+        model, transformer, text_embeddings = self.unpack(svr_pkg)
+        self.train(model, transformer, text_embeddings)
         cpkg = self.pack(model)
         return cpkg
     
@@ -195,7 +238,7 @@ class Client(BasicClient):
             the unpacked information that can be rewritten
         """
         # unpack the received package
-        return received_pkg['model'], received_pkg['backbone']
+        return received_pkg['model'], received_pkg['transformer'], received_pkg['text_embeddings']
 
     def pack(self, model):
         """
@@ -212,7 +255,7 @@ class Client(BasicClient):
 
     @ss.with_completeness
     @fmodule.with_multi_gpus
-    def train(self, model, backbone):
+    def train(self, model, transformer, text_embeddings):
         """
         Standard local training procedure. Train the transmitted model with local training dataset.
         :param
@@ -227,6 +270,7 @@ class Client(BasicClient):
             momentum=self.momentum
         )
         # print(self.num_steps)
+        # TO_DELETE
         self.num_steps = 1
         # print(self.num_steps)
 
@@ -241,7 +285,8 @@ class Client(BasicClient):
             # import pdb; pdb.set_trace()
             loss = self.calculator.train_one_step(
                 model=model,
-                backbone=backbone,
+                transformer=transformer,
+                text_embeddings=text_embeddings,
                 data=batch_data
             )['loss']
             print('\t',datetime.now(),iter, loss)
@@ -250,7 +295,7 @@ class Client(BasicClient):
         return
 
     @fmodule.with_multi_gpus
-    def test(self, model, backbone, dataflag='train'):
+    def test(self, model, transformer, text_embeddings, dataflag='train'):
         """
         Evaluate the model with local data (e.g. training data or validating data).
         :param
@@ -265,6 +310,7 @@ class Client(BasicClient):
             dataset = self.valid_data
         return self.calculator.test(
             model=model,
-            backbone=backbone,
+            transformer=transformer,
+            text_embeddings=text_embeddings,
             dataset=dataset
         )

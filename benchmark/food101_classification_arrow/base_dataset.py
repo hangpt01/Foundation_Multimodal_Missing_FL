@@ -44,6 +44,7 @@ class BaseDataset(torch.utils.data.Dataset):
         self.image_only = image_only
         self.data_dir = data_dir
         self.labels = None
+        self.missing_types = None
 
         if len(names) != 0:
             tables = [

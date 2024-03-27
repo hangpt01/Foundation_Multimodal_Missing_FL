@@ -28,8 +28,8 @@ class FOOD101Dataset(BaseDataset):
         self.simulate_missing = missing_info['simulate_missing']
         missing_ratio = missing_info['ratio'][split]
         mratio = str(missing_ratio).replace('.','')
-        missing_type = missing_info['type'][split]    
-        both_ratio = missing_info['both_ratio']
+        missing_type = missing_info['type'][split]       
+        both_ratio = missing_info['both_ratio']         # 0.5
         missing_table_root = missing_info['missing_table_root']
         missing_table_name = f'{names[0]}_missing_{missing_type}_{mratio}.pt'
         missing_table_path = os.path.join(missing_table_root, missing_table_name)

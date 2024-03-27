@@ -308,7 +308,7 @@ def iid_partition(generator):
     
 
 class TaskGen(DefaultTaskGen):
-    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False, num_classes=101):
+    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False):
         super(TaskGen, self).__init__(benchmark='food101_classification_arrow',
                                       dist_id=dist_id, 
                                       num_clients=num_clients,
@@ -366,11 +366,12 @@ class TaskGen(DefaultTaskGen):
 
         self.missing=missing
         self.local_holdout_rate = 0.1
-        self.specific_training_leads = None
+        # self.specific_training_leads = None
         
         if self.missing and self.num_clients==20:
-            self.specific_training_leads = [[0, 1]]*10 + [[0]]*5 + [[1]]*5 
-            self.taskname = self.taskname + '_missing_each_0.25'
+            # self.specific_training_leads = [[0, 1]]*10 + [[0]]*5 + [[1]]*5 
+            # self.taskname = self.taskname + '_missing_each_0.25'
+            self.taskname = self.taskname + '_train_test_missing_both_0.7'
         if self.missing and self.num_clients==10:
             self.specific_training_leads = [[0, 1]]*6 + [[0]]*2 + [[1]]*2 
             self.taskname = self.taskname + '_missing_each_0.2'  
@@ -470,7 +471,7 @@ class TaskCalculator(ClassificationCalculator):
         # import pdb; pdb.set_trace()
         return batch
         
-    def train_one_step(self, model, backbone, data):
+    def train_one_step(self, model, transformer, text_embeddings, data):
         """
         :param model: the model to train
         :param data: the training dataset
@@ -479,15 +480,16 @@ class TaskCalculator(ClassificationCalculator):
         batch = self.data_to_device(data)
         # import pdb; pdb.set_trace()
         model.to(self.device) # y.device
-        backbone.to(self.device)
+        transformer.to(self.device)
+        text_embeddings.to(self.device)
         # print(tdata[0])
-        loss, _ = model(backbone,batch)
+        loss, _ = model(transformer, text_embeddings, batch)
         # backbone.to('cpu')
         # print(loss.cpu().item())
         return {'loss': loss}
     
     @torch.no_grad()
-    def test(self, model, backbone, dataset, batch_size=64, num_workers=0):
+    def test(self, model, transformer, text_embeddings, dataset, batch_size=64, num_workers=0):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -503,11 +505,14 @@ class TaskCalculator(ClassificationCalculator):
         predicts = list()
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
-            labels.extend(batch_data['label'].cpu().tolist())
+            labels.extend(batch_data['label'])
             # import pdb; pdb.set_trace()
-            loss, outputs = model(backbone, batch_data)
+            loss, outputs = model(transformer, text_embeddings, batch_data)
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+            # TO_DELETE
+            if batch_id==1:
+                break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
@@ -518,7 +523,7 @@ class TaskCalculator(ClassificationCalculator):
     
 
     @torch.no_grad()
-    def evaluate(self, model, backbone, dataset, batch_size=64, num_workers=0):
+    def evaluate(self, model, transformer, text_embeddings, dataset, batch_size=64, num_workers=0):
         """
         Evaluate metric on client model
         Metric = [mean_accuracy, mean_loss]
@@ -535,17 +540,20 @@ class TaskCalculator(ClassificationCalculator):
         predicts = list()
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
-            loss, outputs = model(backbone, batch_data)
+            loss, outputs = model(transformer, text_embeddings, batch_data)
             if batch_id==0:
                 total_loss = loss
             else:
                 total_loss = loss + total_loss
+            # TO_DELETE
+            if batch_id==1:
+                break
         loss_eval = loss / (batch_id + 1) 
         return loss_eval
 
     
     @torch.no_grad()
-    def server_test(self, model, backbone, dataset, batch_size=64, num_workers=0):
+    def server_test(self, model, transformer, text_embeddings, dataset, batch_size=64, num_workers=0):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -561,19 +569,15 @@ class TaskCalculator(ClassificationCalculator):
         total_loss = 0.0
         labels = list()
         predicts = list()   
-        # loss_each_modal = [[] for i in range(self.n_leads)]
-        # loss_each_modal = [0]*12
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
-            # labels.extend(batch_data['label'].cpu().tolist())
             labels.extend(batch_data['label'])
-            loss, outputs = model(backbone, batch_data)
-            # import pdb; pdb.set_trace()
-            # for i in range(self.n_leads):
-            #     loss_each_modal[i] += loss_leads[i] * len(batch_data[-1])
+            loss, outputs = model(transformer, text_embeddings, batch_data)
             total_loss += loss.item() * len(batch_data['label'])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
-        # import pdb; pdb.set_trace()
+            # TO_DELETE
+            if batch_id==1:
+                break
         # import pdb; pdb.set_trace()
         labels = np.array(labels)
         predicts = np.array(predicts)
