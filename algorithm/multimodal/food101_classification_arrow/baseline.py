@@ -122,9 +122,6 @@ class Server(BasicServer):
             
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         
-        # prompt
-
-        
         # pooler
         new_model.pooler = fmodule._model_sum([
             model.pooler * pk for model, pk in zip(models, p)

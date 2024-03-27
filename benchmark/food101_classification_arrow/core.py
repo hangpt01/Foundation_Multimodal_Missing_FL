@@ -446,6 +446,8 @@ class TaskCalculator(ClassificationCalculator):
         :param data: the training dataset
         :return: dict of train-one-step's result, which should at least contains the key 'loss'
         """
+        # import pdb; pdb.set_trace()
+
         batch = self.data_to_device(data)
         # import pdb; pdb.set_trace()
         model.to(self.device) # y.device
@@ -530,6 +532,7 @@ class TaskCalculator(ClassificationCalculator):
         :param batch_size:
         :return: [mean_accuracy, mean_loss]
         """
+        # import pdb; pdb.set_trace()
         model.eval()
         if batch_size==-1:batch_size=len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)

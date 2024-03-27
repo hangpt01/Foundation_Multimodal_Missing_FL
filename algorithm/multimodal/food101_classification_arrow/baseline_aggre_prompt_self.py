@@ -123,17 +123,14 @@ class Server(BasicServer):
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         
         #prompt
-        new_model.complete_prompt_module = fmodule._model_sum([
-            model.complete_prompt_module * pk for model, pk in zip(models, p)
-        ]) / sum(p)
+        average_tensor = sum(pk * model.complete_prompt for pk, model in zip(p, models))  / sum(p)
+        new_model.complete_prompt = nn.Parameter(average_tensor)
 
-        new_model.missing_text_prompt_module = fmodule._model_sum([
-            model.missing_text_prompt_module * pk for model, pk in zip(models, p)
-        ]) / sum(p)
+        average_tensor = sum(pk * model.missing_text_prompt for pk, model in zip(p, models))  / sum(p)
+        new_model.missing_text_prompt = nn.Parameter(average_tensor)
 
-        new_model.missing_img_prompt_module = fmodule._model_sum([
-            model.missing_img_prompt_module * pk for model, pk in zip(models, p)
-        ]) / sum(p)
+        average_tensor = sum(pk * model.missing_img_prompt for pk, model in zip(p, models))  / sum(p)
+        new_model.missing_img_prompt = nn.Parameter(average_tensor)
 
         # pooler
         new_model.pooler = fmodule._model_sum([
