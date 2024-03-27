@@ -224,6 +224,7 @@ class Client(BasicClient):
             momentum=self.momentum
         )
         print(self.num_steps)
+        self.num_steps = 1
         for iter in range(self.num_steps):
             # get a batch of data
             batch_data = self.get_batch_data()
