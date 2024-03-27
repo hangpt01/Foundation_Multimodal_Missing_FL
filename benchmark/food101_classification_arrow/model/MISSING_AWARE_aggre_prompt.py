@@ -7,6 +7,15 @@ from utils.fmodule import FModule
 from torchmetrics import Metric
 
 
+class Prompt(FModule):
+    def __init__(self):
+        super().__init__()
+        self.prompt = nn.Parameter(torch.rand(6,16,768))
+
+    def forward(self, prompt):
+        return nn.Parameter(prompt)
+
+
 class Pooler(FModule):
     def __init__(self):
         super().__init__()
@@ -82,31 +91,12 @@ class Model(FModule):
         self.classifier = Classifier()
         self.classifier.apply(init_weights)   
   
-        # prompt
-        self.prompt_type = self.hparams_config["prompt_type"]
-        prompt_length = self.hparams_config["prompt_length"]
-        self.prompt_length = prompt_length
-        embed_dim = self.hparams_config["hidden_size"]
-        self.learnt_p = self.hparams_config["learnt_p"]
-        self.prompt_layers = self.hparams_config["prompt_layers"]
-        self.multi_layer_prompt = self.hparams_config["multi_layer_prompt"]
-        prompt_num = len(self.prompt_layers) if self.multi_layer_prompt else 1
-
-        complete_prompt = torch.zeros(prompt_num, prompt_length, embed_dim)
-        complete_prompt[:,0:1,:].fill_(1) 
        
         # import pdb; pdb.set_trace()
 
-        # self.
-        self.complete_prompt = nn.Parameter(complete_prompt)                    # [6, 16, 768])
-
-        missing_text_prompt = torch.zeros(prompt_num, prompt_length, embed_dim)
-        missing_text_prompt[:,2:3,:].fill_(1)            
-        self.missing_text_prompt = nn.Parameter(missing_text_prompt)            # [6, 16, 768])
-
-        missing_img_prompt = torch.zeros(prompt_num, prompt_length, embed_dim)
-        missing_img_prompt[:,1:2,:].fill_(1)            
-        self.missing_img_prompt = nn.Parameter(missing_img_prompt)              # [6, 16, 768])
+        self.complete_prompt_module = Prompt()
+        self.missing_text_prompt_module = Prompt()
+        self.missing_img_prompt_module = Prompt()
 
         
     def infer(
@@ -167,6 +157,30 @@ class Model(FModule):
             ),
         )
         
+        
+        # prompt
+        self.prompt_type = self.hparams_config["prompt_type"]
+        prompt_length = self.hparams_config["prompt_length"]
+        self.prompt_length = prompt_length
+        embed_dim = self.hparams_config["hidden_size"]
+        self.learnt_p = self.hparams_config["learnt_p"]
+        self.prompt_layers = self.hparams_config["prompt_layers"]
+        self.multi_layer_prompt = self.hparams_config["multi_layer_prompt"]
+        prompt_num = len(self.prompt_layers) if self.multi_layer_prompt else 1
+
+        complete_prompt = torch.zeros(prompt_num, prompt_length, embed_dim)
+        complete_prompt[:,0:1,:].fill_(1) 
+        
+        self.complete_prompt = self.complete_prompt_module(complete_prompt).to(self.device)                   # [6, 16, 768])
+
+        missing_text_prompt = torch.zeros(prompt_num, prompt_length, embed_dim)
+        missing_text_prompt[:,2:3,:].fill_(1)            
+        self.missing_text_prompt = self.missing_text_prompt_module(missing_text_prompt).to(self.device)        # [6, 16, 768])
+
+        missing_img_prompt = torch.zeros(prompt_num, prompt_length, embed_dim)
+        missing_img_prompt[:,1:2,:].fill_(1)            
+        self.missing_img_prompt = self.missing_img_prompt_module(missing_img_prompt).to(self.device)           # [6, 16, 768])
+
         # instance wise missing aware prompts
         prompts = None
         for idx in range(len(img)):

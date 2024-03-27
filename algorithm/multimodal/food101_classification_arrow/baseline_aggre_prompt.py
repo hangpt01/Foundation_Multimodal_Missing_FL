@@ -119,18 +119,29 @@ class Server(BasicServer):
         for k, client_id in enumerate(self.selected_clients):
             p.append(self.clients[client_id].datavol)
             chosen_models.append(models[k])
-            
+        
+        #prompt
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
-        
-        # prompt
+        new_model.complete_prompt_module = fmodule._model_sum([
+            model.complete_prompt_module * pk for model, pk in zip(models, p)
+        ]) / sum(p)
+        p = [self.clients[client_id].datavol for client_id in self.selected_clients]
+        new_model.missing_text_prompt_module = fmodule._model_sum([
+            model.missing_text_prompt_module * pk for model, pk in zip(models, p)
+        ]) / sum(p)
+        p = [self.clients[client_id].datavol for client_id in self.selected_clients]
+        new_model.missing_img_prompt_module = fmodule._model_sum([
+            model.missing_img_prompt_module * pk for model, pk in zip(models, p)
+        ]) / sum(p)
 
-        
         # pooler
+        p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         new_model.pooler = fmodule._model_sum([
             model.pooler * pk for model, pk in zip(models, p)
         ]) / sum(p)
         
         # classifier
+        p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         new_model.classifier = fmodule._model_sum([
             model.classifier * pk for model, pk in zip(models, p)
         ]) / sum(p)
