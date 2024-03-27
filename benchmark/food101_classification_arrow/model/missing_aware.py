@@ -2,15 +2,13 @@ from typing import Any
 import torch
 from torch import nn
 import torch.nn.functional as F
-from transformers.models.bert.modeling_bert import BertConfig, BertEmbeddings
 import numpy as np
 from utils.fmodule import FModule
-from torchmetrics import Metric
-
 
 
 class Pooler(FModule):
     def __init__(self):
+        super().__init__()
         hidden_size = 768
         super().__init__()
         self.dense = nn.Linear(hidden_size, hidden_size)
@@ -53,65 +51,37 @@ class Classifier(FModule):
 class Model(FModule):
     def __init__(self):
         super(Model, self).__init__()
-        config = {
-            "vocab_size": 30522,
-            "hidden_size": 768,
-            "num_layers": 12,
-            "num_heads": 12,
-            "mlp_ratio": 4,
-            "max_text_len": 40,
-            "drop_rate": 0.1
-        }
-
-        bert_config = BertConfig(
-            vocab_size=config["vocab_size"],
-            hidden_size=config["hidden_size"],
-            num_hidden_layers=config["num_layers"],
-            num_attention_heads=config["num_heads"],
-            intermediate_size=config["hidden_size"] * config["mlp_ratio"],
-            max_position_embeddings=config["max_text_len"],
-            hidden_dropout_prob=config["drop_rate"],
-            attention_probs_dropout_prob=config["drop_rate"],
-        )
-        
-        self.text_embeddings = BertEmbeddings(bert_config)
-        self.text_embeddings.apply(init_weights)
-
-        self.token_type_embeddings = nn.Embedding(2, config["hidden_size"])
-        self.token_type_embeddings.apply(init_weights)
-
-        self.hparams_config = {'batch_size': 32, 
-                        'prompt_type': 'input', 
-                        'prompt_length': 16, 
-                        'learnt_p': True, 
-                        'prompt_layers': [0, 1, 2, 3, 4, 5], 
-                        'multi_layer_prompt': True, 
-                        'max_text_len': 40, 
-                        'vocab_size': 30522, 
-                        'vit': 'vit_base_patch32_384', 
-                        'hidden_size': 768, 
-                        'num_heads': 12, 
-                        'num_layers': 12, 
-                        'drop_rate': 0.1,
-                        'max_image_len': 40,
-                        'load_path': 'benchmark/food101_classification_arrow/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
+        self.hparams_config = {'prompt_type': 'input', 
+                                'prompt_length': 16, 
+                                'learnt_p': True, 
+                                'prompt_layers': [0, 1, 2, 3, 4, 5], 
+                                'multi_layer_prompt': True, 
+                                'max_text_len': 40, 
+                                'vocab_size': 30522, 
+                                'hidden_size': 768, 
+                                'num_heads': 12, 
+                                'num_layers': 12, 
+                                'drop_rate': 0.1,
+                                'max_image_len': 40}
         
         self.device = None
-        # self.transformer = getattr(vit, self.hparams_config["vit"])(
-        #     pretrained=False, config=self.hparams_config
-        # )
         self.transformer = None
+        self.text_embeddings = None
         # import pdb; pdb.set_trace()  
+
+        self.token_type_embeddings = nn.Embedding(2, self.hparams_config["hidden_size"])
+        self.token_type_embeddings.apply(init_weights)
+        
+        for param in self.token_type_embeddings.parameters():
+            param.requires_grad=False
 
         self.pooler = Pooler()
         self.pooler.apply(init_weights)
 
-        # hs = self.hparams_config["hidden_size"]
-
-        # cls_num = 101
         self.classifier = Classifier()
         self.classifier.apply(init_weights)   
   
+        # prompt
         self.prompt_type = self.hparams_config["prompt_type"]
         prompt_length = self.hparams_config["prompt_length"]
         self.prompt_length = prompt_length
@@ -121,40 +91,36 @@ class Model(FModule):
         self.multi_layer_prompt = self.hparams_config["multi_layer_prompt"]
         prompt_num = len(self.prompt_layers) if self.multi_layer_prompt else 1
 
-
         complete_prompt = torch.zeros(prompt_num, prompt_length, embed_dim)
         complete_prompt[:,0:1,:].fill_(1) 
        
-        self.complete_prompt = nn.Parameter(complete_prompt)
+        # import pdb; pdb.set_trace()
+
+        # self.
+        self.complete_prompt = nn.Parameter(complete_prompt)                    # [6, 16, 768])
 
         missing_text_prompt = torch.zeros(prompt_num, prompt_length, embed_dim)
         missing_text_prompt[:,2:3,:].fill_(1)            
-        self.missing_text_prompt = nn.Parameter(missing_text_prompt)
+        self.missing_text_prompt = nn.Parameter(missing_text_prompt)            # [6, 16, 768])
 
         missing_img_prompt = torch.zeros(prompt_num, prompt_length, embed_dim)
         missing_img_prompt[:,1:2,:].fill_(1)            
-        self.missing_img_prompt = nn.Parameter(missing_img_prompt)
-
-        # for param in self.transformer.parameters():
-        #     param.requires_grad=False
-        for param in self.text_embeddings.parameters():
-            param.requires_grad=False
-        for param in self.token_type_embeddings.parameters():
-            param.requires_grad=False
+        self.missing_img_prompt = nn.Parameter(missing_img_prompt)              # [6, 16, 768])
 
         
     def infer(
             self,
             batch,
-            backbone,
+            transformer,
+            text_embeddings,
             mask_text=False,
             mask_image=False,
             image_token_type_idx=1,
             image_embeds=None,
             image_masks=None,
-            is_train=None,
         ):
-        self.transformer = backbone
+        self.transformer = transformer
+        self.text_embeddings = text_embeddings
         # import pdb; pdb.set_trace()
         if f"image_{image_token_type_idx - 1}" in batch:
             imgkey = f"image_{image_token_type_idx - 1}"
@@ -280,8 +246,8 @@ class Model(FModule):
         return ret
 
 
-    def forward(self, backbone, batch):
-        infer = self.infer(batch, backbone, mask_text=False, mask_image=False)
+    def forward(self, transformer, text_embeddings, batch):
+        infer = self.infer(batch, transformer, text_embeddings, mask_text=False, mask_image=False)
         imgcls_logits = self.classifier(infer["cls_feats"])
 
         imgcls_labels = batch["label"]

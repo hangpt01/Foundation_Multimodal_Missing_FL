@@ -119,9 +119,19 @@ class Server(BasicServer):
         for k, client_id in enumerate(self.selected_clients):
             p.append(self.clients[client_id].datavol)
             chosen_models.append(models[k])
-            
+
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         
+        #prompt
+        average_tensor = sum(pk * model.complete_prompt for pk, model in zip(p, models))  / sum(p)
+        new_model.complete_prompt = nn.Parameter(average_tensor)
+
+        average_tensor = sum(pk * model.missing_text_prompt for pk, model in zip(p, models))  / sum(p)
+        new_model.missing_text_prompt = nn.Parameter(average_tensor)
+
+        average_tensor = sum(pk * model.missing_img_prompt for pk, model in zip(p, models))  / sum(p)
+        new_model.missing_img_prompt = nn.Parameter(average_tensor)
+
         # pooler
         new_model.pooler = fmodule._model_sum([
             model.pooler * pk for model, pk in zip(models, p)
@@ -279,7 +289,7 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        self.num_steps = 1
+        # self.num_steps = 1
         # print(self.num_steps)
 
         print("Training client", client_id+1)

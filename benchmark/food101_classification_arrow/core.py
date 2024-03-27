@@ -339,8 +339,8 @@ class TaskGen(DefaultTaskGen):
         
         if self.missing and self.num_clients==20:
             # self.specific_training_leads = [[0, 1]]*10 + [[0]]*5 + [[1]]*5 
-            # self.taskname = self.taskname + '_missing_each_0.25'
-            self.taskname = self.taskname + '_train_test_missing_both_0.7'
+            self.taskname = self.taskname + '_missing_each_0.25'
+            # self.taskname = self.taskname + '_train_test_missing_both_0.7'
         if self.missing and self.num_clients==10:
             self.specific_training_leads = [[0, 1]]*6 + [[0]]*2 + [[1]]*2 
             self.taskname = self.taskname + '_missing_each_0.2'  
@@ -482,8 +482,8 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==1:
+            #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
@@ -517,8 +517,8 @@ class TaskCalculator(ClassificationCalculator):
             else:
                 total_loss = loss + total_loss
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==1:
+            #     break
         loss_eval = loss / (batch_id + 1) 
         return loss_eval
 
@@ -548,8 +548,8 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item() * len(batch_data['label'])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==1:
+            #     break
         # import pdb; pdb.set_trace()
         labels = np.array(labels)
         predicts = np.array(predicts)

@@ -16,22 +16,20 @@ class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 2
-        self.hparams_config = {'batch_size': 32, 
-                        'prompt_type': 'input', 
-                        'prompt_length': 16, 
-                        'learnt_p': True, 
-                        'prompt_layers': [0, 1, 2, 3, 4, 5], 
-                        'multi_layer_prompt': True, 
-                        'max_text_len': 40, 
-                        'vocab_size': 30522, 
-                        'vit': 'vit_base_patch32_384', 
-                        'hidden_size': 768, 
-                        'num_heads': 12, 
-                        'num_layers': 12, 
-                        'drop_rate': 0.1,
-                        'mlp_ratio': 4,
-                        'max_image_len': 40,
-                        'load_path': 'benchmark/food101_classification_arrow/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
+        self.hparams_config = {'prompt_type': 'input', 
+                                'prompt_length': 16, 
+                                'learnt_p': True, 
+                                'prompt_layers': [0, 1, 2, 3, 4, 5], 
+                                'multi_layer_prompt': True, 
+                                'max_text_len': 40, 
+                                'vocab_size': 30522, 
+                                'vit': 'vit_base_patch32_384', 
+                                'hidden_size': 768, 
+                                'num_heads': 12, 
+                                'num_layers': 12, 
+                                'drop_rate': 0.1,
+                                'mlp_ratio': 4,
+                                'max_image_len': 40}
         
         self.transformer = getattr(vit, self.hparams_config["vit"])(
             pretrained=False, config=self.hparams_config
@@ -103,7 +101,6 @@ class Server(BasicServer):
         :param
             t: the number of current round
         """
-        # sample clients: MD sampling as default
         self.selected_clients = self.sample()
         # training
         conmmunitcation_result = self.communicate(self.selected_clients)
@@ -119,22 +116,9 @@ class Server(BasicServer):
         for k, client_id in enumerate(self.selected_clients):
             p.append(self.clients[client_id].datavol)
             chosen_models.append(models[k])
-
+            
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         
-        #prompt
-        new_model.complete_prompt_module = fmodule._model_sum([
-            model.complete_prompt_module * pk for model, pk in zip(models, p)
-        ]) / sum(p)
-
-        new_model.missing_text_prompt_module = fmodule._model_sum([
-            model.missing_text_prompt_module * pk for model, pk in zip(models, p)
-        ]) / sum(p)
-
-        new_model.missing_img_prompt_module = fmodule._model_sum([
-            model.missing_img_prompt_module * pk for model, pk in zip(models, p)
-        ]) / sum(p)
-
         # pooler
         new_model.pooler = fmodule._model_sum([
             model.pooler * pk for model, pk in zip(models, p)
@@ -292,7 +276,7 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        self.num_steps = 1
+        # self.num_steps = 1
         # print(self.num_steps)
 
         print("Training client", client_id+1)

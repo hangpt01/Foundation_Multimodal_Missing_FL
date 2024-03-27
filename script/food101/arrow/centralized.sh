@@ -1,11 +1,11 @@
 python main.py \
     --task food101_classification_arrow_cnum1_dist0_skew0_seed0_centralized_no_missing \
-    --model MISSING_AWARE \
-    --algorithm multimodal.food101_classification_arrow.baseline \
+    --model fedavg_no_prompt \
+    --algorithm multimodal.food101_classification_arrow.fedavg_no_prompt \
     --sample full \
     --aggregate other \
-    --num_rounds 3 \
-    --early_stop 3  \
+    --num_rounds 300 \
+    --early_stop 20  \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
@@ -13,8 +13,7 @@ python main.py \
     --learning_rate 0.01 \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
-    --batch_size 64 \
-    --test_batch_size 64 \
-    --gpu 0 
-    # \
-    # --wandb
+    --batch_size 88 \
+    --test_batch_size 88 \
+    --gpu 0 \
+    --wandb
