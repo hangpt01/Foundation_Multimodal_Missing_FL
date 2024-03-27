@@ -4,6 +4,7 @@ from utils import fmodule
 import copy
 import collections
 import utils.fflow as flw
+from tqdm import tqdm
 import torch
 from torch import nn
 from transformers.models.bert.modeling_bert import BertConfig, BertEmbeddings
@@ -54,6 +55,17 @@ class Server(BasicServer):
             param.requires_grad=False
         for param in self.text_embeddings.parameters():
             param.requires_grad=False
+
+        # self.get_missing_type()
+
+    def get_missing_type (self):
+        dataset = self.test_data
+        missing_types = []
+        for data_sample in dataset:
+            missing_type = data_sample["missing_type"]
+            missing_types.append(missing_type)
+
+        print(datetime.now(), "Server testing data", Counter(missing_types))
 
     def run(self):
         """
@@ -139,7 +151,8 @@ class Server(BasicServer):
         return {
             "model" : copy.deepcopy(self.model), 
             "transformer": self.transformer,
-            "text_embeddings": self.text_embeddings
+            "text_embeddings": self.text_embeddings,
+            "client_id": client_id
         }
 
     def test(self, model=None):
@@ -179,6 +192,7 @@ class Server(BasicServer):
                 all_metrics[met_name].append(met_val)
         return all_metrics
 
+
 def init_weights(module):
     if isinstance(module, (nn.Linear, nn.Embedding)):
         module.weight.data.normal_(mean=0.0, std=0.02)
@@ -190,13 +204,13 @@ def init_weights(module):
         module.bias.data.zero_()
 
 
-
 class Client(BasicClient):
     def __init__(self, option, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
-        self.get_missing_type()
-        import pdb; pdb.set_trace()
+        # self.get_missing_type(dataflag='train')
+        # self.get_missing_type(dataflag='valid')
+        # import pdb; pdb.set_trace()
 
     def get_missing_type (self, dataflag='train'):
         if dataflag == "train":
@@ -208,7 +222,7 @@ class Client(BasicClient):
             missing_type = data_sample["missing_type"]
             missing_types.append(missing_type)
 
-        print(datetime.now(), Counter(missing_types))
+        print(datetime.now(), dataflag, Counter(missing_types))
 
 
     def reply(self, svr_pkg):
@@ -224,8 +238,8 @@ class Client(BasicClient):
         :return:
             client_pkg: the package to be send to the server
         """
-        model, transformer, text_embeddings = self.unpack(svr_pkg)
-        self.train(model, transformer, text_embeddings)
+        model, transformer, text_embeddings, client_id = self.unpack(svr_pkg)
+        self.train(model, transformer, text_embeddings, client_id)
         cpkg = self.pack(model)
         return cpkg
     
@@ -238,7 +252,7 @@ class Client(BasicClient):
             the unpacked information that can be rewritten
         """
         # unpack the received package
-        return received_pkg['model'], received_pkg['transformer'], received_pkg['text_embeddings']
+        return received_pkg['model'], received_pkg['transformer'], received_pkg['text_embeddings'], received_pkg['client_id']
 
     def pack(self, model):
         """
@@ -255,7 +269,7 @@ class Client(BasicClient):
 
     @ss.with_completeness
     @fmodule.with_multi_gpus
-    def train(self, model, transformer, text_embeddings):
+    def train(self, model, transformer, text_embeddings, client_id):
         """
         Standard local training procedure. Train the transmitted model with local training dataset.
         :param
@@ -271,10 +285,11 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        self.num_steps = 1
+        self.num_steps = 2
         # print(self.num_steps)
 
-        for iter in range(self.num_steps):
+        print("Training client", client_id+1)
+        for iter in tqdm(range(self.num_steps)):
             # get a batch of data
             batch_data = self.get_batch_data()
             # if batch_data[-1].shape[0] == 1:
@@ -289,9 +304,10 @@ class Client(BasicClient):
                 text_embeddings=text_embeddings,
                 data=batch_data
             )['loss']
-            print('\t',datetime.now(),iter, loss)
+            # print('\t',datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
+        
         return
 
     @fmodule.with_multi_gpus

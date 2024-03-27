@@ -188,37 +188,6 @@ def collate(batch, mlm_collator):
             
     return dict_batch
 
-# def collate(batch):
-#     # import pdb; pdb.set_trace()
-#     batch_ = batch
-#     batch = []
-#     labels = []
-#     for input, label in batch_:
-#         batch.append(input)
-#         labels.append(label)
-#     input_ids = [item['input_ids'] for item in batch]
-#     pixel_values = [item['pixel_values'][0] for item in batch]
-#     attention_mask = [item['attention_mask'] for item in batch]
-#     token_type_ids = [item['token_type_ids'] for item in batch]
-#     # import pdb; pdb.set_trace()
-#     # labels = [item['labels'].item() for item in batch]
-
-#     processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
-#     # create padded pixel values and corresponding pixel mask
-#     encoding = processor.image_processor.pad(pixel_values, return_tensors="pt")
-
-#     # create new batch
-    
-#     # import pdb; pdb.set_trace()
-#     batch = {}
-#     batch['input_ids'] = torch.cat(input_ids)
-#     batch['attention_mask'] = torch.cat(attention_mask)
-#     batch['token_type_ids'] = torch.cat(token_type_ids)
-#     batch['pixel_values'] = encoding['pixel_values']
-#     batch['pixel_mask'] = encoding['pixel_mask']
-#     # batch['labels'] = torch.tensor(labels)
-
-#     return batch, torch.tensor(labels)   
 
 def save_task(generator):
     """
