@@ -8,8 +8,10 @@ from utils.fmodule import FModule
 from torchmetrics import Metric
 
 
-class Pooler(nn.Module):
-    def __init__(self, hidden_size):
+
+class Pooler(FModule):
+    def __init__(self):
+        hidden_size = 768
         super().__init__()
         self.dense = nn.Linear(hidden_size, hidden_size)
         self.activation = nn.Tanh()
@@ -32,60 +34,20 @@ def init_weights(module):
         module.bias.data.zero_()
     
 
-class Accuracy(Metric):
-    def __init__(self, dist_sync_on_step=False):
-        super().__init__(dist_sync_on_step=dist_sync_on_step)
-        self.add_state("correct", default=torch.tensor(0.0), dist_reduce_fx="sum")
-        self.add_state("total", default=torch.tensor(0.0), dist_reduce_fx="sum")
-
-    def update(self, logits, target):
-        logits, target = (
-            logits.detach().to(self.correct.device),
-            target.detach().to(self.correct.device),
+class Classifier(FModule):
+    def __init__(self):
+        super().__init__()
+        self.hidden_size = 768
+        cls_num = 101
+        self.classifier = nn.Sequential(
+            nn.Linear(self.hidden_size, self.hidden_size * 2),
+            nn.LayerNorm(self.hidden_size * 2),
+            nn.GELU(),
+            nn.Linear(self.hidden_size * 2, cls_num),
         )
-        if logits.size(-1)>1:
-            preds = logits.argmax(dim=-1)
-        else:
-            preds = (torch.sigmoid(logits)>0.5).long()
-            
-        preds = preds[target != -100]
-        target = target[target != -100]
-        if target.numel() == 0:
-            return 1
-
-        assert preds.shape == target.shape
-
-        self.correct += torch.sum(preds == target)
-        self.total += target.numel()
-
-    def compute(self):
-        return self.correct / self.total
-
-
-class Scalar(Metric):
-    def __init__(self, dist_sync_on_step=False):
-        super().__init__(dist_sync_on_step=dist_sync_on_step)
-        self.add_state("scalar", default=torch.tensor(0.0), dist_reduce_fx="sum")
-        self.add_state("total", default=torch.tensor(0.0), dist_reduce_fx="sum")
-
-    def update(self, scalar):
-        if isinstance(scalar, torch.Tensor):
-            scalar = scalar.detach().to(self.scalar.device)
-        else:
-            scalar = torch.tensor(scalar).float().to(self.scalar.device)
-        self.scalar += scalar
-        self.total += 1
-
-    def compute(self):
-        return self.scalar / self.total    
     
-
-def set_metrics(pl_module):
-    split = 'train'
-    k = 'food101'
-    setattr(pl_module, f"{split}_{k}_accuracy", Accuracy())
-    setattr(pl_module, f"{split}_{k}_loss", Scalar())       
-                
+    def forward(self, x):
+        return self.classifier(x)
 
 
 class Model(FModule):
@@ -141,19 +103,14 @@ class Model(FModule):
         self.transformer = None
         # import pdb; pdb.set_trace()  
 
-        self.pooler = Pooler(config["hidden_size"])
+        self.pooler = Pooler()
         self.pooler.apply(init_weights)
 
-        hs = self.hparams_config["hidden_size"]
+        # hs = self.hparams_config["hidden_size"]
 
-        cls_num = 101
-        self.food101_classifier = nn.Sequential(
-            nn.Linear(hs, hs * 2),
-            nn.LayerNorm(hs * 2),
-            nn.GELU(),
-            nn.Linear(hs * 2, cls_num),
-        )
-        self.food101_classifier.apply(init_weights)   
+        # cls_num = 101
+        self.classifier = Classifier()
+        self.classifier.apply(init_weights)   
   
         self.prompt_type = self.hparams_config["prompt_type"]
         prompt_length = self.hparams_config["prompt_length"]
@@ -325,7 +282,7 @@ class Model(FModule):
 
     def forward(self, backbone, batch):
         infer = self.infer(batch, backbone, mask_text=False, mask_image=False)
-        imgcls_logits = self.food101_classifier(infer["cls_feats"])
+        imgcls_logits = self.classifier(infer["cls_feats"])
 
         imgcls_labels = batch["label"]
         imgcls_labels = torch.tensor(imgcls_labels).to(self.device).long()

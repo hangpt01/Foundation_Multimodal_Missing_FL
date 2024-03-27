@@ -99,9 +99,12 @@ class Server(BasicServer):
                 chosen_models.append(models[k])
             if len(p) == 0:
                 continue
-            # new_model.feature_extractors[m] = fmodule._model_sum([
-            #     model.feature_extractors[m] * pk for model, pk in zip(models, p)
-            # ]) / sum(p)
+        # pooler
+        p = [self.clients[client_id].datavol for client_id in self.selected_clients]
+        new_model.pooler = fmodule._model_sum([
+            model.pooler * pk for model, pk in zip(models, p)
+        ]) / sum(p)
+        
         # classifier
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         new_model.classifier = fmodule._model_sum([
@@ -223,8 +226,10 @@ class Client(BasicClient):
             weight_decay=self.weight_decay,
             momentum=self.momentum
         )
-        print(self.num_steps)
+        # print(self.num_steps)
         self.num_steps = 1
+        # print(self.num_steps)
+
         for iter in range(self.num_steps):
             # get a batch of data
             batch_data = self.get_batch_data()

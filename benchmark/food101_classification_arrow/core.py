@@ -557,29 +557,31 @@ class TaskCalculator(ClassificationCalculator):
         if batch_size==-1:batch_size=len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
         result = dict() 
-        for test_combi_index in range(len(2)):
-            total_loss = 0.0
-            labels = list()
-            predicts = list()   
-            # loss_each_modal = [[] for i in range(self.n_leads)]
-            # loss_each_modal = [0]*12
-            for batch_id, batch_data in enumerate(data_loader):
-                batch_data = self.data_to_device(batch_data)
-                labels.extend(batch_data[1].cpu().tolist())
-                loss, outputs = model(batch_data[0], batch_data[-1])
-                # for i in range(self.n_leads):
-                #     loss_each_modal[i] += loss_leads[i] * len(batch_data[-1])
-                total_loss += loss.item() * len(batch_data[-1])
-                predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+        # for test_combi_index in range(len(2)):
+        total_loss = 0.0
+        labels = list()
+        predicts = list()   
+        # loss_each_modal = [[] for i in range(self.n_leads)]
+        # loss_each_modal = [0]*12
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            # labels.extend(batch_data['label'].cpu().tolist())
+            labels.extend(batch_data['label'])
+            loss, outputs = model(backbone, batch_data)
             # import pdb; pdb.set_trace()
-            # import pdb; pdb.set_trace()
-            labels = np.array(labels)
-            predicts = np.array(predicts)
-            accuracy = accuracy_score(labels, predicts)
             # for i in range(self.n_leads):
-            #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
-            result['loss'+str(test_combi_index+1)] = total_loss / len(dataset)
-            result['acc'+str(test_combi_index+1)] = accuracy
+            #     loss_each_modal[i] += loss_leads[i] * len(batch_data[-1])
+            total_loss += loss.item() * len(batch_data['label'])
+            predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+        # import pdb; pdb.set_trace()
+        # import pdb; pdb.set_trace()
+        labels = np.array(labels)
+        predicts = np.array(predicts)
+        accuracy = accuracy_score(labels, predicts)
+        # for i in range(self.n_leads):
+        #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
+        result['loss'] = total_loss / len(dataset)
+        result['acc'] = accuracy
         # return {
         #     'loss': total_loss / len(dataset),
         #     'acc': accuracy

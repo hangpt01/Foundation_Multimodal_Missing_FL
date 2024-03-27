@@ -1,5 +1,5 @@
 python main.py \
-    --task food101_classification_arrow_cnum20_dist0_skew0_seed0_missing_each_0.25 \
+    --task food101_classification_arrow_cnum1_dist0_skew0_seed0_centralized_no_missing \
     --model MISSING_AWARE \
     --algorithm multimodal.food101_classification_arrow.baseline \
     --sample full \
