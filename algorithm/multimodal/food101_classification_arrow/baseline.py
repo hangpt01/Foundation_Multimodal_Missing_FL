@@ -223,6 +223,7 @@ class Client(BasicClient):
             weight_decay=self.weight_decay,
             momentum=self.momentum
         )
+        print(self.num_steps)
         for iter in range(self.num_steps):
             # get a batch of data
             batch_data = self.get_batch_data()
@@ -237,7 +238,7 @@ class Client(BasicClient):
                 backbone=backbone,
                 data=batch_data
             )['loss']
-            # print(datetime.now(),iter, loss)
+            print('\t',datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
         return
