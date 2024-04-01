@@ -1,6 +1,6 @@
 python main.py \
     --task food101_classification_arrow_cnum20_dist0_skew0_seed0_missing_each_0.25 \
-    --model missing_aware \
+    --model missing_aware2 \
     --algorithm multimodal.food101_classification_arrow.missing_aware \
     --sample full \
     --aggregate other \
