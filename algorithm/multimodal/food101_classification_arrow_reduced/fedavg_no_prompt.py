@@ -7,7 +7,6 @@ import utils.fflow as flw
 from tqdm import tqdm
 import torch
 from torch import nn
-import numpy as np
 from transformers.models.bert.modeling_bert import BertConfig, BertEmbeddings
 import algorithm.multimodal.food101_classification_arrow.vision_transformer_prompts as vit
 from datetime import datetime
@@ -17,22 +16,20 @@ class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 2
-        self.hparams_config = {'batch_size': 32, 
-                        'prompt_type': 'input', 
-                        'prompt_length': 16, 
-                        'learnt_p': True, 
-                        'prompt_layers': [0, 1, 2, 3, 4, 5], 
-                        'multi_layer_prompt': True, 
-                        'max_text_len': 40, 
-                        'vocab_size': 30522, 
-                        'vit': 'vit_base_patch32_384', 
-                        'hidden_size': 768, 
-                        'num_heads': 12, 
-                        'num_layers': 12, 
-                        'drop_rate': 0.1,
-                        'mlp_ratio': 4,
-                        'max_image_len': 40,
-                        'load_path': 'benchmark/food101_classification_arrow/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
+        self.hparams_config = {'prompt_type': 'input', 
+                                'prompt_length': 16, 
+                                'learnt_p': True, 
+                                'prompt_layers': [0, 1, 2, 3, 4, 5], 
+                                'multi_layer_prompt': True, 
+                                'max_text_len': 40, 
+                                'vocab_size': 30522, 
+                                'vit': 'vit_base_patch32_384', 
+                                'hidden_size': 768, 
+                                'num_heads': 12, 
+                                'num_layers': 12, 
+                                'drop_rate': 0.1,
+                                'mlp_ratio': 4,
+                                'max_image_len': 40}
         
         self.transformer = getattr(vit, self.hparams_config["vit"])(
             pretrained=False, config=self.hparams_config
@@ -54,16 +51,23 @@ class Server(BasicServer):
         for param in self.text_embeddings.parameters():
             param.requires_grad=False
 
-        # self.get_missing_type()
+        # self.get_missing_type_label()
 
-    def get_missing_type (self):
+    def get_missing_type_label (self):
         dataset = self.test_data
         missing_types = []
+        labels = []
         for data_sample in dataset:
             missing_type = data_sample["missing_type"]
             missing_types.append(missing_type)
+            label = data_sample["label"]
+            labels.append(label)
 
-        print(datetime.now(), "Server testing data", Counter(missing_types))
+        dict_types = Counter(missing_types)
+        dict_labels = Counter(labels)
+        print("Server")
+        print({k: dict_types[k] for k in sorted(dict_types)}, '\t\t', {k: dict_labels[k] for k in sorted(dict_labels)})
+
 
     def run(self):
         """
@@ -104,7 +108,6 @@ class Server(BasicServer):
         :param
             t: the number of current round
         """
-        # sample clients: MD sampling as default
         self.selected_clients = self.sample()
         # training
         conmmunitcation_result = self.communicate(self.selected_clients)
@@ -112,140 +115,26 @@ class Server(BasicServer):
         self.model = self.aggregate(models)
         return
 
-
     @torch.no_grad()
     def aggregate(self, models: list):
-        print("Calculating clients' aggregated models ...")
         new_model = copy.deepcopy(self.model)
-        n_models = len(models)
-        for k in range(n_models):
-            self.clients[self.selected_clients[k]].agg_model = copy.deepcopy(self.model)
-        
-        A = torch.zeros(size=(self.n_leads+3, n_models, n_models))
-
-        params = torch.stack([
-            torch.cat([
-                mi.data.view(-1) for mi in \
-                self.clients[self.selected_clients[k]].local_model.missing_img_prompt
-            ]) for k in range(n_models)
-        ])
-        # import pdb; pdb.set_trace()
-        dim = params.shape[1]
-        att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
-        for k in range(n_models):
-            for l in range(n_models):
-                A[0, k, l] = att_mat[k, l]
-        
-        # missing_text_prompt
-        params = torch.stack([
-            torch.cat([
-                mi.data.view(-1) for mi in \
-                self.clients[self.selected_clients[k]].local_model.missing_text_prompt
-            ]) for k in range(n_models)
-        ])
-        dim = params.shape[1]
-        att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
-        for k in range(n_models):
-            for l in range(n_models):
-                A[1, k, l] = att_mat[k, l]
-
-        # complete_prompt
-        params = torch.stack([
-            torch.cat([
-                mi.data.view(-1) for mi in \
-                self.clients[self.selected_clients[k]].local_model.complete_prompt
-            ]) for k in range(n_models)
-        ])
-        dim = params.shape[1]
-        att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
-        for k in range(n_models):
-            for l in range(n_models):
-                A[2, k, l] = att_mat[k, l]
+        p = list()
+        chosen_models = list()
+        for k, client_id in enumerate(self.selected_clients):
+            p.append(self.clients[client_id].datavol)
+            chosen_models.append(models[k])
+            
+        p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         
         # pooler
-        params = torch.stack([      # (20, X)
-            torch.cat([
-                mi.data.view(-1) for mi in \
-                self.clients[self.selected_clients[k]].local_model.pooler.parameters()
-            ]) for k in range(n_models)
-        ])
-        # import pdb; pdb.set_trace()
-        dim = params.shape[1]
-        att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)      # (20,20)
-        for k in range(n_models):
-            for l in range(n_models):
-                A[3, k, l] = att_mat[k, l]
-
-        # classifier
-        params = torch.stack([
-            torch.cat([
-                mi.data.view(-1) for mi in \
-                self.clients[self.selected_clients[k]].local_model.classifier.parameters()
-            ]) for k in range(n_models)
-        ])
-        dim = params.shape[1]
-        att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
-        for k in range(n_models):
-            for l in range(n_models):
-                A[-1, k, l] = att_mat[k, l]
-
-        # Assign local models       
-        for k in range(n_models):
-            self.clients[self.selected_clients[k]].local_model.missing_img_prompt = nn.Parameter(sum([
-                self.clients[self.selected_clients[l]].local_model.missing_img_prompt * \
-                A[0, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
-            ]) / sum([
-                A[0, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
-            ]))
-            self.clients[self.selected_clients[k]].local_model.missing_text_prompt = nn.Parameter(sum([
-                self.clients[self.selected_clients[l]].local_model.missing_text_prompt * \
-                A[1, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
-            ]) / sum([
-                A[1, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
-            ]))
-            self.clients[self.selected_clients[k]].local_model.complete_prompt = nn.Parameter(sum([
-                self.clients[self.selected_clients[l]].local_model.complete_prompt * \
-                A[2, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
-            ]) / sum([
-                A[2, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
-            ]))
-
-
-            self.clients[self.selected_clients[k]].local_model.pooler = fmodule._model_sum([
-                self.clients[self.selected_clients[l]].local_model.pooler * \
-                A[3, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
-            ]) / sum([
-                A[3, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
-            ])
-
-            self.clients[self.selected_clients[k]].local_model.classifier = fmodule._model_sum([
-                self.clients[self.selected_clients[l]].local_model.classifier * \
-                A[-1, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
-            ]) / sum([
-                A[-1, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
-            ])
-        
-        new_model = copy.deepcopy(self.model)
-        # set new model
-        new_model.missing_text_prompt = nn.Parameter(sum([
-            self.clients[self.selected_clients[l]].local_model.missing_text_prompt for l in range(n_models)
-        ]) / n_models)
-        new_model.missing_img_prompt = nn.Parameter(sum([
-            self.clients[self.selected_clients[l]].local_model.missing_img_prompt for l in range(n_models)
-        ]) / n_models)
-        new_model.complete_prompt = nn.Parameter(sum([
-            self.clients[self.selected_clients[l]].local_model.complete_prompt for l in range(n_models)
-        ]) / n_models)
-
-        p = [self.clients[client_id].datavol for client_id in self.selected_clients]
-        # global model's pooler and classifier
         new_model.pooler = fmodule._model_sum([
-            self.clients[self.selected_clients[l]].local_model.pooler * pk for l, pk in zip(range(n_models),p)
+            model.pooler * pk for model, pk in zip(models, p)
         ]) / sum(p)
+        
+        # classifier
         new_model.classifier = fmodule._model_sum([
-            self.clients[self.selected_clients[l]].local_model.classifier * pk for l, pk in zip(range(n_models),p)
+            model.classifier * pk for model, pk in zip(models, p)
         ]) / sum(p)
-
         return new_model
     
     def pack(self, client_id):
@@ -317,23 +206,26 @@ class Client(BasicClient):
     def __init__(self, option, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
-        self.fedmsplit_prox_lambda = option['fedmsplit_prox_lambda']
-        self.local_model = None
-        self.agg_model = None
-        # self.get_missing_type(dataflag='train')
-        # self.get_missing_type(dataflag='valid')
+        # self.get_missing_type_label(dataflag='train')
+        # self.get_missing_type_label(dataflag='valid')
 
-    def get_missing_type (self, dataflag='train'):
+    def get_missing_type_label (self, dataflag='train'):
         if dataflag == "train":
             dataset = self.train_data
         elif dataflag == "valid":
             dataset = self.valid_data
         missing_types = []
+        labels = []
         for data_sample in dataset:
             missing_type = data_sample["missing_type"]
             missing_types.append(missing_type)
+            label = data_sample["label"]
+            labels.append(label)
 
-        print(datetime.now(), dataflag, Counter(missing_types))
+        dict_types = Counter(missing_types)
+        dict_labels = Counter(labels)
+        print(dataflag)
+        print({k: dict_types[k] for k in sorted(dict_types)}, '\t\t', {k: dict_labels[k] for k in sorted(dict_labels)})
 
 
     def reply(self, svr_pkg):
@@ -350,12 +242,8 @@ class Client(BasicClient):
             client_pkg: the package to be send to the server
         """
         model, transformer, text_embeddings, client_id = self.unpack(svr_pkg)
-        if self.local_model is None:
-            self.local_model = copy.deepcopy(model)
-        if self.agg_model is None:
-            self.agg_model = copy.deepcopy(model)
-        self.train(self.local_model, transformer, text_embeddings, client_id)
-        cpkg = self.pack(self.local_model)
+        self.train(model, transformer, text_embeddings, client_id)
+        cpkg = self.pack(model)
         return cpkg
     
     def unpack(self, received_pkg):
@@ -392,8 +280,6 @@ class Client(BasicClient):
             model: the global model
         :return
         """
-        for parameter in self.agg_model.parameters():
-            parameter.requires_grad = False
         model.train()
         optimizer = self.calculator.get_optimizer(
             model=model,
@@ -403,11 +289,12 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        self.num_steps = 1
+        # self.num_steps = 1
         # print(self.num_steps)
 
-        print("Training client", client_id+1)
-        for iter in tqdm(range(self.num_steps)):
+        # print("Training client", client_id+1)
+        # for iter in tqdm(range(self.num_steps)):
+        for iter in range(self.num_steps):
             # get a batch of data
             batch_data = self.get_batch_data()
             # if batch_data[-1].shape[0] == 1:
@@ -423,18 +310,6 @@ class Client(BasicClient):
                 data=batch_data
             )['loss']
             # print('\t',datetime.now(),iter, loss)
-            regular_loss = 0.0
-            if self.fedmsplit_prox_lambda > 0.0:
-                regular_loss += torch.sum(torch.pow(model.missing_img_prompt - self.agg_model.missing_img_prompt, 2))
-                regular_loss += torch.sum(torch.pow(model.missing_text_prompt - self.agg_model.missing_text_prompt, 2))
-                regular_loss += torch.sum(torch.pow(model.complete_prompt - self.agg_model.complete_prompt, 2))
-
-                for parameter, agg_parameter in zip(model.pooler.parameters(), self.agg_model.pooler.parameters()):
-                    regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
-                for parameter, agg_parameter in zip(model.classifier.parameters(), self.agg_model.classifier.parameters()):
-                    regular_loss += torch.sum(torch.pow(parameter - agg_parameter, 2))
-                loss += self.fedmsplit_prox_lambda * regular_loss
-
             loss.backward()
             optimizer.step()
         

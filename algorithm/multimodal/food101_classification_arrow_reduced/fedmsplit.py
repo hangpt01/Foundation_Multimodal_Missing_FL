@@ -403,11 +403,12 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        self.num_steps = 1
+        # self.num_steps = 1
         # print(self.num_steps)
 
-        print("Training client", client_id+1)
-        for iter in tqdm(range(self.num_steps)):
+        # print("Training client", client_id+1)
+        # for iter in tqdm(range(self.num_steps)):
+        for iter in range(self.num_steps):
             # get a batch of data
             batch_data = self.get_batch_data()
             # if batch_data[-1].shape[0] == 1:

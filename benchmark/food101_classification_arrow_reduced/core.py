@@ -43,7 +43,7 @@ class TaskPipe(IDXTaskPipe):
             'missing_ratio':
                 {'test': 0.7,
                 'train': 0.7},
-            'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables/',
+            'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_reduced/',
             'missing_type':
                 {'test': 'both',
                 'train': 'both'},
@@ -218,17 +218,17 @@ def save_task(generator):
     for cid in range(len(generator.cnames)):
         # print(cid)
         # import pdb; pdb.set_trace()
-        if generator.specific_training_leads:
-            feddata[generator.cnames[cid]] = {
-                'modalities': generator.specific_training_leads[cid],
-                'dtrain': generator.train_cidxs[cid],
-                'dvalid': generator.valid_cidxs[cid]
-            }
-        else:
-            feddata[generator.cnames[cid]] = {
-                'dtrain': generator.train_cidxs[cid],
-                'dvalid': generator.valid_cidxs[cid]
-            }
+        # if generator.specific_training_leads:
+        #     feddata[generator.cnames[cid]] = {
+        #         'modalities': generator.specific_training_leads[cid],
+        #         'dtrain': generator.train_cidxs[cid],
+        #         'dvalid': generator.valid_cidxs[cid]
+        #     }
+        # else:
+        feddata[generator.cnames[cid]] = {
+            'dtrain': generator.train_cidxs[cid],
+            'dvalid': generator.valid_cidxs[cid]
+        }
     with open(os.path.join(generator.taskpath, 'data.json'), 'w') as outf:
         ujson.dump(feddata, outf)
     return
@@ -278,7 +278,7 @@ def iid_partition(generator):
 
 class TaskGen(DefaultTaskGen):
     def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False):
-        super(TaskGen, self).__init__(benchmark='food101_classification_arrow',
+        super(TaskGen, self).__init__(benchmark='food101_classification_arrow_reduced',
                                       dist_id=dist_id, 
                                       num_clients=num_clients,
                                       skewness=skewness,
@@ -294,7 +294,7 @@ class TaskGen(DefaultTaskGen):
         # import pdb; pdb.set_trace()
         # self.rawdata_path = os.path.join(self.rawdata_path, str(self.num_classes)+'_classes')
         self.source_dict = {
-            'class_path': 'benchmark.food101_classification_arrow.dataset',
+            'class_path': 'benchmark.food101_classification_arrow_reduced.dataset',
             'class_name': 'FOOD101Dataset',
             'train_args': {
                 'root': '"'+self.rawdata_path+'"',
@@ -312,7 +312,7 @@ class TaskGen(DefaultTaskGen):
             'missing_ratio':
                 {'test': 0.7,
                 'train': 0.7},
-            'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables/',
+            'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_reduced/',
             'missing_type':
                 {'test': 'both',
                 'train': 'both'},
@@ -482,8 +482,8 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==1:
+            #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
@@ -517,8 +517,8 @@ class TaskCalculator(ClassificationCalculator):
             else:
                 total_loss = loss + total_loss
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==1:
+            #     break
         loss_eval = loss / (batch_id + 1) 
         return loss_eval
 
@@ -548,8 +548,8 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item() * len(batch_data['label'])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==1:
+            #     break
         # import pdb; pdb.set_trace()
         labels = np.array(labels)
         predicts = np.array(predicts)
