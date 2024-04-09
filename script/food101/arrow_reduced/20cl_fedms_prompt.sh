@@ -4,17 +4,16 @@ python main.py \
     --algorithm multimodal.food101_classification_arrow_reduced.fedmsplit \
     --sample full \
     --aggregate other \
-    --num_rounds 300 \
-    --early_stop 20  \
+    --num_rounds 500 \
+    --early_stop 30  \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0.01 \
-    --learning_rate 0.05 \
+    --learning_rate 0.5 \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
     --batch_size 64 \
     --test_batch_size 64 \
-    --gpu 3 
-    # \
-    # --wandb
+    --gpu 0 \
+    --wandb
