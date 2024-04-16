@@ -104,7 +104,8 @@ class Server(BasicServer):
             params = torch.stack([
                 torch.cat([
                     mi.data.view(-1) for mi in \
-                    self.clients[self.selected_clients[k]].local_model.feature_extractors[m].parameters()
+                    self.clients[self.selected_clients[k]].
+                    .feature_extractors[m].parameters()
                 ]) for k in modal_dict[m]
             ])
             dim = params.shape[1]
