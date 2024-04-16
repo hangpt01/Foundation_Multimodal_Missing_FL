@@ -119,8 +119,47 @@ class Server(BasicServer):
         new_model = copy.deepcopy(self.model)
         n_models = len(models)
         
-        A = torch.zeros(size=(2, n_models, n_models))
+        A = torch.zeros(size=(self.n_leads+3, n_models, n_models))
 
+        params = torch.stack([
+            torch.cat([
+                mi.data.view(-1) for mi in \
+                self.clients[self.selected_clients[k]].local_model.missing_img_prompt
+            ]) for k in range(n_models)
+        ])
+        # import pdb; pdb.set_trace()
+        dim = params.shape[1]
+        att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
+        for k in range(n_models):
+            for l in range(n_models):
+                A[0, k, l] = att_mat[k, l]
+        
+        # missing_text_prompt
+        params = torch.stack([
+            torch.cat([
+                mi.data.view(-1) for mi in \
+                self.clients[self.selected_clients[k]].local_model.missing_text_prompt
+            ]) for k in range(n_models)
+        ])
+        dim = params.shape[1]
+        att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
+        for k in range(n_models):
+            for l in range(n_models):
+                A[1, k, l] = att_mat[k, l]
+
+        # complete_prompt
+        params = torch.stack([
+            torch.cat([
+                mi.data.view(-1) for mi in \
+                self.clients[self.selected_clients[k]].local_model.complete_prompt
+            ]) for k in range(n_models)
+        ])
+        dim = params.shape[1]
+        att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
+        for k in range(n_models):
+            for l in range(n_models):
+                A[2, k, l] = att_mat[k, l]
+        
         # pooler
         params = torch.stack([      # (20, X)
             torch.cat([
@@ -133,7 +172,7 @@ class Server(BasicServer):
         att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)      # (20,20)
         for k in range(n_models):
             for l in range(n_models):
-                A[0, k, l] = att_mat[k, l]
+                A[3, k, l] = att_mat[k, l]
 
         # classifier
         params = torch.stack([
@@ -146,26 +185,56 @@ class Server(BasicServer):
         att_mat = torch.softmax(params.matmul(params.T) / np.sqrt(dim), dim=1)
         for k in range(n_models):
             for l in range(n_models):
-                A[1, k, l] = att_mat[k, l]
+                A[-1, k, l] = att_mat[k, l]
 
         # Assign local models       
         for k in range(n_models):
-            self.clients[self.selected_clients[k]].local_model.pooler = fmodule._model_sum([
-                self.clients[self.selected_clients[l]].local_model.pooler * \
+            self.clients[self.selected_clients[k]].local_model.missing_img_prompt = nn.Parameter(sum([
+                self.clients[self.selected_clients[l]].local_model.missing_img_prompt * \
                 A[0, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
             ]) / sum([
                 A[0, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
+            ]))
+            self.clients[self.selected_clients[k]].local_model.missing_text_prompt = nn.Parameter(sum([
+                self.clients[self.selected_clients[l]].local_model.missing_text_prompt * \
+                A[1, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
+            ]) / sum([
+                A[1, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
+            ]))
+            self.clients[self.selected_clients[k]].local_model.complete_prompt = nn.Parameter(sum([
+                self.clients[self.selected_clients[l]].local_model.complete_prompt * \
+                A[2, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
+            ]) / sum([
+                A[2, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
+            ]))
+
+
+            self.clients[self.selected_clients[k]].local_model.pooler = fmodule._model_sum([
+                self.clients[self.selected_clients[l]].local_model.pooler * \
+                A[3, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
+            ]) / sum([
+                A[3, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
             ])
 
             self.clients[self.selected_clients[k]].local_model.classifier = fmodule._model_sum([
                 self.clients[self.selected_clients[l]].local_model.classifier * \
-                A[1, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
+                A[-1, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
             ]) / sum([
-                A[1, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
+                A[-1, k, l] * A[:, k, l].abs().sum() for l in range(n_models)
             ])
         
         new_model = copy.deepcopy(self.model)
         # set new model
+        new_model.missing_text_prompt = nn.Parameter(sum([
+            self.clients[self.selected_clients[l]].local_model.missing_text_prompt for l in range(n_models)
+        ]) / n_models)
+        new_model.missing_img_prompt = nn.Parameter(sum([
+            self.clients[self.selected_clients[l]].local_model.missing_img_prompt for l in range(n_models)
+        ]) / n_models)
+        new_model.complete_prompt = nn.Parameter(sum([
+            self.clients[self.selected_clients[l]].local_model.complete_prompt for l in range(n_models)
+        ]) / n_models)
+
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         # global model's pooler and classifier
         new_model.pooler = fmodule._model_sum([
@@ -351,9 +420,9 @@ class Client(BasicClient):
             # print('\t',datetime.now(),iter, loss)
             regular_loss = 0.0
             if self.fedmsplit_prox_lambda > 0.0:
-                for parameter, regularizer_parameter in zip(model.pooler.parameters(), regularizer_model.pooler.parameters()):
+                for parameter, regularizer_parameter in zip(model.pooler.parameters(), self.regularizer_model.pooler.parameters()):
                     regular_loss += torch.sum(torch.pow(parameter - regularizer_parameter, 2))
-                for parameter, regularizer_parameter in zip(model.classifier.parameters(), regularizer_model.classifier.parameters()):
+                for parameter, regularizer_parameter in zip(model.classifier.parameters(), self.regularizer_model.classifier.parameters()):
                     regular_loss += torch.sum(torch.pow(parameter - regularizer_parameter, 2))
                 loss += self.fedmsplit_prox_lambda * regular_loss
 
