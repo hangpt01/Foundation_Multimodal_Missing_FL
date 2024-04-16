@@ -1,11 +1,11 @@
 python main.py \
     --task food101_classification_arrow_reduced_cnum20_dist0_skew0_seed0_missing_each_0.25 \
-    --model fedmsplit_prompt \
-    --algorithm multimodal.food101_classification_arrow_reduced.fedmsplit_prompt \
+    --model fedmsplit_no_prompt \
+    --algorithm multimodal.food101_classification_arrow_reduced.fedmsplit_no_prompt \
     --sample full \
     --aggregate other \
-    --num_rounds 500 \
-    --early_stop 30  \
+    --num_rounds 2 \
+    --early_stop 2  \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
@@ -13,8 +13,7 @@ python main.py \
     --learning_rate 0.1 \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
-    --batch_size 4 \
-    --test_batch_size 4 \
-    --gpu 3 
-    # \
-    # --wandb
+    --batch_size 64 \
+    --test_batch_size 64 \
+    --gpu 0 \
+    --wandb

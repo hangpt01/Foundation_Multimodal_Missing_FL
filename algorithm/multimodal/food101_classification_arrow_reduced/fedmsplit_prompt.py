@@ -407,6 +407,7 @@ class Client(BasicClient):
         # print(self.num_steps)
 
         # print("Training client", client_id+1)
+        # TO_DELETE
         # for iter in tqdm(range(self.num_steps)):
         for iter in range(self.num_steps):
             # get a batch of data

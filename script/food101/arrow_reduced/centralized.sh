@@ -4,8 +4,8 @@ python main.py \
     --algorithm multimodal.food101_classification_arrow_reduced.fedavg_no_prompt \
     --sample full \
     --aggregate other \
-    --num_rounds 500 \
-    --early_stop 30  \
+    --num_rounds 1000 \
+    --early_stop 50  \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
@@ -15,5 +15,5 @@ python main.py \
     --learning_rate_decay 1.0 \
     --batch_size 64 \
     --test_batch_size 64 \
-    --gpu 0 \
+    --gpu 2 \
     --wandb
