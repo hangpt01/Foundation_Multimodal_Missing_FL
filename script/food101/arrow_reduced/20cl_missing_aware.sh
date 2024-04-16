@@ -4,12 +4,12 @@ python main.py \
     --algorithm multimodal.food101_classification_arrow_reduced.missing_aware \
     --sample full \
     --aggregate other \
-    --num_rounds 500 \
+    --num_rounds 1000 \
     --early_stop 30  \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
-    --fedmsplit_prox_lambda 0.01 \
+    --fedmsplit_prox_lambda 0.1 \
     --learning_rate 0.1 \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
