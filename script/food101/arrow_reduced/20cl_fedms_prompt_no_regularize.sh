@@ -9,7 +9,7 @@ python main.py \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
-    --fedmsplit_prox_lambda 0.1 \
+    --fedmsplit_prox_lambda 0 \
     --learning_rate 0.1 \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
