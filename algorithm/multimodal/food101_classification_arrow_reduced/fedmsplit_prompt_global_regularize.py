@@ -420,9 +420,9 @@ class Client(BasicClient):
             # print('\t',datetime.now(),iter, loss)
             regular_loss = 0.0
             if self.fedmsplit_prox_lambda > 0.0:
-                for parameter, regularizer_parameter in zip(model.pooler.parameters(), self.regularizer_model.pooler.parameters()):
+                for parameter, regularizer_parameter in zip(model.pooler.parameters(), regularizer_model.pooler.parameters()):
                     regular_loss += torch.sum(torch.pow(parameter - regularizer_parameter, 2))
-                for parameter, regularizer_parameter in zip(model.classifier.parameters(), self.regularizer_model.classifier.parameters()):
+                for parameter, regularizer_parameter in zip(model.classifier.parameters(), regularizer_model.classifier.parameters()):
                     regular_loss += torch.sum(torch.pow(parameter - regularizer_parameter, 2))
                 loss += self.fedmsplit_prox_lambda * regular_loss
 
