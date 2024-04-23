@@ -350,9 +350,9 @@ class TaskGen(DefaultTaskGen):
         # self.specific_training_leads = None
         
         if self.missing and self.num_clients==20:
-            self.taskname = self.taskname + '_' + 'missing_ratio' + str(missing_ratio_train) + '_' + str(missing_ratio_test)  \
-                                          + '_' + 'missing_type' + str(missing_type_train) + '_' + str(missing_type_test) \
-                                          + '_' + 'both_ratio' + str(both_ratio)
+            self.taskname = self.taskname + '_' + 'missing_ratio_' + str(missing_ratio_train) + '_' + str(missing_ratio_test)  \
+                                          + '_' + 'missing_type_' + str(missing_type_train) + '_' + str(missing_type_test) \
+                                          + '_' + 'both_ratio_' + str(both_ratio)
         # if self.missing and self.num_clients==10:
         #     self.specific_training_leads = [[0, 1]]*6 + [[0]]*2 + [[1]]*2 
         #     self.taskname = self.taskname + '_missing_each_0.2'  

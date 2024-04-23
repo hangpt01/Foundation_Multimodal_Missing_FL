@@ -1,19 +1,19 @@
 python main.py \
-    --task food101_classification_arrow_reduced_cnum20_dist0_skew0_seed0_missing_each_0.25 \
-    --model fedavg_no_prompt \
+    --task food101_classification_arrow_reduced_cnum1_dist0_skew0_seed0_centralized_no_missing \
+    --model centralized \
     --algorithm multimodal.food101_classification_arrow_reduced.fedavg_no_prompt \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \
-    --early_stop 30  \
+    --early_stop 50  \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
-    --fedmsplit_prox_lambda 0.1 \
-    --learning_rate 0.1 \
+    --fedmsplit_prox_lambda 0.05 \
+    --learning_rate 0.5 \
     --num_epochs 1 \
-    --learning_rate_decay 1.0 \
+    --learning_rate_decay 0.99 \
     --batch_size 64 \
     --test_batch_size 64 \
-    --gpu 2 \
+    --gpu 0 \
     --wandb

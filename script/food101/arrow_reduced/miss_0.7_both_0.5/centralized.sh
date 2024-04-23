@@ -10,9 +10,9 @@ python main.py \
     --lr_scheduler 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0.05 \
-    --learning_rate 0.5 \
+    --learning_rate 0.01 \
     --num_epochs 1 \
-    --learning_rate_decay 0.99 \
+    --learning_rate_decay 1 \
     --batch_size 64 \
     --test_batch_size 64 \
     --gpu 2 \
