@@ -29,6 +29,18 @@ class TaskPipe(IDXTaskPipe):
         class_path = feddata['datasrc']['class_path']
         class_name = feddata['datasrc']['class_name']
         
+        _config = {
+            'missing_ratio':
+                {'test': feddata['datasrc']['missing_ratio']['train'],
+                'train': feddata['datasrc']['missing_ratio']['test']},
+            'missing_table_root': feddata['datasrc']['missing_table_root'],
+            'missing_type':
+                {'train': feddata['datasrc']['missing_type']['train'],
+                'test': feddata['datasrc']['missing_type']['test']},
+            'both_ratio': feddata['datasrc']['both_ratio'],
+            'simulate_missing': False
+        }
+        
         origin_class = getattr(importlib.import_module(class_path), class_name)
         # import pdb; pdb.set_trace()
         data_dir = "./benchmark/RAW_DATA/FOOD101/generate_arrows"
@@ -39,17 +51,6 @@ class TaskPipe(IDXTaskPipe):
         draw_false_image = 0
         draw_false_text = 0
         image_only = False
-        _config = {
-            'missing_ratio':
-                {'test': 0.7,
-                'train': 0.7},
-            'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_reduced/',
-            'missing_type':
-                {'test': 'both',
-                'train': 'both'},
-            'both_ratio': 0.5,
-            'simulate_missing': False
-        }
         missing_info = {
                 'ratio' : _config["missing_ratio"],
                 'type' : _config["missing_type"],
@@ -277,7 +278,7 @@ def iid_partition(generator):
     
 
 class TaskGen(DefaultTaskGen):
-    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False):
+    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False, missing_ratio_train=0.7, missing_ratio_test=0.7, missing_type_train='both', missing_type_test='both', both_ratio=0.5):
         super(TaskGen, self).__init__(benchmark='food101_classification_arrow_reduced',
                                       dist_id=dist_id, 
                                       num_clients=num_clients,
@@ -288,7 +289,7 @@ class TaskGen(DefaultTaskGen):
         if self.dist_id==0:
             self.partition = iid_partition
         
-        self.num_classes=101
+        self.num_classes=10
         self.save_task=save_task
         self.visualize=self.visualize_by_class
         # import pdb; pdb.set_trace()
@@ -305,18 +306,29 @@ class TaskGen(DefaultTaskGen):
                 'root': '"'+self.rawdata_path+'"',
                 'download': 'True',
                 'train':' False'
-            }
+            },
+            'missing_ratio': {
+                'train': missing_ratio_train,
+                'test': missing_ratio_test 
+            },
+            'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_reduced/',
+            'missing_type': {
+                'train': missing_type_train,
+                'test': missing_type_test 
+            },
+            'both_ratio': both_ratio,
+            'simulate_missing': False
         }
         self.data_dir = os.path.join(self.rawdata_path, 'generate_arrows')
         _config = {
             'missing_ratio':
-                {'test': 0.7,
-                'train': 0.7},
+                {'train': missing_ratio_train,
+                'test': missing_ratio_test},
             'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_reduced/',
             'missing_type':
-                {'test': 'both',
-                'train': 'both'},
-            'both_ratio': 0.5,
+                {'train': missing_type_train,
+                'test': missing_type_test},
+            'both_ratio': both_ratio,
             'simulate_missing': False
         }
         self.missing_info = {
@@ -338,15 +350,15 @@ class TaskGen(DefaultTaskGen):
         # self.specific_training_leads = None
         
         if self.missing and self.num_clients==20:
-            # self.specific_training_leads = [[0, 1]]*10 + [[0]]*5 + [[1]]*5 
-            self.taskname = self.taskname + '_missing_each_0.25'
-            # self.taskname = self.taskname + '_train_test_missing_both_0.7'
-        if self.missing and self.num_clients==10:
-            self.specific_training_leads = [[0, 1]]*6 + [[0]]*2 + [[1]]*2 
-            self.taskname = self.taskname + '_missing_each_0.2'  
-        if self.missing and self.num_clients==1:
-            self.specific_training_leads = [[0,1]]
-            self.taskname = self.taskname + '_centralized_no_missing'
+            self.taskname = self.taskname + '_' + 'missing_ratio' + str(missing_ratio_train) + '_' + str(missing_ratio_test)  \
+                                          + '_' + 'missing_type' + str(missing_type_train) + '_' + str(missing_type_test) \
+                                          + '_' + 'both_ratio' + str(both_ratio)
+        # if self.missing and self.num_clients==10:
+        #     self.specific_training_leads = [[0, 1]]*6 + [[0]]*2 + [[1]]*2 
+        #     self.taskname = self.taskname + '_missing_each_0.2'  
+        # if self.missing and self.num_clients==1:
+        #     self.specific_training_leads = [[0,1]]
+        #     self.taskname = self.taskname + '_centralized_no_missing'
         
         # self.taskname = self.taskname + '_' + str(self.num_classes) + '_classes'    
         
