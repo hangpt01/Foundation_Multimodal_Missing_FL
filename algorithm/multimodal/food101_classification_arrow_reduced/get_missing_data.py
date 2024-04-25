@@ -18,10 +18,10 @@ class Server(BasicServer):
         # import pdb; pdb.set_trace()
         dict_types, dict_labels = self.get_missing_type_label()
         save_dir = "fedtask/" + option['task']
-        with open(save_dir + '/output.txt', 'w') as f:
+        with open(save_dir + '/missing_data.txt', 'a+') as f:
             f.write("Server TEST")
-            str = '\t' + str({k: dict_types[k] for k in sorted(dict_types)}) + '\t\t' + str({k: dict_labels[k] for k in sorted(dict_labels)})
-            f.write(str)
+            str_ = '\t' + str({k: dict_types[k] for k in sorted(dict_types)}) + '\t\t' + str({k: dict_labels[k] for k in sorted(dict_labels)})
+            f.write(str_)
         exit()
 
     def get_missing_type_label (self):
@@ -185,10 +185,10 @@ class Client(BasicClient):
         dict_types_val, dict_labels_val = self.get_missing_type_label(dataflag='valid')
         
         save_dir = "fedtask/" + option['task']
-        with open(save_dir + '/output.txt', 'w') as f:
-            str1 = '\t' + str({k: dict_types_train[k] for k in sorted(dict_types_train)}) + '\t\t' + str({k: dict_labels_train[k] for k in sorted(dict_labels_train)})
+        with open(save_dir + '/missing_data.txt', 'a+') as f:
+            str1 = '\t' + str({k: dict_types_train[k] for k in sorted(dict_types_train)}) + '\t\t' + str({k: dict_labels_train[k] for k in sorted(dict_labels_train)}) + '\t\t'
             f.write(str1)
-            str2 = '\t' + str({k: dict_types_val[k] for k in sorted(dict_types_val)}) + '\t\t' + str({k: dict_labels_val[k] for k in sorted(dict_labels_val)})
+            str2 = '\t' + str({k: dict_types_val[k] for k in sorted(dict_types_val)}) + '\t\t' + str({k: dict_labels_val[k] for k in sorted(dict_labels_val)}) + '\n'
             f.write(str2)
             
 

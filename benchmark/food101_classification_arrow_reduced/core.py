@@ -349,7 +349,7 @@ class TaskGen(DefaultTaskGen):
         self.local_holdout_rate = 0.1
         # self.specific_training_leads = None
         
-        if self.missing and self.num_clients==20:
+        if self.missing:
             self.taskname = self.taskname + '_' + 'missing_ratio_' + str(missing_ratio_train) + '_' + str(missing_ratio_test)  \
                                           + '_' + 'missing_type_' + str(missing_type_train) + '_' + str(missing_type_test) \
                                           + '_' + 'both_ratio_' + str(both_ratio)

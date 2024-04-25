@@ -1,5 +1,5 @@
 python main.py \
-    --task food101_classification_arrow_reduced_cnum1_dist0_skew0_seed0_centralized_no_missing \
+    --task food101_classification_arrow_reduced_cnum1_dist0_skew0_seed0_missing_ratio_0.4_0.4_missing_type_both_both_both_ratio_0.5 \
     --model centralized \
     --algorithm multimodal.food101_classification_arrow_reduced.fedavg_no_prompt \
     --sample full \
@@ -15,5 +15,5 @@ python main.py \
     --learning_rate_decay 0.99 \
     --batch_size 64 \
     --test_batch_size 64 \
-    --gpu 0 \
+    --gpu 1 \
     --wandb
