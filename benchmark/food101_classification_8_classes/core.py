@@ -231,22 +231,12 @@ def save_task(generator):
             'dtrain': generator.train_cidxs[cid],
             'dvalid': generator.valid_cidxs[cid]
         }
+    # with open(os.path.join(generator.taskpath, 'data.json'), 'w') as outf:
+    #     ujson.dump(feddata, outf)
+    # return
     with open(os.path.join(generator.taskpath, 'data.json'), 'w') as outf:
-        ujson.dump(feddata, outf)
+        ujson.dump(feddata, outf, default=convert)
     return
-    
-# def iid_partition(generator):
-#     print(generator)
-#     # import pdb; pdb.set_trace()
-#     labels = np.unique(generator.train_data.y)
-#     local_datas = [[] for _ in range(generator.num_clients)]
-#     for label in labels:
-#         permutation = np.random.permutation(np.where(generator.train_data.y == label)[0])
-#         split = np.array_split(permutation, generator.num_clients)
-#         for i, idxs in enumerate(split):
-#             local_datas[i] += idxs.tolist()
-#     # import pdb; pdb.set_trace()
-#     return local_datas
 
 def convert(o):
     if isinstance(o, np.int64): return int(o)  
