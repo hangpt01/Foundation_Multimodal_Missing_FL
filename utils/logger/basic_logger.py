@@ -217,6 +217,35 @@ class Logger(logging.Logger):
     def initialize(self, *args, **kwargs):
         return
 
+    # def log_once(self, *args, **kwargs):
+    #     """This method is called at the beginning of each communication round of Server.
+    #     The round-wise operations of recording should be complemented here."""
+    #     # calculate the testing metrics on testing dataset owned by server
+    #     test_metric = self.server.test()
+    #     for met_name, met_val in test_metric.items():
+    #         self.output['test_' + met_name].append(met_val)
+    #     # calculate weighted averaging of metrics on training datasets across clients
+    #     train_metrics = self.server.test_on_clients('train')
+    #     for met_name, met_val in train_metrics.items():
+    #         self.output['train_' + met_name + '_dist'].append(met_val)
+    #         # self.output['train_' + met_name].append(1.0 * sum([client_vol * client_met for client_vol, client_met in zip(self.server.local_data_vols, met_val)]) / self.server.total_data_vol)
+    #         self.output['train_' + met_name].append(
+    #             1.0 * sum([
+    #                 self.server.clients[client_id].datavol * client_met for client_id, client_met in zip(self.server.selected_clients, met_val)
+    #             ]) / sum([self.server.clients[client_id].datavol for client_id in self.server.selected_clients])
+    #         )
+    #     # calculate weighted averaging and other statistics of metrics on validation datasets across clients
+    #     valid_metrics = self.server.test_on_clients('valid')
+    #     for met_name, met_val in valid_metrics.items():
+    #         self.output['valid_' + met_name + '_dist'].append(met_val)
+    #         self.output['valid_' + met_name].append(
+    #             1.0 * sum([
+    #                 self.server.clients[client_id].datavol * client_met for client_id, client_met in zip(self.server.selected_clients, met_val)
+    #             ]) / sum([self.server.clients[client_id].datavol for client_id in self.server.selected_clients])
+    #         )
+    #     # output to stdout
+    #     self.show_current_output()
+        
     def log_once(self, *args, **kwargs):
         """This method is called at the beginning of each communication round of Server.
         The round-wise operations of recording should be complemented here."""
@@ -224,6 +253,11 @@ class Logger(logging.Logger):
         test_metric = self.server.test()
         for met_name, met_val in test_metric.items():
             self.output['test_' + met_name].append(met_val)
+            
+        # valid_metric = self.server.validate()
+        # for met_name, met_val in valid_metric.items():
+        #     self.output['valid_' + met_name].append(met_val)
+            
         # calculate weighted averaging of metrics on training datasets across clients
         train_metrics = self.server.test_on_clients('train')
         for met_name, met_val in train_metrics.items():
