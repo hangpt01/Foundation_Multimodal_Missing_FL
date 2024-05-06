@@ -1,6 +1,6 @@
 import functools
-# from .base_dataset import BaseDataset
-from base_dataset import BaseDataset        # run __main__
+from .base_dataset import BaseDataset
+# from base_dataset import BaseDataset        # run __main__
 from torch.utils.data import DataLoader
 import torch
 import random, os
@@ -29,12 +29,14 @@ class FOOD101Dataset(BaseDataset):
         
         # missing modality control        
         self.simulate_missing = missing_info['simulate_missing']
+        # import pdb; pdb.set_trace()
         missing_ratio = missing_info['ratio'][split]
         mratio = str(missing_ratio).replace('.','')
         missing_type = missing_info['type'][split]       
         both_ratio = missing_info['both_ratio']         # 0.5
+        bratio = str(both_ratio).replace('.','')
         missing_table_root = missing_info['missing_table_root']
-        missing_table_name = f'{names[0]}_missing_{missing_type}_{mratio}.pt'
+        missing_table_name = f'{names[0]}_missing_{missing_type}_{mratio}_{bratio}.pt'
         missing_table_path = os.path.join(missing_table_root, missing_table_name)
         
         # use image data to formulate missing table
@@ -60,7 +62,7 @@ class FOOD101Dataset(BaseDataset):
                     missing_index_image  = random.sample(missing_index, int(len(missing_index)*both_ratio))
                     missing_table[missing_index_image] = 2
                     
-                torch.save(missing_table, missing_table_path)
+            torch.save(missing_table, missing_table_path)
 
         self.missing_table = missing_table
 
@@ -112,7 +114,7 @@ if __name__=='__main__':
     print(datetime.now(), "Start creating Datasets")
     data_dir = "../../benchmark/RAW_DATA/FOOD101/generate_arrows"
     transform_keys = ['pixelbert']
-    split="train"
+    split="test"
     image_size = 384
     max_text_len = 40
     draw_false_image = 0
@@ -120,11 +122,11 @@ if __name__=='__main__':
     image_only = False
     _config = {
         'missing_ratio':
-            {'test': 0.7,
+            {'test': 1,
             'train': 0.7},
         'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
         'missing_type':
-            {'test': 'image',
+            {'test': 'text',
             'train': 'both'},
         'both_ratio': 0,
         'simulate_missing': False
@@ -159,10 +161,11 @@ if __name__=='__main__':
     
     train_dataset.collate = functools.partial(train_dataset.collate, mlm_collator=train_dataset.mlm_collator)
 
-    
+    # import pdb; pdb.set_trace()
     missing_types = []
     labels = []
-    for data_sample in train_dataset:
+    for i in range(len(train_dataset)):
+        data_sample = train_dataset[i]
         missing_type = data_sample["missing_type"]
         missing_types.append(missing_type)
         label = data_sample["label"]
@@ -172,7 +175,8 @@ if __name__=='__main__':
     dict_labels = Counter(labels)
     str_ = '\t' + str({k: dict_types[k] for k in sorted(dict_types)}) + '\t\t' + str({k: dict_labels[k] for k in sorted(dict_labels)})
     print(str_)
-    import pdb; pdb.set_trace()
+    exit()
+    # import pdb; pdb.set_trace()
 
     batch_size = 32
     num_workers = 0

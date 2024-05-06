@@ -6,8 +6,8 @@ import pyarrow as pa
 import os
 
 from PIL import Image
-# from .transforms import keys_to_transforms
-from transforms import keys_to_transforms       # run __main__
+from .transforms import keys_to_transforms
+# from transforms import keys_to_transforms       # run __main__
 
 from datetime import datetime
 
@@ -75,6 +75,7 @@ class BaseDataset(torch.utils.data.Dataset):
                 # import pdb; pdb.set_trace()
                 end_index = total_rows // 12.458        # 7: 220
             # Extract the subset of the table
+            # end_index = total_rows
             self.table = self.table.slice(start_index, end_index)
             #-------------------------------------------------------
             # import pdb; pdb.set_trace()

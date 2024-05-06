@@ -88,6 +88,127 @@ class TaskPipe(IDXTaskPipe):
         # origin_test_data.collate = functools.partial(origin_test_data.collate, mlm_collator=origin_test_data.mlm_collator)
         # import pdb; pdb.set_trace()
         test_data = cls.TaskDataset(origin_test_data, [_ for _ in range(len(origin_test_data))])
+
+        # import pdb; pdb.set_trace()
+        # other test data
+        other_test_datas = []
+
+        missing_image_config = {
+        'ratio':
+            {'test': 0.7,
+            'train': 0.7},
+        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'type':
+            {'test': 'image',
+            'train': 'both'},
+        'both_ratio': 0,
+        'simulate_missing': False
+        }
+        origin_test_miss_image_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+                                image_size=image_size,
+                                max_text_len=max_text_len,
+                                draw_false_image=draw_false_image,
+                                draw_false_text=draw_false_text,
+                                image_only=image_only,
+                                missing_info=missing_image_config)
+        origin_test_miss_image_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        test_miss_image_data = cls.TaskDataset(origin_test_miss_image_data, [_ for _ in range(len(origin_test_miss_image_data))])
+        other_test_datas.append(test_miss_image_data)
+
+        # import pdb; pdb.set_trace()
+
+        missing_text_config = {
+        'ratio':
+            {'test': 0.7,
+            'train': 0.7},
+        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'type':
+            {'test': 'text',
+            'train': 'both'},
+        'both_ratio': 0,
+        'simulate_missing': False
+        }
+        origin_test_miss_text_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+                                image_size=image_size,
+                                max_text_len=max_text_len,
+                                draw_false_image=draw_false_image,
+                                draw_false_text=draw_false_text,
+                                image_only=image_only,
+                                missing_info=missing_text_config)
+        origin_test_miss_text_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        test_miss_text_data = cls.TaskDataset(origin_test_miss_text_data, [_ for _ in range(len(origin_test_miss_text_data))])
+        other_test_datas.append(test_miss_text_data)
+    
+
+        full_modal_config = {
+        'ratio':
+            {'test': 0,
+            'train': 0.7},
+        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'type':
+            {'test': 'both',
+            'train': 'both'},
+        'both_ratio': 0,
+        'simulate_missing': False
+        }
+        origin_test_full_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+                                image_size=image_size,
+                                max_text_len=max_text_len,
+                                draw_false_image=draw_false_image,
+                                draw_false_text=draw_false_text,
+                                image_only=image_only,
+                                missing_info=full_modal_config)
+        origin_test_full_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        test_full_data = cls.TaskDataset(origin_test_full_data, [_ for _ in range(len(origin_test_full_data))])
+        other_test_datas.append(test_full_data)
+
+
+        image_only_config = {
+        'ratio':
+            {'test': 1,
+            'train': 0.7},
+        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'type':
+            {'test': 'text',
+            'train': 'both'},
+        'both_ratio': 0,
+        'simulate_missing': False
+        }
+        origin_test_image_only_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+                                image_size=image_size,
+                                max_text_len=max_text_len,
+                                draw_false_image=draw_false_image,
+                                draw_false_text=draw_false_text,
+                                image_only=image_only,
+                                missing_info=image_only_config)
+        origin_test_image_only_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        test_image_only_data = cls.TaskDataset(origin_test_image_only_data, [_ for _ in range(len(origin_test_image_only_data))])
+        other_test_datas.append(test_image_only_data)
+
+
+        text_only_config = {
+        'ratio':
+            {'test': 1,
+            'train': 0.7},
+        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'type':
+            {'test': 'image',
+            'train': 'both'},
+        'both_ratio': 0,
+        'simulate_missing': False
+        }
+        origin_test_text_only_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+                                image_size=image_size,
+                                max_text_len=max_text_len,
+                                draw_false_image=draw_false_image,
+                                draw_false_text=draw_false_text,
+                                image_only=image_only,
+                                missing_info=text_only_config)
+        origin_test_text_only_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        test_text_only_data = cls.TaskDataset(origin_test_text_only_data, [_ for _ in range(len(origin_test_text_only_data))])
+        other_test_datas.append(test_text_only_data)
+
+
         train_datas = []
         valid_datas = []
         # modalities_list = []
@@ -107,6 +228,8 @@ class TaskPipe(IDXTaskPipe):
             valid_datas.append(cls.TaskDataset(origin_train_data, valid_data))
             # modalities_list.append(feddata[name]['modalities'])
             # modalities_list.append(list(range(12)))
+        
+        test_data = (test_data, other_test_datas)
         return train_datas, valid_datas, test_data, feddata['client_names']
 
 def collate(batch, mlm_collator):
@@ -520,25 +643,128 @@ class TaskGen(DefaultTaskGen):
         self.test_data.mlm_collator = collator(tokenizer=self.test_data.tokenizer, mlm=True, mlm_probability=0.15)
         self.test_data.collate = functools.partial(self.test_data.collate, mlm_collator=self.test_data.mlm_collator)
 
-        # other test data
-        # miss_image_missing_info = {
-        #         'ratio' : 0.7,
-        #         'type' : _'both',
-        #         'both_ratio' : _config["both_ratio"],
-        #         'missing_table_root': _config["missing_table_root"],
-        #         'simulate_missing' : _config["simulate_missing"]
-        #     }
-        self.test_miss_image_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
-                                image_size=self.image_size,
-                                max_text_len=self.max_text_len,
-                                draw_false_image=self.draw_false_image,
-                                draw_false_text=self.draw_false_text,
-                                image_only=self.image_only,
-                                missing_info=self.missing_info)
-        self.test_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        self.test_data.mlm_collator = collator(tokenizer=self.test_data.tokenizer, mlm=True, mlm_probability=0.15)
-        self.test_data.collate = functools.partial(self.test_data.collate, mlm_collator=self.test_data.mlm_collator)
+        # # other test data
+        # self.other_test_datas = []
+        # missing_image_config = {
+        # 'missing_ratio':
+        #     {'test': 0.7,
+        #     'train': 0.7},
+        # 'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        # 'missing_type':
+        #     {'test': 'image',
+        #     'train': 'both'},
+        # 'both_ratio': 0,
+        # 'simulate_missing': False
+        # }
+        # test_miss_image_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
+        #                         image_size=self.image_size,
+        #                         max_text_len=self.max_text_len,
+        #                         draw_false_image=self.draw_false_image,
+        #                         draw_false_text=self.draw_false_text,
+        #                         image_only=self.image_only,
+        #                         missing_info=missing_image_config)
+        # test_miss_image_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        # test_miss_image_data.mlm_collator = collator(tokenizer=test_miss_image_data.tokenizer, mlm=True, mlm_probability=0.15)
+        # test_miss_image_data.collate = functools.partial(test_miss_image_data.collate, mlm_collator=test_miss_image_data.mlm_collator)
+        # self.other_test_datas.append(test_miss_image_data)
+
+
+        # missing_text_config = {
+        # 'missing_ratio':
+        #     {'test': 0.7,
+        #     'train': 0.7},
+        # 'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        # 'missing_type':
+        #     {'test': 'text',
+        #     'train': 'both'},
+        # 'both_ratio': 0,
+        # 'simulate_missing': False
+        # }
+        # test_miss_text_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
+        #                         image_size=self.image_size,
+        #                         max_text_len=self.max_text_len,
+        #                         draw_false_image=self.draw_false_image,
+        #                         draw_false_text=self.draw_false_text,
+        #                         image_only=self.image_only,
+        #                         missing_info=missing_text_config)
+        # test_miss_text_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        # test_miss_text_data.mlm_collator = collator(tokenizer=test_miss_text_data.tokenizer, mlm=True, mlm_probability=0.15)
+        # test_miss_text_data.collate = functools.partial(test_miss_text_data.collate, mlm_collator=test_miss_text_data.mlm_collator)
+        # self.other_test_datas.append(test_miss_text_data)
+    
+
+        # full_modal_config = {
+        # 'missing_ratio':
+        #     {'test': 0,
+        #     'train': 0.7},
+        # 'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        # 'missing_type':
+        #     {'test': 'both',
+        #     'train': 'both'},
+        # 'both_ratio': 0,
+        # 'simulate_missing': False
+        # }
+        # full_modal = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
+        #                         image_size=self.image_size,
+        #                         max_text_len=self.max_text_len,
+        #                         draw_false_image=self.draw_false_image,
+        #                         draw_false_text=self.draw_false_text,
+        #                         image_only=self.image_only,
+        #                         missing_info=full_modal_config)
+        # full_modal.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        # full_modal.mlm_collator = collator(tokenizer=full_modal.tokenizer, mlm=True, mlm_probability=0.15)
+        # full_modal.collate = functools.partial(full_modal.collate, mlm_collator=full_modal.mlm_collator)
+        # self.other_test_datas.append(full_modal)
         
+
+        # image_only_config = {
+        # 'missing_ratio':
+        #     {'test': 1,
+        #     'train': 0.7},
+        # 'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        # 'missing_type':
+        #     {'test': 'text',
+        #     'train': 'both'},
+        # 'both_ratio': 0,
+        # 'simulate_missing': False
+        # }
+        # test_image_only = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
+        #                         image_size=self.image_size,
+        #                         max_text_len=self.max_text_len,
+        #                         draw_false_image=self.draw_false_image,
+        #                         draw_false_text=self.draw_false_text,
+        #                         image_only=self.image_only,
+        #                         missing_info=image_only_config)
+        # test_image_only.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        # test_image_only.mlm_collator = collator(tokenizer=test_image_only.tokenizer, mlm=True, mlm_probability=0.15)
+        # test_image_only.collate = functools.partial(test_image_only.collate, mlm_collator=test_image_only.mlm_collator)
+        # self.other_test_datas.append(test_image_only)
+
+
+        # text_only_config = {
+        # 'missing_ratio':
+        #     {'test': 1,
+        #     'train': 0.7},
+        # 'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        # 'missing_type':
+        #     {'test': 'image',
+        #     'train': 'both'},
+        # 'both_ratio': 0,
+        # 'simulate_missing': False
+        # }
+        # test_text_only = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
+        #                         image_size=self.image_size,
+        #                         max_text_len=self.max_text_len,
+        #                         draw_false_image=self.draw_false_image,
+        #                         draw_false_text=self.draw_false_text,
+        #                         image_only=self.image_only,
+        #                         missing_info=text_only_config)
+        # test_text_only.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        # test_text_only.mlm_collator = collator(tokenizer=test_text_only.tokenizer, mlm=True, mlm_probability=0.15)
+        # test_text_only.collate = functools.partial(test_text_only.collate, mlm_collator=test_text_only.mlm_collator)
+        # self.other_test_datas.append(test_text_only)
+
+
     # def local_holdout(self, local_datas, shuffle=False):
     #     """split each local dataset into train data and valid data according the rate."""
     #     train_cidxs = []
@@ -706,3 +932,43 @@ class TaskCalculator(ClassificationCalculator):
         # import pdb;pdb.set_trace()
         return result
         
+    
+    @torch.no_grad()
+    def server_other_test(self, model, transformer, text_embeddings, datasets, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        # import pdb; pdb.set_trace()
+        model.eval()
+        names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
+        result = dict() 
+        for i in range(len(datasets)):
+            dataset = datasets[i]
+            if batch_size==-1:batch_size=len(dataset)
+            data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+            # for test_combi_index in range(len(2)):
+            total_loss = 0.0
+            labels = list()
+            predicts = list()   
+            for batch_id, batch_data in enumerate(data_loader):
+                batch_data = self.data_to_device(batch_data)
+                labels.extend(batch_data['label'])
+                loss, outputs = model(transformer, text_embeddings, batch_data)
+                total_loss += loss.item() * len(batch_data['label'])
+                predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+                # TO_DELETE
+                # if batch_id==1:
+                #     break
+            # import pdb; pdb.set_trace()
+            labels = np.array(labels)
+            predicts = np.array(predicts)
+            accuracy = accuracy_score(labels, predicts)
+            # for i in range(self.n_leads):
+            #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
+            result[names[i]+'_loss'] = total_loss / len(dataset)
+            result[names[i]+'_acc'] = accuracy
+        return result
