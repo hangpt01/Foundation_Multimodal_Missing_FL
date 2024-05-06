@@ -1,10 +1,12 @@
 import functools
-from .base_dataset import BaseDataset
+# from .base_dataset import BaseDataset
+from base_dataset import BaseDataset        # run __main__
 from torch.utils.data import DataLoader
 import torch
 import random, os
 from datetime import datetime
 from transformers import BertTokenizer, DataCollatorForLanguageModeling
+from collections import Counter
 
 class FOOD101Dataset(BaseDataset):
     def __init__(self, *args, split="", missing_info={}, **kwargs):
@@ -108,7 +110,7 @@ class FOOD101Dataset(BaseDataset):
 
 if __name__=='__main__':
     print(datetime.now(), "Start creating Datasets")
-    data_dir = "./benchmark/RAW_DATA/FOOD101/generate_arrows"
+    data_dir = "../../benchmark/RAW_DATA/FOOD101/generate_arrows"
     transform_keys = ['pixelbert']
     split="train"
     image_size = 384
@@ -120,11 +122,11 @@ if __name__=='__main__':
         'missing_ratio':
             {'test': 0.7,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_8_classes/',
+        'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
         'missing_type':
-            {'test': 'both',
+            {'test': 'image',
             'train': 'both'},
-        'both_ratio': 0.5,
+        'both_ratio': 0,
         'simulate_missing': False
     }
     missing_info = {
@@ -157,11 +159,26 @@ if __name__=='__main__':
     
     train_dataset.collate = functools.partial(train_dataset.collate, mlm_collator=train_dataset.mlm_collator)
 
+    
+    missing_types = []
+    labels = []
+    for data_sample in train_dataset:
+        missing_type = data_sample["missing_type"]
+        missing_types.append(missing_type)
+        label = data_sample["label"]
+        labels.append(label)
+
+    dict_types = Counter(missing_types)
+    dict_labels = Counter(labels)
+    str_ = '\t' + str({k: dict_types[k] for k in sorted(dict_types)}) + '\t\t' + str({k: dict_labels[k] for k in sorted(dict_labels)})
+    print(str_)
+    import pdb; pdb.set_trace()
 
     batch_size = 32
     num_workers = 0
     train_dataloader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers, pin_memory=True, collate_fn=train_dataset.collate)
     batch = next(iter(train_dataloader))
+    
     # img, text, label, missing_type = batch['image'], batch['text'], batch['label'], batch['missing_type']
     import pdb; pdb.set_trace()
 

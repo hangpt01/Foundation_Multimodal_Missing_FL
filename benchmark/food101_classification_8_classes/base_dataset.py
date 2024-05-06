@@ -6,7 +6,8 @@ import pyarrow as pa
 import os
 
 from PIL import Image
-from .transforms import keys_to_transforms
+# from .transforms import keys_to_transforms
+from transforms import keys_to_transforms       # run __main__
 
 from datetime import datetime
 

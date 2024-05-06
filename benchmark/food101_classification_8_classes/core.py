@@ -519,6 +519,25 @@ class TaskGen(DefaultTaskGen):
         self.test_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         self.test_data.mlm_collator = collator(tokenizer=self.test_data.tokenizer, mlm=True, mlm_probability=0.15)
         self.test_data.collate = functools.partial(self.test_data.collate, mlm_collator=self.test_data.mlm_collator)
+
+        # other test data
+        # miss_image_missing_info = {
+        #         'ratio' : 0.7,
+        #         'type' : _'both',
+        #         'both_ratio' : _config["both_ratio"],
+        #         'missing_table_root': _config["missing_table_root"],
+        #         'simulate_missing' : _config["simulate_missing"]
+        #     }
+        self.test_miss_image_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
+                                image_size=self.image_size,
+                                max_text_len=self.max_text_len,
+                                draw_false_image=self.draw_false_image,
+                                draw_false_text=self.draw_false_text,
+                                image_only=self.image_only,
+                                missing_info=self.missing_info)
+        self.test_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.test_data.mlm_collator = collator(tokenizer=self.test_data.tokenizer, mlm=True, mlm_probability=0.15)
+        self.test_data.collate = functools.partial(self.test_data.collate, mlm_collator=self.test_data.mlm_collator)
         
     # def local_holdout(self, local_datas, shuffle=False):
     #     """split each local dataset into train data and valid data according the rate."""
