@@ -44,6 +44,8 @@ class Server(BasicServer):
             hidden_dropout_prob=self.hparams_config["drop_rate"],
             attention_probs_dropout_prob=self.hparams_config["drop_rate"],
         )
+        
+        self.test_data, self.other_test_datas = test_data
         self.text_embeddings = BertEmbeddings(bert_config)
         self.text_embeddings.apply(init_weights)
         for param in self.transformer.parameters():
@@ -164,13 +166,23 @@ class Server(BasicServer):
         # return dict()
         if model is None: model=self.model
         if self.test_data:
-            return self.calculator.server_test(
+            result = self.calculator.server_test(
                 model=model,
                 transformer=self.transformer,
                 text_embeddings=self.text_embeddings,
                 dataset=self.test_data,
                 batch_size=self.option['test_batch_size']
             )
+            if self.other_test_datas:
+                result.update(self.calculator.server_other_test(
+                    model=model,
+                    transformer=self.transformer,
+                    text_embeddings=self.text_embeddings,
+                    datasets=self.other_test_datas,
+                    batch_size=self.option['test_batch_size']
+                ))
+            return result
+        
         else:
             return None
     
