@@ -16,10 +16,11 @@ class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
         # import pdb; pdb.set_trace()
+        self.test_data, self.other_test_datas = test_data
         dict_types, dict_labels = self.get_missing_type_label()
         save_dir = "fedtask/" + option['task']
         with open(save_dir + '/missing_data.txt', 'a+') as f:
-            f.write("Server TEST")
+            f.write("\nServer TEST\n")
             str_ = '\t' + str({k: dict_types[k] for k in sorted(dict_types)}) + '\t\t' + str({k: dict_labels[k] for k in sorted(dict_labels)})
             f.write(str_)
         exit()
@@ -28,7 +29,9 @@ class Server(BasicServer):
         dataset = self.test_data
         missing_types = []
         labels = []
-        for data_sample in dataset:
+        for i in range(len(dataset)):
+            data_sample = dataset[i]
+            # import pdb; pdb.set_trace()
             missing_type = data_sample["missing_type"]
             missing_types.append(missing_type)
             label = data_sample["label"]
@@ -179,8 +182,8 @@ class Client(BasicClient):
     def __init__(self, option, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
-        # self.get_missing_type_label(dataflag='train')
-        # self.get_missing_type_label(dataflag='valid')
+        self.get_missing_type_label(dataflag='train')
+        self.get_missing_type_label(dataflag='valid')
         dict_types_train, dict_labels_train = self.get_missing_type_label(dataflag='train')
         dict_types_val, dict_labels_val = self.get_missing_type_label(dataflag='valid')
         
