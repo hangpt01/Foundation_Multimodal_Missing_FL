@@ -41,6 +41,7 @@ class FOOD101Dataset(BaseDataset):
         
         # use image data to formulate missing table
         total_num = len(self.table['image'])
+        # import pdb; pdb.set_trace()
         
         if os.path.exists(missing_table_path):
             missing_table = torch.load(missing_table_path)
@@ -83,6 +84,7 @@ class FOOD101Dataset(BaseDataset):
         
         # missing image, dummy image is all-one image
         if self.missing_table[image_index] == 2 or simulate_missing_type == 2:
+            # import pdb; pdb.set_trace()
             for idx in range(len(image_tensor)):
                 image_tensor[idx] = torch.ones(image_tensor[idx].size()).float()
             

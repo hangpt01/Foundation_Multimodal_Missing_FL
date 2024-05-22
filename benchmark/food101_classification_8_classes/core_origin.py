@@ -821,7 +821,7 @@ class TaskCalculator(ClassificationCalculator):
         transformer.to(self.device)
         text_embeddings.to(self.device)
         # print(tdata[0])
-        loss = model(transformer, text_embeddings, batch)
+        loss, _ = model(transformer, text_embeddings, batch)
         # backbone.to('cpu')
         # print(loss.cpu().item())
         return {'loss': loss}
@@ -841,19 +841,16 @@ class TaskCalculator(ClassificationCalculator):
         total_loss = 0.0
         labels = list()
         predicts = list()
-        model.to(self.device) # y.device
-        transformer.to(self.device)
-        text_embeddings.to(self.device)
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
             # import pdb; pdb.set_trace()
-            loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+            loss, outputs = model(transformer, text_embeddings, batch_data)
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==1:
+            #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
@@ -879,13 +876,9 @@ class TaskCalculator(ClassificationCalculator):
         
         labels = list()
         predicts = list()
-        model.to(self.device) # y.device
-        transformer.to(self.device)
-        text_embeddings.to(self.device)
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
-            loss, loss_, outputs = model(transformer, text_embeddings, batch_data)
-            loss = torch.tensor(loss).to(loss[0].device)
+            loss, outputs = model(transformer, text_embeddings, batch_data)
             if batch_id==0:
                 total_loss = loss
             else:
@@ -894,9 +887,6 @@ class TaskCalculator(ClassificationCalculator):
             # if batch_id==1:
             #     break
         loss_eval = loss / (batch_id + 1) 
-        # import pdb; pdb.set_trace()
-        loss_eval = [loss for loss in loss_eval]
-        
         return loss_eval
 
     
@@ -921,12 +911,12 @@ class TaskCalculator(ClassificationCalculator):
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
-            loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+            loss, outputs = model(transformer, text_embeddings, batch_data)
             total_loss += loss.item() * len(batch_data['label'])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==1:
+            #     break
         # import pdb; pdb.set_trace()
         labels = np.array(labels)
         predicts = np.array(predicts)
@@ -967,12 +957,12 @@ class TaskCalculator(ClassificationCalculator):
             for batch_id, batch_data in enumerate(data_loader):
                 batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data['label'])
-                loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+                loss, outputs = model(transformer, text_embeddings, batch_data)
                 total_loss += loss.item() * len(batch_data['label'])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
                 # TO_DELETE
-                if batch_id==1:
-                    break
+                # if batch_id==1:
+                #     break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)
