@@ -279,19 +279,19 @@ class Model(FModule):
             missing_img_loss = self.criterion(imgcls_logits[self.ls_idx_missing_img], imgcls_labels[self.ls_idx_missing_img])
             loss_leads[0] = missing_img_loss
         else:
-            loss_leads[0] = 0
+            loss_leads[0] = torch.tensor(0, dtype=torch.float64, requires_grad = True).to(self.device)
 
         if len(self.ls_idx_missing_text) > 0:
             missing_text_loss = self.criterion(imgcls_logits[self.ls_idx_missing_text], imgcls_labels[self.ls_idx_missing_text])
             loss_leads[1] = missing_text_loss
         else:
-            loss_leads[1] = 0
+            loss_leads[1] = torch.tensor(0, dtype=torch.float64, requires_grad = True).to(self.device)
             
         if len(self.ls_idx_complete) > 0:
             complete_loss = self.criterion(imgcls_logits[self.ls_idx_complete], imgcls_labels[self.ls_idx_complete])
             loss_leads[-1] = complete_loss
         else:
-            loss_leads[-1] = 0
+            loss_leads[-1] = torch.tensor(0, dtype=torch.float64, requires_grad = True).to(self.device)
 
 
         loss =  sum([a*b for a,b in zip(self.z_M, loss_leads)])

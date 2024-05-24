@@ -9,6 +9,7 @@ def main():
     option = flw.read_option()
     print(option)
     if option['wandb']:
+        wandb.login(key="887703a5a8c2fde78c2813ca42da60726b8e0cda")
         wandb.init(
             entity="aiotlab",
             project='Foundation_Multimodal_FL',

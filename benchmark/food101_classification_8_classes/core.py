@@ -823,7 +823,7 @@ class TaskCalculator(ClassificationCalculator):
         # print(tdata[0])
         loss = model(transformer, text_embeddings, batch)
         # backbone.to('cpu')
-        # print(loss.cpu().item())
+        # print(loss)
         return {'loss': loss}
     
     @torch.no_grad()

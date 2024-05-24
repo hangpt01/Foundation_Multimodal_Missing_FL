@@ -348,7 +348,6 @@ class Client(BasicClient):
 
         # Training loss per batch
         loss_step_E = torch.stack(loss)
-        # import pdb; pdb.set_trace()
         
         # for m in self.modalities:
         val_loss_step_E = torch.stack(self.evaluate(model, transformer, text_embeddings))

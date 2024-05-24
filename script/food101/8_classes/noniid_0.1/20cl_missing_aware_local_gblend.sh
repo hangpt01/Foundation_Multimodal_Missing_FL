@@ -17,3 +17,4 @@ python main.py \
     --test_batch_size 64 \
     --gpu 1 \
     --wandb
+

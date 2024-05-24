@@ -255,7 +255,7 @@ class Model(FModule):
         imgcls_loss = F.cross_entropy(imgcls_logits, imgcls_labels)
         # import pdb; pdb.set_trace()
 
-        return imgcls_loss, imgcls_logits
+        return imgcls_loss, imgcls_loss, imgcls_logits
 
 
 if __name__ == '__main__':

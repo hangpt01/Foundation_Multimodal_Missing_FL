@@ -142,6 +142,11 @@ class Logger(logging.Logger):
                 wandb.define_metric("test_f1_score_"+str(i+1), summary="max")
             wandb.define_metric("test_loss", summary="min")
             wandb.define_metric("test_acc", summary="max")
+            wandb.define_metric("test_full_modal_acc", summary="max")
+            wandb.define_metric("test_miss_text_acc", summary="max")
+            wandb.define_metric("test_image_only_acc", summary="max")
+            wandb.define_metric("test_miss_image_acc", summary="max")
+            wandb.define_metric("test_text_only_acc", summary="max")
             wandb.log(tmp)
 
     def get_output_name(self, suffix='.json', prefix_log_filename=None):

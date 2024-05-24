@@ -336,7 +336,7 @@ class Client(BasicClient):
             # calculate the loss of the model on batched dataset through task-specified calculator
             
             # import pdb; pdb.set_trace()
-            loss = self.calculator.train_one_step(
+            _, loss, outputs = self.calculator.train_one_step(
                 model=model,
                 transformer=transformer,
                 text_embeddings=text_embeddings,
