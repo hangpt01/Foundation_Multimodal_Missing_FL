@@ -320,7 +320,7 @@ class Client(BasicClient):
 
         # print(self.num_steps)
         # TO_DELETE
-        self.num_steps = 1
+        # self.num_steps = 1
         # print(self.num_steps)
 
         # print("Training client", client_id+1)
@@ -360,7 +360,7 @@ class Client(BasicClient):
         z_M = delta_G / (delta_O*delta_O)
         Q = torch.sum(z_M)
         model.z_M = z_M / (2*Q)
-        print(client_id, delta_G, delta_O)
+        # print(client_id, delta_G, delta_O)
         
         # z_M_step_E = model.z_M
         # # import pdb; pdb.set_trace()
