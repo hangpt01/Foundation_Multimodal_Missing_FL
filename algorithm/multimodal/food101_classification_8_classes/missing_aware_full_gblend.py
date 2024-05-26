@@ -117,34 +117,15 @@ class Server(BasicServer):
     def aggregate(self, models: list):
         n_models = len(models)
         new_model = copy.deepcopy(self.model)
-        p = list()
-        chosen_models = list()
-        for k, client_id in enumerate(self.selected_clients):
-            p.append(self.clients[client_id].datavol)
-            chosen_models.append(models[k])
+        # p = list()
+        # chosen_models = list()
+        # for k, client_id in enumerate(self.selected_clients):
+        #     p.append(self.clients[client_id].datavol)
+        #     chosen_models.append(models[k])
 
-        p = [self.clients[client_id].datavol for client_id in self.selected_clients]
+        # p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         
         #prompt
-        average_tensor = sum(pk * model.complete_prompt for pk, model in zip(p, models))  / sum(p)
-        new_model.complete_prompt = nn.Parameter(average_tensor)
-
-        average_tensor = sum(pk * model.missing_text_prompt for pk, model in zip(p, models))  / sum(p)
-        new_model.missing_text_prompt = nn.Parameter(average_tensor)
-
-        average_tensor = sum(pk * model.missing_img_prompt for pk, model in zip(p, models))  / sum(p)
-        new_model.missing_img_prompt = nn.Parameter(average_tensor)
-
-        # pooler
-        new_model.pooler = fmodule._model_sum([
-            model.pooler * pk for model, pk in zip(models, p)
-        ]) / sum(p)
-        
-        # classifier
-        new_model.classifier = fmodule._model_sum([
-            model.classifier * pk for model, pk in zip(models, p)
-        ]) / sum(p)
-        
         # HGB
         clients_z_M = [model.z_M for model in models]
         new_model.z_M = torch.FloatTensor([sum(sub_list) / len(sub_list) for sub_list in zip(*clients_z_M)])
@@ -162,9 +143,25 @@ class Server(BasicServer):
         
         print("P_K", p_k)
         
-        # for k in range(n_models):    
-        #     self.clients[self.selected_clients[k]].local_model.z_M = new_model.z_M
+        average_tensor = sum(pk * model.complete_prompt for pk, model in zip(p_k, models)) 
+        new_model.complete_prompt = nn.Parameter(average_tensor)
 
+        average_tensor = sum(pk * model.missing_text_prompt for pk, model in zip(p_k, models)) 
+        new_model.missing_text_prompt = nn.Parameter(average_tensor)
+
+        average_tensor = sum(pk * model.missing_img_prompt for pk, model in zip(p_k, models)) 
+        new_model.missing_img_prompt = nn.Parameter(average_tensor)
+
+        # pooler
+        new_model.pooler = fmodule._model_sum([
+            model.pooler * pk for model, pk in zip(models, p_k)
+        ])
+        
+        # classifier
+        new_model.classifier = fmodule._model_sum([
+            model.classifier * pk for model, pk in zip(models, p_k)
+        ])
+        
         return new_model
     
     def pack(self, client_id):
