@@ -927,7 +927,7 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item() * len(batch_data['label'])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             for i in range(3):
-                loss_each_modal[i] = loss_leads[i].item() * len(batch_data['label'])
+                loss_each_modal[i] += loss_leads[i].item() * len(batch_data['label'])
 
             # TO_DELETE
             # if batch_id==1:
