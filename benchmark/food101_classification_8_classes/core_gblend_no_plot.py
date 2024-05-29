@@ -918,17 +918,12 @@ class TaskCalculator(ClassificationCalculator):
         total_loss = 0.0
         labels = list()
         predicts = list()   
-        loss_each_modal = [[] for i in range(3)]
-        loss_each_modal = [0]*3
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
             loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
             total_loss += loss.item() * len(batch_data['label'])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
-            for i in range(3):
-                loss_each_modal[i] = loss_leads[i].item() * len(batch_data['label'])
-
             # TO_DELETE
             # if batch_id==1:
             #     break
@@ -936,11 +931,8 @@ class TaskCalculator(ClassificationCalculator):
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
-        result['loss_text_only'] = loss_each_modal[0] / len(dataset)
-        result['loss_image_only'] = loss_each_modal[1] / len(dataset)
-        result['loss_complete'] = loss_each_modal[-1] / len(dataset)
-        # for i in range(3):
-        #     result['loss_modal_combi''_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
+        # for i in range(self.n_leads):
+        #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
         result['loss'] = total_loss / len(dataset)
         result['acc'] = accuracy
         # return {
