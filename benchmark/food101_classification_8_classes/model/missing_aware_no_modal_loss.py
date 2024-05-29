@@ -107,12 +107,6 @@ class Model(FModule):
         missing_img_prompt[:,1:2,:].fill_(1)            
         self.missing_img_prompt = nn.Parameter(missing_img_prompt)              # [6, 16, 768])
 
-        self.ls_idx_complete = []
-        self.ls_idx_missing_text = []
-        self.ls_idx_missing_img = []
-
-        self.criterion = nn.CrossEntropyLoss()
-
         
     def infer(
             self,
@@ -173,21 +167,15 @@ class Model(FModule):
         )
         
         # instance wise missing aware prompts
-        self.ls_idx_complete = []
-        self.ls_idx_missing_img = []
-        self.ls_idx_missing_text = []
         prompts = None
         for idx in range(len(img)):
             if batch["missing_type"][idx] == 0:
                 prompt = self.complete_prompt        
-                self.ls_idx_complete.append(idx)
             elif batch["missing_type"][idx] == 1:
                 # import pdb; pdb.set_trace()
                 prompt = self.missing_text_prompt
-                self.ls_idx_missing_text.append(idx)
             elif batch["missing_type"][idx] == 2:
                 prompt = self.missing_img_prompt
-                self.ls_idx_missing_img.append(idx)
                 # 3 prompt: ([6, 16, 768])
             if prompt.size(0) != 1:
                 prompt = prompt.unsqueeze(0)
@@ -265,34 +253,9 @@ class Model(FModule):
         imgcls_labels = batch["label"]
         imgcls_labels = torch.tensor(imgcls_labels).to(self.device).long()
         imgcls_loss = F.cross_entropy(imgcls_logits, imgcls_labels)
-
-        # GBLend loss - 3 losses
-        loss_leads = [0]*3
-
         # import pdb; pdb.set_trace()
-        if len(self.ls_idx_missing_img) > 0:
-            # import pdb; pdb.set_trace()
-            missing_img_loss = self.criterion(imgcls_logits[self.ls_idx_missing_img], imgcls_labels[self.ls_idx_missing_img])
-            loss_leads[0] = missing_img_loss
-        else:
-            loss_leads[0] = torch.tensor(0, dtype=torch.float64, requires_grad = True).to(self.device)
 
-        if len(self.ls_idx_missing_text) > 0:
-            missing_text_loss = self.criterion(imgcls_logits[self.ls_idx_missing_text], imgcls_labels[self.ls_idx_missing_text])
-            loss_leads[1] = missing_text_loss
-        else:
-            loss_leads[1] = torch.tensor(0, dtype=torch.float64, requires_grad = True).to(self.device)
-            
-        if len(self.ls_idx_complete) > 0:
-            complete_loss = self.criterion(imgcls_logits[self.ls_idx_complete], imgcls_labels[self.ls_idx_complete])
-            loss_leads[-1] = complete_loss
-        else:
-            loss_leads[-1] = torch.tensor(0, dtype=torch.float64, requires_grad = True).to(self.device)
-
-
-        # loss =  sum([a*b for a,b in zip(self.z_M, loss_leads)])
-
-        return loss_leads, imgcls_loss, imgcls_logits
+        return imgcls_loss, imgcls_loss, imgcls_logits
 
 
 if __name__ == '__main__':
