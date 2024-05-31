@@ -11,6 +11,7 @@ from transformers.models.bert.modeling_bert import BertConfig, BertEmbeddings
 import algorithm.multimodal.food101_classification_arrow.vision_transformer_prompts as vit
 from datetime import datetime
 from collections import Counter
+import wandb
 
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
@@ -203,6 +204,32 @@ class Server(BasicServer):
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
+            # import pdb; pdb.set_trace()
+            client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
+            for met_name, met_val in client_metrics.items():
+                all_metrics[met_name].append(met_val)
+
+            client_global_data_metrics_dict = dict()
+            client_global_data_metrics = c.test_on_specific_data(self.model, self.transformer, self.text_embeddings, self.test_data)
+            loss_name = "client_" + str(client_id+1) + "_loss_global_data"
+            acc_name = "client_" + str(client_id+1) + "_acc_global_data"
+            wandb.log({ loss_name : client_global_data_metrics['loss'],
+                        acc_name : client_global_data_metrics['acc']
+            })
+            # for met_name, met_val in client_global_data_metrics.items():
+            #     client_global_data_metrics_dict[met_name]
+        return all_metrics
+
+    def test_clients_on_global_data(self):
+        """
+        Validate accuracies and losses on clients' local datasets
+        :param
+            dataflag: choose train data or valid data to evaluate
+        :return
+            metrics: a dict contains the lists of each metric_value of the clients
+        """
+        all_metrics = collections.defaultdict(list)
+        for c in self.clients:
             client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
@@ -341,6 +368,22 @@ class Client(BasicClient):
             dataset = self.train_data
         elif dataflag == "valid":
             dataset = self.valid_data
+        return self.calculator.test(
+            model=model,
+            transformer=transformer,
+            text_embeddings=text_embeddings,
+            dataset=dataset
+        )
+    
+    @fmodule.with_multi_gpus
+    def test_on_specific_data(self, model, transformer, text_embeddings, dataset):
+        """
+        Evaluate the model with local data (e.g. training data or validating data).
+        :param
+            model:
+        :return:
+            metric: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
+        """
         return self.calculator.test(
             model=model,
             transformer=transformer,
