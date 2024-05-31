@@ -227,17 +227,18 @@ class Server(BasicServer):
         
         new_model = copy.deepcopy(self.model)
         # set new model
-        new_model.missing_text_prompt = nn.Parameter(sum([
-            self.clients[self.selected_clients[l]].local_model.missing_text_prompt for l in range(n_models)
-        ]) / n_models)
-        new_model.missing_img_prompt = nn.Parameter(sum([
-            self.clients[self.selected_clients[l]].local_model.missing_img_prompt for l in range(n_models)
-        ]) / n_models)
-        new_model.complete_prompt = nn.Parameter(sum([
-            self.clients[self.selected_clients[l]].local_model.complete_prompt for l in range(n_models)
-        ]) / n_models)
-
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
+        
+        new_model.missing_text_prompt = nn.Parameter(sum([
+            self.clients[self.selected_clients[l]].local_model.missing_text_prompt * pk for l, pk in zip(range(n_models),p) 
+        ]) / sum(p))
+        new_model.missing_img_prompt = nn.Parameter(sum([
+            self.clients[self.selected_clients[l]].local_model.missing_img_prompt * pk for l, pk in zip(range(n_models),p) 
+        ]) / sum(p))
+        new_model.complete_prompt = nn.Parameter(sum([
+            self.clients[self.selected_clients[l]].local_model.complete_prompt * pk for l, pk in zip(range(n_models),p) 
+        ]) / sum(p))
+
         # global model's pooler and classifier
         new_model.pooler = fmodule._model_sum([
             self.clients[self.selected_clients[l]].local_model.pooler * pk for l, pk in zip(range(n_models),p)
