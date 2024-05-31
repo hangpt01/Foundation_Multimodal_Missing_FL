@@ -209,30 +209,12 @@ class Server(BasicServer):
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
 
-            client_global_data_metrics_dict = dict()
             client_global_data_metrics = c.test_on_specific_data(self.model, self.transformer, self.text_embeddings, self.test_data)
             loss_name = "client_" + str(client_id+1) + "_loss_global_data"
             acc_name = "client_" + str(client_id+1) + "_acc_global_data"
             wandb.log({ loss_name : client_global_data_metrics['loss'],
                         acc_name : client_global_data_metrics['acc']
             })
-            # for met_name, met_val in client_global_data_metrics.items():
-            #     client_global_data_metrics_dict[met_name]
-        return all_metrics
-
-    def test_clients_on_global_data(self):
-        """
-        Validate accuracies and losses on clients' local datasets
-        :param
-            dataflag: choose train data or valid data to evaluate
-        :return
-            metrics: a dict contains the lists of each metric_value of the clients
-        """
-        all_metrics = collections.defaultdict(list)
-        for c in self.clients:
-            client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
-            for met_name, met_val in client_metrics.items():
-                all_metrics[met_name].append(met_val)
         return all_metrics
 
 
