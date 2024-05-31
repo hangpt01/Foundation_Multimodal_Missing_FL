@@ -129,6 +129,7 @@ class Logger(logging.Logger):
 
     def show_current_output(self, yes_key=['train', 'test', 'valid'], no_key=['dist']):
         tmp = dict()
+        # import pdb; pdb.set_trace()
         for key, val in self.output.items():
             a = [(yk in key) for yk in yes_key]
             nf = [(nk not in key) for nk in no_key]
@@ -265,6 +266,7 @@ class Logger(logging.Logger):
             
         # calculate weighted averaging of metrics on training datasets across clients
         train_metrics = self.server.test_on_clients('train')
+        # import pdb; pdb.set_trace()
         for met_name, met_val in train_metrics.items():
             self.output['train_' + met_name + '_dist'].append(met_val)
             # self.output['train_' + met_name].append(1.0 * sum([client_vol * client_met for client_vol, client_met in zip(self.server.local_data_vols, met_val)]) / self.server.total_data_vol)
@@ -275,6 +277,7 @@ class Logger(logging.Logger):
             )
         # calculate weighted averaging and other statistics of metrics on validation datasets across clients
         valid_metrics = self.server.test_on_clients('valid')
+        # import pdb; pdb.set_trace()
         for met_name, met_val in valid_metrics.items():
             self.output['valid_' + met_name + '_dist'].append(met_val)
             self.output['valid_' + met_name].append(
