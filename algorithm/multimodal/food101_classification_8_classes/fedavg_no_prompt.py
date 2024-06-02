@@ -11,6 +11,7 @@ from transformers.models.bert.modeling_bert import BertConfig, BertEmbeddings
 import algorithm.multimodal.food101_classification_arrow.vision_transformer_prompts as vit
 from datetime import datetime
 from collections import Counter
+import wandb
 
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
@@ -119,6 +120,21 @@ class Server(BasicServer):
 
     @torch.no_grad()
     def aggregate(self, models: list):
+        metrics_dict = dict()
+        for client_id in self.selected_clients:
+            c = self.clients[client_id]
+            # # import pdb; pdb.set_trace()
+            # client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
+            # for met_name, met_val in client_metrics.items():
+            #     all_metrics[met_name].append(met_val)
+            client_global_data_metrics = c.test_on_specific_data(models[client_id], self.transformer, self.text_embeddings, self.test_data, client_id, self.option, self.current_round)
+            # loss_name = "client_" + str(client_id+1) + "_loss_global_data"
+            # acc_name = "client_" + str(client_id+1) + "_acc_global_data"
+            metrics_dict["client_" + str(client_id+1) + "_loss_global_data"] = (client_global_data_metrics['loss'])
+            metrics_dict["client_" + str(client_id+1) + "_acc_global_data"] = (client_global_data_metrics['acc'])
+        if self.option['wandb']:
+            wandb.log(metrics_dict, step=self.current_round)
+
         new_model = copy.deepcopy(self.model)
         p = list()
         chosen_models = list()
@@ -171,7 +187,9 @@ class Server(BasicServer):
                 transformer=self.transformer,
                 text_embeddings=self.text_embeddings,
                 dataset=self.test_data,
-                batch_size=self.option['test_batch_size']
+                batch_size=self.option['test_batch_size'],
+                option=self.option,
+                current_round = self.current_round
             )
             if self.other_test_datas:
                 result.update(self.calculator.server_other_test(
@@ -367,4 +385,23 @@ class Client(BasicClient):
             transformer=transformer,
             text_embeddings=text_embeddings,
             dataset=dataset
+        )
+
+    @fmodule.with_multi_gpus
+    def test_on_specific_data(self, model, transformer, text_embeddings, dataset, client_id, option, current_round):
+        """
+        Evaluate the model with local data (e.g. training data or validating data).
+        :param
+            model:
+        :return:
+            metric: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
+        """
+        return self.calculator.test_specific_data(
+            model=model,
+            transformer=transformer,
+            text_embeddings=text_embeddings,
+            dataset=dataset,
+            client_id=client_id,
+            option=option,
+            current_round = current_round
         )

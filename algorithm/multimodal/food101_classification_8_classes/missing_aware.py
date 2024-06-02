@@ -123,12 +123,13 @@ class Server(BasicServer):
             # client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
             # for met_name, met_val in client_metrics.items():
             #     all_metrics[met_name].append(met_val)
-            client_global_data_metrics = c.test_on_specific_data(models[client_id], self.transformer, self.text_embeddings, self.test_data)
+            client_global_data_metrics = c.test_on_specific_data(models[client_id], self.transformer, self.text_embeddings, self.test_data, client_id, self.option, self.current_round)
             # loss_name = "client_" + str(client_id+1) + "_loss_global_data"
             # acc_name = "client_" + str(client_id+1) + "_acc_global_data"
             metrics_dict["client_" + str(client_id+1) + "_loss_global_data"] = (client_global_data_metrics['loss'])
             metrics_dict["client_" + str(client_id+1) + "_acc_global_data"] = (client_global_data_metrics['acc'])
-        wandb.log(metrics_dict, step=self.current_round)
+        if self.option['wandb']:
+            wandb.log(metrics_dict, step=self.current_round)
 
 
         new_model = copy.deepcopy(self.model)
@@ -193,7 +194,9 @@ class Server(BasicServer):
                 transformer=self.transformer,
                 text_embeddings=self.text_embeddings,
                 dataset=self.test_data,
-                batch_size=self.option['test_batch_size']
+                batch_size=self.option['test_batch_size'],
+                option=self.option,
+                current_round = self.current_round
             )
             if self.other_test_datas:
                 result.update(self.calculator.server_other_test(
@@ -208,6 +211,28 @@ class Server(BasicServer):
         else:
             return None
 
+    def validate(self, model=None):
+        """
+        Evaluate the model on the test dataset owned by the server.
+        :param
+            model: the model need to be evaluated
+        :return:
+            metrics: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
+        """
+        # return dict()
+        if model is None: model=self.model
+        if self.validation_data:
+            return self.calculator.server_test(
+                model=model,
+                transformer=self.transformer,
+                text_embeddings=self.text_embeddings,
+                dataset=self.validation_data,
+                batch_size=self.option['test_batch_size']
+            )
+        else:
+            return None
+        
+    
     def test_on_clients(self, dataflag='train'):
         """
         Validate accuracies and losses on clients' local datasets
@@ -218,26 +243,11 @@ class Server(BasicServer):
         """
         # This function uses global model after aggregation to tr
         all_metrics = collections.defaultdict(list)
-        # client_global_data_dict = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
-            # import pdb; pdb.set_trace()
             client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
-            # client_global_data_metrics = c.test_on_specific_data(self.model, self.transformer, self.text_embeddings, self.test_data)
-            # import pdb; pdb.set_trace()
-            # client_global_data_dict = {}
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
-            #     client_global_data_dict[met_name].append(met_val)
-
-            # loss_name = "client_" + str(client_id+1) + "_loss_global_data"
-            # acc_name = "client_" + str(client_id+1) + "_acc_global_data"
-            # client_global_data_dict = {loss_name : client_global_data_metrics['loss'],
-            #             acc_name : client_global_data_metrics['acc']
-            # }   
-        # if dataflag == 'train':    
-        #     return all_metrics, client_global_data_dict
-        # else: 
         return all_metrics
 
 def init_weights(module):
@@ -285,6 +295,7 @@ class Client(BasicClient):
             client_pkg: the package to be send to the server
         """
         model, transformer, text_embeddings, client_id = self.unpack(svr_pkg)
+        # self.client_id = client_id
         self.train(model, transformer, text_embeddings, client_id)
         cpkg = self.pack(model)
         return cpkg
@@ -332,7 +343,7 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        self.num_steps = 1
+        # self.num_steps = 1
         # print(self.num_steps)
 
         # print("Training client", client_id+1)
@@ -380,7 +391,7 @@ class Client(BasicClient):
         )
     
     @fmodule.with_multi_gpus
-    def test_on_specific_data(self, model, transformer, text_embeddings, dataset):
+    def test_on_specific_data(self, model, transformer, text_embeddings, dataset, client_id, option, current_round):
         """
         Evaluate the model with local data (e.g. training data or validating data).
         :param
@@ -388,9 +399,12 @@ class Client(BasicClient):
         :return:
             metric: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
-        return self.calculator.test(
+        return self.calculator.test_specific_data(
             model=model,
             transformer=transformer,
             text_embeddings=text_embeddings,
-            dataset=dataset
+            dataset=dataset,
+            client_id=client_id,
+            option=option,
+            current_round = current_round
         )

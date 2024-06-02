@@ -17,6 +17,9 @@ from transformers import (
     BertTokenizer,
 )
 import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.metrics import confusion_matrix
+import wandb
 from tqdm import tqdm
 import warnings
 import collections
@@ -789,7 +792,7 @@ class TaskCalculator(ClassificationCalculator):
         collator = DataCollatorForLanguageModeling
         tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
         mlm_collator = collator(tokenizer=tokenizer, mlm=True, mlm_probability=0.15)
-        return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, pin_memory=True, collate_fn=functools.partial(collate, mlm_collator=mlm_collator))
+        return DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle, pin_memory=True, collate_fn=functools.partial(collate, mlm_collator=mlm_collator))
         # return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)
 
     def data_to_device(self, data):
@@ -852,8 +855,8 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==1:
+            #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
@@ -862,6 +865,51 @@ class TaskCalculator(ClassificationCalculator):
             'acc': accuracy
         }
     
+
+    @torch.no_grad()
+    def test_specific_data(self, model, transformer, text_embeddings, dataset, batch_size=64, num_workers=0, client_id=-1, option=None, current_round=-1):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        total_loss = 0.0
+        labels = list()
+        predicts = list()
+        model.to(self.device) # y.device
+        transformer.to(self.device)
+        text_embeddings.to(self.device)
+        for batch_id, batch_data in enumerate(data_loader):
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data['label'])
+            # import pdb; pdb.set_trace()
+            loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+            total_loss += loss.item()
+            predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+            # TO_DELETE
+            # if batch_id==1:
+            #     break
+        labels = np.array(labels)
+        predicts = np.array(predicts)
+        accuracy = accuracy_score(labels, predicts)
+        print("Client {}\n".format(client_id+1), labels, predicts)
+        if current_round % 10 == 0:
+            confusion_matrix_save_path = 'fedtask/' + option['task'] + '/plot_confusion_matrix/' + option['model']
+            if not os.path.exists(confusion_matrix_save_path):
+                os.makedirs(confusion_matrix_save_path)
+            confusion_matrix_save_file = confusion_matrix_save_path + '/client_{}_confusion_matrix_round'.format(client_id+1) + str(current_round)
+            list_class = list(range(1,9))
+            if option['wandb']:
+                plot_confusion_matrix(labels, predicts, 'client_{}'.format(client_id+1), current_round, confusion_matrix_save_file, list_class)
+        return {
+            'loss': total_loss / (batch_id+1),
+            'acc': accuracy
+        }
 
     @torch.no_grad()
     def evaluate(self, model, transformer, text_embeddings, dataset, batch_size=64, num_workers=0):
@@ -891,8 +939,8 @@ class TaskCalculator(ClassificationCalculator):
             else:
                 total_loss = loss + total_loss
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==1:
+            #     break
         loss_eval = loss / (batch_id + 1) 
         # import pdb; pdb.set_trace()
         loss_eval = [loss for loss in loss_eval]
@@ -901,7 +949,7 @@ class TaskCalculator(ClassificationCalculator):
 
     
     @torch.no_grad()
-    def server_test(self, model, transformer, text_embeddings, dataset, batch_size=64, num_workers=0):
+    def server_test(self, model, transformer, text_embeddings, dataset, batch_size=64, num_workers=0, option=None, current_round=-1):
         """
         Metric = [mean_accuracy, mean_loss]
         :param model:
@@ -930,12 +978,21 @@ class TaskCalculator(ClassificationCalculator):
                 loss_each_modal[i] += loss_leads[i].item() * len(batch_data['label'])
 
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==1:
+            #     break
         # import pdb; pdb.set_trace()
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
+        print("Server\n", labels, predicts)
+        if current_round % 10 == 0:
+            confusion_matrix_save_path = 'fedtask/' + option['task'] + '/plot_confusion_matrix/' + option['model']
+            if not os.path.exists(confusion_matrix_save_path):
+                os.makedirs(confusion_matrix_save_path)
+            confusion_matrix_save_file = confusion_matrix_save_path + '/server_confusion_matrix_round' + str(current_round)
+            list_class = list(range(1,9))
+            if option['wandb']:
+                plot_confusion_matrix(labels, predicts, 'server', current_round, confusion_matrix_save_file, list_class)
         result['loss_text_only'] = loss_each_modal[0] / len(dataset)
         result['loss_image_only'] = loss_each_modal[1] / len(dataset)
         result['loss_complete'] = loss_each_modal[-1] / len(dataset)
@@ -979,8 +1036,8 @@ class TaskCalculator(ClassificationCalculator):
                 total_loss += loss.item() * len(batch_data['label'])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
                 # TO_DELETE
-                if batch_id==1:
-                    break
+                # if batch_id==1:
+                #     break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)
@@ -990,3 +1047,66 @@ class TaskCalculator(ClassificationCalculator):
             result[names[i]+'_loss'] = total_loss / len(dataset)
             result[names[i]+'_acc'] = accuracy
         return result
+
+
+def plot_confusion_matrix(y_true, y_pred, model='server', current_round=-1, output_file=None, classes=None, normalize=True):
+    """
+    Plots the confusion matrix.
+    
+    Args:
+        y_true (array-like): Ground truth labels.
+        y_pred (array-like): Predicted labels.
+        output_file (str, optional): File to save the plot. If None, plot is not saved.
+        classes (list, optional): List of class labels.
+        normalize (bool, optional): Whether to normalize confusion matrix or not.
+        
+    Returns:
+        None
+    """
+    # Compute confusion matrix
+    cm = confusion_matrix(y_true, y_pred)
+    
+    # If classes are not provided, use unique labels in y_true and y_pred
+    if classes is None:
+        classes = np.unique(np.concatenate((y_true, y_pred)))
+    
+    # Normalize confusion matrix if required
+    if normalize:
+        cm = cm.astype('float') / cm.sum(axis=1)[:, np.newaxis]
+    
+    # Plot confusion matrix
+    plt.figure(figsize=(8, 6))
+    plt.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+    plt.title('Confusion Matrix')
+    plt.colorbar()
+    
+    # Add labels
+    tick_marks = np.arange(len(classes))
+    plt.xticks(tick_marks, classes, rotation=45)
+    plt.yticks(tick_marks, classes)
+    
+    # Add text annotations
+    fmt = '.2f' if normalize else 'd'
+    thresh = cm.max() / 2.
+    for i in range(cm.shape[0]):
+        for j in range(cm.shape[1]):
+            plt.text(j, i, format(cm[i, j], fmt),
+                     horizontalalignment="center",
+                     color="white" if cm[i, j] > thresh else "black")
+    
+    plt.tight_layout()
+    plt.ylabel('True label')
+    plt.xlabel('Predicted label')
+    
+    # Save plot if output_file is provided
+    if output_file:
+        plt.savefig(output_file)
+    
+    # Show plot
+    # Convert the plot to an image
+    plt_img = wandb.Image(plt)
+    # Log the image to wandb
+    wandb.log({"{}_confusion_matrix".format(model): plt_img}, step=current_round)
+    plt.show()
+    # Close plot to avoid memory leakage
+    plt.close()
