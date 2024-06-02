@@ -974,8 +974,9 @@ class TaskCalculator(ClassificationCalculator):
             loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
             total_loss += loss.item() * len(batch_data['label'])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
-            for i in range(3):
-                loss_each_modal[i] += loss_leads[i].item() * len(batch_data['label'])
+            if loss_leads.dim() != 0:
+                for i in range(3):
+                    loss_each_modal[i] += loss_leads[i].item() * len(batch_data['label'])
 
             # TO_DELETE
             # if batch_id==1:
@@ -993,9 +994,10 @@ class TaskCalculator(ClassificationCalculator):
             list_class = list(range(1,9))
             if option['wandb']:
                 plot_confusion_matrix(labels, predicts, 'server', current_round, confusion_matrix_save_file, list_class)
-        result['loss_text_only'] = loss_each_modal[0] / len(dataset)
-        result['loss_image_only'] = loss_each_modal[1] / len(dataset)
-        result['loss_complete'] = loss_each_modal[-1] / len(dataset)
+        if loss_leads.dim() != 0:
+            result['loss_text_only'] = loss_each_modal[0] / len(dataset)
+            result['loss_image_only'] = loss_each_modal[1] / len(dataset)
+            result['loss_complete'] = loss_each_modal[-1] / len(dataset)
         # for i in range(3):
         #     result['loss_modal_combi''_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
         result['loss'] = total_loss / len(dataset)
