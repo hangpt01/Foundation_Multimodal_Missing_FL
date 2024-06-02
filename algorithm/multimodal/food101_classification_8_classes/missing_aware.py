@@ -116,6 +116,21 @@ class Server(BasicServer):
 
     @torch.no_grad()
     def aggregate(self, models: list):
+        metrics_dict = dict()
+        for client_id in self.selected_clients:
+            c = self.clients[client_id]
+            # # import pdb; pdb.set_trace()
+            # client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
+            # for met_name, met_val in client_metrics.items():
+            #     all_metrics[met_name].append(met_val)
+            client_global_data_metrics = c.test_on_specific_data(models[client_id], self.transformer, self.text_embeddings, self.test_data)
+            # loss_name = "client_" + str(client_id+1) + "_loss_global_data"
+            # acc_name = "client_" + str(client_id+1) + "_acc_global_data"
+            metrics_dict["client_" + str(client_id+1) + "_loss_global_data"] = (client_global_data_metrics['loss'])
+            metrics_dict["client_" + str(client_id+1) + "_acc_global_data"] = (client_global_data_metrics['acc'])
+        wandb.log(metrics_dict, step=self.current_round)
+
+
         new_model = copy.deepcopy(self.model)
         p = list()
         chosen_models = list()
@@ -201,22 +216,29 @@ class Server(BasicServer):
         :return
             metrics: a dict contains the lists of each metric_value of the clients
         """
+        # This function uses global model after aggregation to tr
         all_metrics = collections.defaultdict(list)
+        # client_global_data_dict = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
             # import pdb; pdb.set_trace()
             client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
+            # client_global_data_metrics = c.test_on_specific_data(self.model, self.transformer, self.text_embeddings, self.test_data)
+            # import pdb; pdb.set_trace()
+            # client_global_data_dict = {}
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
+            #     client_global_data_dict[met_name].append(met_val)
 
-            client_global_data_metrics = c.test_on_specific_data(self.model, self.transformer, self.text_embeddings, self.test_data)
-            loss_name = "client_" + str(client_id+1) + "_loss_global_data"
-            acc_name = "client_" + str(client_id+1) + "_acc_global_data"
-            wandb.log({ loss_name : client_global_data_metrics['loss'],
-                        acc_name : client_global_data_metrics['acc']
-            })
+            # loss_name = "client_" + str(client_id+1) + "_loss_global_data"
+            # acc_name = "client_" + str(client_id+1) + "_acc_global_data"
+            # client_global_data_dict = {loss_name : client_global_data_metrics['loss'],
+            #             acc_name : client_global_data_metrics['acc']
+            # }   
+        # if dataflag == 'train':    
+        #     return all_metrics, client_global_data_dict
+        # else: 
         return all_metrics
-
 
 def init_weights(module):
     if isinstance(module, (nn.Linear, nn.Embedding)):
@@ -310,7 +332,7 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        # self.num_steps = 1
+        self.num_steps = 1
         # print(self.num_steps)
 
         # print("Training client", client_id+1)

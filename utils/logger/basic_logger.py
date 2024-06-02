@@ -148,7 +148,7 @@ class Logger(logging.Logger):
             wandb.define_metric("test_image_only_acc", summary="max")
             wandb.define_metric("test_miss_image_acc", summary="max")
             wandb.define_metric("test_text_only_acc", summary="max")
-            wandb.log(tmp)
+            wandb.log(tmp, step=self.current_round)
 
     def get_output_name(self, suffix='.json', prefix_log_filename=None):
         if not hasattr(self, 'meta'): raise NotImplementedError('logger has no attr named "meta"')
@@ -275,7 +275,10 @@ class Logger(logging.Logger):
                     self.server.clients[client_id].datavol * client_met for client_id, client_met in zip(self.server.selected_clients, met_val)
                 ]) / sum([self.server.clients[client_id].datavol for client_id in self.server.selected_clients])
             )
+        
+        # wandb.log(client_global_data_metrics)
         # calculate weighted averaging and other statistics of metrics on validation datasets across clients
+
         valid_metrics = self.server.test_on_clients('valid')
         # import pdb; pdb.set_trace()
         for met_name, met_val in valid_metrics.items():
