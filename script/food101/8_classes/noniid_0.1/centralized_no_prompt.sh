@@ -25,5 +25,6 @@ python main.py \
     --learning_rate_decay 1 \
     --batch_size 64 \
     --test_batch_size 64 \
-    --gpu 1 \
-    --wandb
+    --gpu 0 
+    # \
+    # --wandb
