@@ -116,25 +116,26 @@ class Server(BasicServer):
 
     @torch.no_grad()
     def aggregate(self, models: list):
-        metrics_dict = dict()
-        for client_id in self.selected_clients:
-            c = self.clients[client_id]
-            # # import pdb; pdb.set_trace()
-            # client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
-            # for met_name, met_val in client_metrics.items():
-            #     all_metrics[met_name].append(met_val)
-            client_global_data_metrics = c.test_on_specific_data(models[client_id], self.transformer, self.text_embeddings, self.test_data, client_id, self.option, self.current_round)
-            # loss_name = "client_" + str(client_id+1) + "_loss_global_data"
-            # acc_name = "client_" + str(client_id+1) + "_acc_global_data"
-            metrics_dict["client_" + str(client_id+1) + "_loss_global_data"] = (client_global_data_metrics['loss'])
-            metrics_dict["client_" + str(client_id+1) + "_acc_global_data"] = (client_global_data_metrics['acc'])
-        if self.option['wandb']:
-            wandb.log(metrics_dict, step=self.current_round)
+        # metrics_dict = dict()
+        # for client_id in self.selected_clients:
+        #     c = self.clients[client_id]
+        #     # # import pdb; pdb.set_trace()
+        #     # client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
+        #     # for met_name, met_val in client_metrics.items():
+        #     #     all_metrics[met_name].append(met_val)
+        #     client_global_data_metrics = c.test_on_specific_data(models[client_id], self.transformer, self.text_embeddings, self.test_data, client_id, self.option, self.current_round)
+        #     # loss_name = "client_" + str(client_id+1) + "_loss_global_data"
+        #     # acc_name = "client_" + str(client_id+1) + "_acc_global_data"
+        #     metrics_dict["client_" + str(client_id+1) + "_loss_global_data"] = (client_global_data_metrics['loss'])
+        #     metrics_dict["client_" + str(client_id+1) + "_acc_global_data"] = (client_global_data_metrics['acc'])
+        # if self.option['wandb']:
+        #     wandb.log(metrics_dict, step=self.current_round)
 
 
         new_model = copy.deepcopy(self.model)
         p = list()
         chosen_models = list()
+        print("Selected clients: ", self.selected_clients, ", len models: ", len(models))
         for k, client_id in enumerate(self.selected_clients):
             p.append(self.clients[client_id].datavol)
             chosen_models.append(models[k])
@@ -265,8 +266,8 @@ class Client(BasicClient):
     def __init__(self, option, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
-        self.get_missing_type(dataflag='train')
-        self.get_missing_type(dataflag='valid')
+        # self.get_missing_type(dataflag='train')
+        # self.get_missing_type(dataflag='valid')
 
     def get_missing_type (self, dataflag='train'):
         if dataflag == "train":
@@ -343,10 +344,10 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        self.num_steps = 1
+        # self.num_steps = 1
         # print(self.num_steps)
 
-        print("Training client", client_id+1)
+        # print("Training client", client_id+1)
         
         # for iter in tqdm(range(self.num_steps)):
         for iter in range(self.num_steps):
