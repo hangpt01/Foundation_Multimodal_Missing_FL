@@ -25,5 +25,11 @@ python main.py \
     --learning_rate_decay 1 \
     --batch_size 64 \
     --test_batch_size 64 \
+<<<<<<< HEAD
     --gpu 0 \
     --wandb
+=======
+    --gpu 0 
+    # \
+    # --wandb
+>>>>>>> 0210012dbf5fb6bfb51dccc32d66e901ae4ec4b9

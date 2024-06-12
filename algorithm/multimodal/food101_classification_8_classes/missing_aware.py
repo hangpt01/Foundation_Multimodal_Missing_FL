@@ -265,8 +265,8 @@ class Client(BasicClient):
     def __init__(self, option, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
-        # self.get_missing_type(dataflag='train')
-        # self.get_missing_type(dataflag='valid')
+        self.get_missing_type(dataflag='train')
+        self.get_missing_type(dataflag='valid')
 
     def get_missing_type (self, dataflag='train'):
         if dataflag == "train":
@@ -343,10 +343,11 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        # self.num_steps = 1
+        self.num_steps = 1
         # print(self.num_steps)
 
-        # print("Training client", client_id+1)
+        print("Training client", client_id+1)
+        
         # for iter in tqdm(range(self.num_steps)):
         for iter in range(self.num_steps):
             # get a batch of data
