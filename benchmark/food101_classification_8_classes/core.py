@@ -119,28 +119,52 @@ class TaskPipe(IDXTaskPipe):
         other_test_datas.append(test_miss_image_data)
 
         # import pdb; pdb.set_trace()
+        
+        # TO_CHANGE
+        # missing_text_config = {
+        # 'ratio':
+        #     {'test': 0.7,
+        #     'train': 0.7},
+        # 'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        # 'type':
+        #     {'test': 'text',
+        #     'train': 'both'},
+        # 'both_ratio': 0,
+        # 'simulate_missing': False
+        # }
+        # origin_test_miss_text_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        #                         image_size=image_size,
+        #                         max_text_len=max_text_len,
+        #                         draw_false_image=draw_false_image,
+        #                         draw_false_text=draw_false_text,
+        #                         image_only=image_only,
+        #                         missing_info=missing_text_config)
+        # origin_test_miss_text_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        # test_miss_text_data = cls.TaskDataset(origin_test_miss_text_data, [_ for _ in range(len(origin_test_miss_text_data))])
+        # other_test_datas.append(test_miss_text_data)
 
-        missing_text_config = {
+
+        missing_both_config = {
         'ratio':
             {'test': 0.7,
             'train': 0.7},
         'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
         'type':
-            {'test': 'text',
+            {'test': 'both',
             'train': 'both'},
-        'both_ratio': 0,
+        'both_ratio': 0.5,
         'simulate_missing': False
         }
-        origin_test_miss_text_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_miss_both_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
                                 draw_false_text=draw_false_text,
                                 image_only=image_only,
-                                missing_info=missing_text_config)
-        origin_test_miss_text_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        test_miss_text_data = cls.TaskDataset(origin_test_miss_text_data, [_ for _ in range(len(origin_test_miss_text_data))])
-        other_test_datas.append(test_miss_text_data)
+                                missing_info=missing_both_config)
+        origin_test_miss_both_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        test_miss_both_data = cls.TaskDataset(origin_test_miss_both_data, [_ for _ in range(len(origin_test_miss_both_data))])
+        other_test_datas.append(test_miss_both_data)
     
 
         full_modal_config = {
@@ -1024,7 +1048,9 @@ class TaskCalculator(ClassificationCalculator):
         """
         # import pdb; pdb.set_trace()
         model.eval()
-        names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
+        # TO_CHANGE
+        # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
+        names = ['miss_image', 'miss_both', 'full_modal', 'image_only', 'text_only']
         result = dict() 
         for i in range(len(datasets)):
             dataset = datasets[i]
