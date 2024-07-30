@@ -17,20 +17,22 @@ class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 2
-        self.hparams_config = {'prompt_type': 'input', 
-                                'prompt_length': 16, 
-                                'learnt_p': True, 
-                                'prompt_layers': [0, 1, 2, 3, 4, 5], 
-                                'multi_layer_prompt': True, 
-                                'max_text_len': 40, 
-                                'vocab_size': 30522, 
-                                'vit': 'vit_base_patch32_384', 
-                                'hidden_size': 768, 
-                                'num_heads': 12, 
-                                'num_layers': 12, 
-                                'drop_rate': 0.1,
-                                'mlp_ratio': 4,
-                                'max_image_len': 40}
+        self.hparams_config = {'batch_size': 32, 
+                        'prompt_type': 'input', 
+                        'prompt_length': 16, 
+                        'learnt_p': True, 
+                        'prompt_layers': [0, 1, 2, 3, 4, 5], 
+                        'multi_layer_prompt': True, 
+                        'max_text_len': 40, 
+                        'vocab_size': 30522, 
+                        'vit': 'vit_base_patch32_384', 
+                        'hidden_size': 768, 
+                        'num_heads': 12, 
+                        'num_layers': 12, 
+                        'drop_rate': 0.1,
+                        'mlp_ratio': 4,
+                        'max_image_len': 40,
+                        'load_path': 'benchmark/food101_classification_arrow/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
         self.transformer = getattr(vit, self.hparams_config["vit"])(
             pretrained=False, config=self.hparams_config
@@ -45,7 +47,7 @@ class Server(BasicServer):
             hidden_dropout_prob=self.hparams_config["drop_rate"],
             attention_probs_dropout_prob=self.hparams_config["drop_rate"],
         )
-        
+
         self.test_data, self.other_test_datas = test_data
         self.text_embeddings = BertEmbeddings(bert_config)
         self.text_embeddings.apply(init_weights)
@@ -54,23 +56,16 @@ class Server(BasicServer):
         for param in self.text_embeddings.parameters():
             param.requires_grad=False
 
-        # self.get_missing_type_label()
+        # self.get_missing_type()
 
-    def get_missing_type_label (self):
+    def get_missing_type (self):
         dataset = self.test_data
         missing_types = []
-        labels = []
         for data_sample in dataset:
             missing_type = data_sample["missing_type"]
             missing_types.append(missing_type)
-            label = data_sample["label"]
-            labels.append(label)
 
-        dict_types = Counter(missing_types)
-        dict_labels = Counter(labels)
-        print("Server")
-        print({k: dict_types[k] for k in sorted(dict_types)}, '\t\t', {k: dict_labels[k] for k in sorted(dict_labels)})
-
+        print(datetime.now(), "Server testing data", Counter(missing_types))
 
     def run(self):
         """
@@ -111,6 +106,7 @@ class Server(BasicServer):
         :param
             t: the number of current round
         """
+        # sample clients: MD sampling as default
         self.selected_clients = self.sample()
         # training
         conmmunitcation_result = self.communicate(self.selected_clients)
@@ -120,20 +116,21 @@ class Server(BasicServer):
 
     @torch.no_grad()
     def aggregate(self, models: list):
-        # metrics_dict = dict()
-        # for client_id in self.selected_clients:
-        #     c = self.clients[client_id]
-        #     # # import pdb; pdb.set_trace()
-        #     # client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
-        #     # for met_name, met_val in client_metrics.items():
-        #     #     all_metrics[met_name].append(met_val)
-        #     client_global_data_metrics = c.test_on_specific_data(models[client_id], self.transformer, self.text_embeddings, self.test_data, client_id, self.option, self.current_round)
-        #     # loss_name = "client_" + str(client_id+1) + "_loss_global_data"
-        #     # acc_name = "client_" + str(client_id+1) + "_acc_global_data"
-        #     metrics_dict["client_" + str(client_id+1) + "_loss_global_data"] = (client_global_data_metrics['loss'])
-        #     metrics_dict["client_" + str(client_id+1) + "_acc_global_data"] = (client_global_data_metrics['acc'])
-        # if self.option['wandb']:
-        #     wandb.log(metrics_dict, step=self.current_round)
+        metrics_dict = dict()
+        for client_id in self.selected_clients:
+            c = self.clients[client_id]
+            # # import pdb; pdb.set_trace()
+            # client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
+            # for met_name, met_val in client_metrics.items():
+            #     all_metrics[met_name].append(met_val)
+            client_global_data_metrics = c.test_on_specific_data(models[client_id], self.transformer, self.text_embeddings, self.test_data, client_id, self.option, self.current_round)
+            # loss_name = "client_" + str(client_id+1) + "_loss_global_data"
+            # acc_name = "client_" + str(client_id+1) + "_acc_global_data"
+            metrics_dict["client_" + str(client_id+1) + "_loss_global_data"] = (client_global_data_metrics['loss'])
+            metrics_dict["client_" + str(client_id+1) + "_acc_global_data"] = (client_global_data_metrics['acc'])
+        if self.option['wandb']:
+            wandb.log(metrics_dict, step=self.current_round)
+
 
         new_model = copy.deepcopy(self.model)
         p = list()
@@ -141,9 +138,19 @@ class Server(BasicServer):
         for k, client_id in enumerate(self.selected_clients):
             p.append(self.clients[client_id].datavol)
             chosen_models.append(models[k])
-            
+
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         
+        #prompt
+        average_tensor = sum(pk * model.complete_prompt for pk, model in zip(p, models))  / sum(p)
+        new_model.complete_prompt = nn.Parameter(average_tensor)
+
+        average_tensor = sum(pk * model.missing_text_prompt for pk, model in zip(p, models))  / sum(p)
+        new_model.missing_text_prompt = nn.Parameter(average_tensor)
+
+        average_tensor = sum(pk * model.missing_img_prompt for pk, model in zip(p, models))  / sum(p)
+        new_model.missing_img_prompt = nn.Parameter(average_tensor)
+
         # pooler
         new_model.pooler = fmodule._model_sum([
             model.pooler * pk for model, pk in zip(models, p)
@@ -203,7 +210,7 @@ class Server(BasicServer):
         
         else:
             return None
-    
+
     def validate(self, model=None):
         """
         Evaluate the model on the test dataset owned by the server.
@@ -224,7 +231,8 @@ class Server(BasicServer):
             )
         else:
             return None
-
+        
+    
     def test_on_clients(self, dataflag='train'):
         """
         Validate accuracies and losses on clients' local datasets
@@ -233,6 +241,7 @@ class Server(BasicServer):
         :return
             metrics: a dict contains the lists of each metric_value of the clients
         """
+        # This function uses global model after aggregation to tr
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
@@ -240,7 +249,6 @@ class Server(BasicServer):
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
         return all_metrics
-
 
 def init_weights(module):
     if isinstance(module, (nn.Linear, nn.Embedding)):
@@ -257,26 +265,20 @@ class Client(BasicClient):
     def __init__(self, option, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
-        # self.get_missing_type_label(dataflag='train')
-        # self.get_missing_type_label(dataflag='valid')
+        # self.get_missing_type(dataflag='train')
+        # self.get_missing_type(dataflag='valid')
 
-    def get_missing_type_label (self, dataflag='train'):
+    def get_missing_type (self, dataflag='train'):
         if dataflag == "train":
             dataset = self.train_data
         elif dataflag == "valid":
             dataset = self.valid_data
         missing_types = []
-        labels = []
         for data_sample in dataset:
             missing_type = data_sample["missing_type"]
             missing_types.append(missing_type)
-            label = data_sample["label"]
-            labels.append(label)
 
-        dict_types = Counter(missing_types)
-        dict_labels = Counter(labels)
-        print(dataflag)
-        print({k: dict_types[k] for k in sorted(dict_types)}, '\t\t', {k: dict_labels[k] for k in sorted(dict_labels)})
+        print(datetime.now(), dataflag, Counter(missing_types))
 
 
     def reply(self, svr_pkg):
@@ -293,6 +295,7 @@ class Client(BasicClient):
             client_pkg: the package to be send to the server
         """
         model, transformer, text_embeddings, client_id = self.unpack(svr_pkg)
+        # self.client_id = client_id
         self.train(model, transformer, text_embeddings, client_id)
         cpkg = self.pack(model)
         return cpkg
@@ -340,10 +343,11 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        # self.num_steps = 1
+        self.num_steps = 1
         # print(self.num_steps)
 
         # print("Training client", client_id+1)
+        
         # for iter in tqdm(range(self.num_steps)):
         for iter in range(self.num_steps):
             # get a batch of data
@@ -386,7 +390,7 @@ class Client(BasicClient):
             text_embeddings=text_embeddings,
             dataset=dataset
         )
-
+    
     @fmodule.with_multi_gpus
     def test_on_specific_data(self, model, transformer, text_embeddings, dataset, client_id, option, current_round):
         """

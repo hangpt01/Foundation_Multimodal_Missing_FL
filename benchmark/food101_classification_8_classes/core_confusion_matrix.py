@@ -119,52 +119,28 @@ class TaskPipe(IDXTaskPipe):
         other_test_datas.append(test_miss_image_data)
 
         # import pdb; pdb.set_trace()
-        
-        # TO_CHANGE
-        # missing_text_config = {
-        # 'ratio':
-        #     {'test': 0.7,
-        #     'train': 0.7},
-        # 'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
-        # 'type':
-        #     {'test': 'text',
-        #     'train': 'both'},
-        # 'both_ratio': 0,
-        # 'simulate_missing': False
-        # }
-        # origin_test_miss_text_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
-        #                         image_size=image_size,
-        #                         max_text_len=max_text_len,
-        #                         draw_false_image=draw_false_image,
-        #                         draw_false_text=draw_false_text,
-        #                         image_only=image_only,
-        #                         missing_info=missing_text_config)
-        # origin_test_miss_text_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        # test_miss_text_data = cls.TaskDataset(origin_test_miss_text_data, [_ for _ in range(len(origin_test_miss_text_data))])
-        # other_test_datas.append(test_miss_text_data)
 
-
-        missing_both_config = {
+        missing_text_config = {
         'ratio':
             {'test': 0.7,
             'train': 0.7},
         'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
         'type':
-            {'test': 'both',
+            {'test': 'text',
             'train': 'both'},
-        'both_ratio': 0.5,
+        'both_ratio': 0,
         'simulate_missing': False
         }
-        origin_test_miss_both_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_miss_text_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
                                 draw_false_text=draw_false_text,
                                 image_only=image_only,
-                                missing_info=missing_both_config)
-        origin_test_miss_both_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        test_miss_both_data = cls.TaskDataset(origin_test_miss_both_data, [_ for _ in range(len(origin_test_miss_both_data))])
-        other_test_datas.append(test_miss_both_data)
+                                missing_info=missing_text_config)
+        origin_test_miss_text_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        test_miss_text_data = cls.TaskDataset(origin_test_miss_text_data, [_ for _ in range(len(origin_test_miss_text_data))])
+        other_test_datas.append(test_miss_text_data)
     
 
         full_modal_config = {
@@ -879,8 +855,8 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            # if batch_id==1:
-            #     break
+            if batch_id==1:
+                break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
@@ -916,20 +892,20 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            # if batch_id==1:
-            #     break
+            if batch_id==1:
+                break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
         # print("Client {}\n".format(client_id+1), labels, predicts)
-        # if current_round % 1 == 0:
-        #     confusion_matrix_save_path = 'fedtask/' + option['task'] + '/plot_confusion_matrix/' + option['model']
-        #     if not os.path.exists(confusion_matrix_save_path):
-        #         os.makedirs(confusion_matrix_save_path)
-        #     confusion_matrix_save_file = confusion_matrix_save_path + '/client_{}_confusion_matrix_round'.format(client_id+1) + str(current_round)
-        #     list_class = list(range(1,9))
-        #     if option['wandb']:
-        #         plot_confusion_matrix(labels, predicts, 'client_{}'.format(client_id+1), current_round, confusion_matrix_save_file, list_class)
+        if current_round % 1 == 0:
+            confusion_matrix_save_path = 'fedtask/' + option['task'] + '/plot_confusion_matrix/' + option['model']
+            if not os.path.exists(confusion_matrix_save_path):
+                os.makedirs(confusion_matrix_save_path)
+            confusion_matrix_save_file = confusion_matrix_save_path + '/client_{}_confusion_matrix_round'.format(client_id+1) + str(current_round)
+            list_class = list(range(1,9))
+            if option['wandb']:
+                plot_confusion_matrix(labels, predicts, 'client_{}'.format(client_id+1), current_round, confusion_matrix_save_file, list_class)
         return {
             'loss': total_loss / (batch_id+1),
             'acc': accuracy
@@ -963,8 +939,8 @@ class TaskCalculator(ClassificationCalculator):
             else:
                 total_loss = loss + total_loss
             # TO_DELETE
-            # if batch_id==1:
-            #     break
+            if batch_id==1:
+                break
         loss_eval = loss / (batch_id + 1) 
         # import pdb; pdb.set_trace()
         loss_eval = [loss for loss in loss_eval]
@@ -1000,31 +976,31 @@ class TaskCalculator(ClassificationCalculator):
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # import pdb; pdb.set_trace()
             # if loss_leads.dim() != 0:
-            # if isinstance(loss_leads, list) and len(loss_leads) == 3:
-            #     for i in range(3):
-            #         loss_each_modal[i] += loss_leads[i].item() * len(batch_data['label'])
+            if isinstance(loss_leads, list) and len(loss_leads) == 3:
+                for i in range(3):
+                    loss_each_modal[i] += loss_leads[i].item() * len(batch_data['label'])
 
             # TO_DELETE
-            # if batch_id==1:
-            #     break
+            if batch_id==1:
+                break
         # import pdb; pdb.set_trace()
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
         # print("Server\n", labels, predicts)
-        # if current_round % 1 == 0:
-        #     confusion_matrix_save_path = 'fedtask/' + option['task'] + '/plot_confusion_matrix/' + option['model']
-        #     if not os.path.exists(confusion_matrix_save_path):
-        #         os.makedirs(confusion_matrix_save_path)
-        #     confusion_matrix_save_file = confusion_matrix_save_path + '/server_confusion_matrix_round' + str(current_round)
-        #     list_class = list(range(1,9))
-        #     if option['wandb']:
-        #         plot_confusion_matrix(labels, predicts, 'server', current_round, confusion_matrix_save_file, list_class)
-        # if isinstance(loss_leads, list) and len(loss_leads) == 3:
+        if current_round % 1 == 0:
+            confusion_matrix_save_path = 'fedtask/' + option['task'] + '/plot_confusion_matrix/' + option['model']
+            if not os.path.exists(confusion_matrix_save_path):
+                os.makedirs(confusion_matrix_save_path)
+            confusion_matrix_save_file = confusion_matrix_save_path + '/server_confusion_matrix_round' + str(current_round)
+            list_class = list(range(1,9))
+            if option['wandb']:
+                plot_confusion_matrix(labels, predicts, 'server', current_round, confusion_matrix_save_file, list_class)
+        if isinstance(loss_leads, list) and len(loss_leads) == 3:
         # import pdb; pdb.set_trace()
-            # result['loss_text_only'] = loss_each_modal[0] / len(dataset)
-            # result['loss_image_only'] = loss_each_modal[1] / len(dataset)
-            # result['loss_complete'] = loss_each_modal[-1] / len(dataset)
+            result['loss_text_only'] = loss_each_modal[0] / len(dataset)
+            result['loss_image_only'] = loss_each_modal[1] / len(dataset)
+            result['loss_complete'] = loss_each_modal[-1] / len(dataset)
         # for i in range(3):
         #     result['loss_modal_combi''_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
         result['loss'] = total_loss / len(dataset)
@@ -1048,9 +1024,7 @@ class TaskCalculator(ClassificationCalculator):
         """
         # import pdb; pdb.set_trace()
         model.eval()
-        # TO_CHANGE
-        # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
-        names = ['miss_image', 'miss_both', 'full_modal', 'image_only', 'text_only']
+        names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
         result = dict() 
         for i in range(len(datasets)):
             dataset = datasets[i]
@@ -1067,8 +1041,8 @@ class TaskCalculator(ClassificationCalculator):
                 total_loss += loss.item() * len(batch_data['label'])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
                 # TO_DELETE
-                # if batch_id==1:
-                #     break
+                if batch_id==1:
+                    break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)
