@@ -10,7 +10,7 @@ python main.py \
     --lr_scheduler 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0 \
-    --learning_rate 0.1 \
+    --learning_rate 0.05 \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
     --batch_size 512 \
