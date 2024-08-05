@@ -135,7 +135,7 @@ class Server(BasicServer):
         new_model = copy.deepcopy(self.model)
         p = list()
         chosen_models = list()
-        print("Selected clients: ", self.selected_clients, ", len models: ", len(models))
+        # print("Selected clients: ", self.selected_clients, ", len models: ", len(models))
         for k, client_id in enumerate(self.selected_clients):
             p.append(self.clients[client_id].datavol)
             chosen_models.append(models[k])
