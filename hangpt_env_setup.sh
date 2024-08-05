@@ -18,3 +18,6 @@ mkdir benchmark/RAW_DATA/FOOD101/missing_tables_8_classes/
 mkdir benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/
 bash script/food101/8_classes/image_1_text_0.3/iid/20clients.sh
 bash script/food101/8_classes/image_1_text_0.3/iid/20cl_missing_aware.sh
+git pull
+bash script/food101/8_classes/image_1_text_0.3/iid/20cl_missing_aware.sh
+bash script/food101/8_classes/image_1_text_0.3/noniid_0.1/20cl_missing_aware.sh
