@@ -12,3 +12,4 @@ pyarrow==2.0.0
 transformers
 pandas==1.1.5
 tqdm==4.56.0
+timm
