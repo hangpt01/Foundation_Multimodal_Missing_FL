@@ -15,6 +15,7 @@ class Pooler(FModule):
         self.activation = nn.Tanh()
 
     def forward(self, hidden_states):
+        # import pdb; pdb.set_trace()
         first_token_tensor = hidden_states[:, 0]
         pooled_output = self.dense(first_token_tensor)
         pooled_output = self.activation(pooled_output)
@@ -128,7 +129,7 @@ class Model(FModule):
         self.transformer = transformer
         self.text_embeddings = text_embeddings
         # import pdb; pdb.set_trace()
-        if f"image_{image_token_type_idx - 1}" in batch:
+        if f"image_{image_token_type_idx - 1}" in batch:       #False
             imgkey = f"image_{image_token_type_idx - 1}"
         else:
             imgkey = "image"
@@ -210,10 +211,10 @@ class Model(FModule):
         co_embeds = torch.cat([text_embeds, image_embeds], dim=1)       # torch.Size([1, 233, 768])             batch, 257, 768
         # import pdb; pdb.set_trace()
         x = co_embeds.detach()      # torch.Size([1, 233, 768])     batch, 257, 768=text+img
-
+        # import pdb; pdb.set_trace()
         for i, blk in enumerate(self.transformer.blocks):
             if i in self.prompt_layers:
-                if self.multi_layer_prompt:
+                if self.multi_layer_prompt:     # true
                     x, _attn = blk(x, mask=co_masks, 
                                    prompts=prompts[:,self.prompt_layers.index(i)],      # batch, 16, 768
                                    learnt_p=self.learnt_p,
