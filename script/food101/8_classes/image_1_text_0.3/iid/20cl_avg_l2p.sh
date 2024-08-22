@@ -1,7 +1,7 @@
 python main.py \
     --task food101_classification_8_classes_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
-    --model probabilistic_prompt_full \
-    --algorithm multimodal.food101_classification_8_classes.prob_prompt \
+    --model probabilistic_prompt \
+    --algorithm multimodal.food101_classification_8_classes.fedavg_no_prompt \
     --sample full \
     --aggregate other \
     --num_rounds 1000 \

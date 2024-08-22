@@ -115,33 +115,13 @@ class Server(BasicServer):
         self.model = self.aggregate(models)
         return
 
-    @torch.no_grad()
+    # @torch.no_grad()
     def aggregate(self, models: list):
         new_model = copy.deepcopy(self.model)
-        p = list()
-        chosen_models = list()
-        # print("Selected clients: ", self.selected_clients, ", len models: ", len(models))
-        for k, client_id in enumerate(self.selected_clients):
-            p.append(self.clients[client_id].datavol)
-            chosen_models.append(models[k])
-
+        n_models = len(models)
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         
-        #prompt
-        average_tensor = sum(pk * model.complete_prompt for pk, model in zip(p, models))  / sum(p)
-        new_model.complete_prompt = nn.Parameter(average_tensor)
-
-        average_tensor = sum(pk * model.missing_text_prompt for pk, model in zip(p, models))  / sum(p)
-        new_model.missing_text_prompt = nn.Parameter(average_tensor)
-
-        average_tensor = sum(pk * model.missing_img_prompt for pk, model in zip(p, models))  / sum(p)
-        new_model.missing_img_prompt = nn.Parameter(average_tensor)
-
-        temp = list()
-        for i in            
-            
-            
-
+        # Aggregate other parts - not prompts
         # pooler
         new_model.pooler = fmodule._model_sum([
             model.pooler * pk for model, pk in zip(models, p)
@@ -151,6 +131,44 @@ class Server(BasicServer):
         new_model.classifier = fmodule._model_sum([
             model.classifier * pk for model, pk in zip(models, p)
         ]) / sum(p)
+        
+        for k in range(n_models):
+            self.clients[self.selected_clients[k]].local_model.pooler = new_model.pooler
+            self.clients[self.selected_clients[k]].local_model.classifier = new_model.classifier
+        
+        temp = list()
+        # Prompt aggregation
+        union_prompts_checklist = torch.zeros(new_model.pool.prompt.shape[0],dtype=torch.int)
+        nonzero_index = torch.nonzero(new_model.trained_prompts_checklist).flatten()
+        union_prompts_checklist[nonzero_index] = 1
+        # import pdb; pdb.set_trace()
+        for client_idx in range(n_models):
+            # import pdb; pdb.set_trace()
+            nonzero_index = torch.nonzero(models[client_idx].trained_prompts_checklist).flatten()
+            # print(client_idx, union_prompts_checklist, nonzero_index)
+            union_prompts_checklist[nonzero_index] = 1
+            # print(client_idx, union_prompts_checklist)
+        for client_idx in range(n_models):
+            # import pdb; pdb.set_trace()
+            # temp.append(copy.deepcopy(models[client_idx].pool.prompt[torch.nonzero(union_prompts_checklist).flatten()]))
+            temp.append(models[client_idx].pool.prompt[torch.nonzero(union_prompts_checklist).flatten()].clone())
+        
+        temp = torch.stack(temp, dim=0) # temp is n_clients x prompt_length x 768: 20, 5, 768
+        agg = NonparametricAgg(768, n_hidden=128).to(temp.device)
+        # import pdb; pdb.set_trace()
+        temp = agg(temp)
+        # print("Passed one")
+        #print(temp.shape)
+        del agg
+        with torch.no_grad():
+            new_model.pool.prompt = nn.Parameter(temp, requires_grad=True)
+            for k in range(n_models):
+                self.clients[self.selected_clients[k]].local_model.pool.prompt = new_model.pool.prompt
+        print(temp.shape[0])
+                
+        new_model.reset_trained_prompts_checklist()
+        for k in range(n_models):
+            self.clients[self.selected_clients[k]].local_model.reset_trained_prompts_checklist()
         return new_model
     
     def pack(self, client_id):
@@ -256,6 +274,7 @@ class Client(BasicClient):
     def __init__(self, option, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
+        self.local_model = None
         # self.get_missing_type(dataflag='train')
         # self.get_missing_type(dataflag='valid')
 
@@ -287,8 +306,10 @@ class Client(BasicClient):
         """
         model, transformer, text_embeddings, client_id = self.unpack(svr_pkg)
         # self.client_id = client_id
-        self.train(model, transformer, text_embeddings, client_id)
-        cpkg = self.pack(model)
+        if self.local_model is None:
+            self.local_model = copy.deepcopy(model)
+        self.train(self.local_model, transformer, text_embeddings, client_id)
+        cpkg = self.pack(self.local_model)
         return cpkg
     
     def unpack(self, received_pkg):

@@ -29,6 +29,7 @@ class NonparametricAgg(nn.Module):
         _z = torch.tensor(z).to(local_prompts.device)
         lik = 0.
         cost_mat = []
+        # import pdb; pdb.set_trace()
         for i in range(centroids.shape[0]):
             mean_i = centroids[i].view(1, -1)
             cov_i = self.cov_net(mean_i)
@@ -37,6 +38,7 @@ class NonparametricAgg(nn.Module):
             cost_mat.append(lp)
             log_prob = _z[:, i] * cost_mat[-1] # n_local
             lik += log_prob.sum()
+        # import pdb; pdb.set_trace()
         return lik, torch.stack(cost_mat) # n_global x n_local
 
     def z_likelihood(self, centroids, z):
@@ -53,7 +55,7 @@ class NonparametricAgg(nn.Module):
         return lik, torch.stack(cost_mat) # n_global x n_local
 
     # local_prompts: n_clients x n_prompts x 768
-    def forward(self, local_prompts, outer_loop=50):
+    def forward(self, local_prompts, outer_loop=5):
         n_clients, n_local = local_prompts.shape[0], local_prompts.shape[1]
         n_global = n_clients * n_local
         # Initialize z
@@ -66,7 +68,9 @@ class NonparametricAgg(nn.Module):
                 zi[j][perm[j]] = 1
             z.append(zi)
 
-        centroids = nn.ParameterList([copy.deepcopy(local_prompts.flatten(0, 1))]) # (n_clients x n_prompts) x 768
+        # centroids = nn.ParameterList([copy.deepcopy(local_prompts.flatten(0, 1))]) # (n_clients x n_prompts) x 768
+        centroids = nn.ParameterList([local_prompts.flatten(0, 1).clone()]) # (n_clients x n_prompts) x 768
+        
         opt = Adam([
             {'params': self.cov_net.parameters()},
             {'params': self.bernoulli_net.parameters()},
@@ -82,7 +86,9 @@ class NonparametricAgg(nn.Module):
                 l2, m2 = self.z_likelihood(centroids[0], z[t])
                 #loss.append(l1 + l2)
                 loss = -l1 -l2
-                loss.backward()
+                # import pdb; pdb.set_trace()
+                # loss.backward()
+                loss.backward(retain_graph=True)
                 opt.step()
 
                 # Solve for z

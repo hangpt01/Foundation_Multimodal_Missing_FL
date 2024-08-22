@@ -265,7 +265,10 @@ class Model(FModule):
 
         imgcls_labels = batch["label"]
         imgcls_labels = torch.tensor(imgcls_labels).to(self.device).long()
+        print("logits", imgcls_logits.shape, torch.unique(imgcls_logits))
+        print("labels", imgcls_labels.shape, torch.unique(imgcls_labels))
         imgcls_loss = F.cross_entropy(imgcls_logits, imgcls_labels)
+        print("Loss", imgcls_loss)
 
         # GBLend loss - 3 losses
         loss_leads = [0]*3
