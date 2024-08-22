@@ -140,7 +140,11 @@ class Model(FModule):
         self.prompt_length = prompt_length
         embed_dim = self.hparams_config["hidden_size"]
         
+        self.trained_prompts_checklist = torch.zeros(self.pool.prompt.shape[0], dtype=torch.float32)
+        
         self.criterion = nn.CrossEntropyLoss()
+        
+        self.prompts = None
         
         
     def infer(self, batch, transformer, text_embeddings):
@@ -191,6 +195,7 @@ class Model(FModule):
         #     cls_features = outputs[:, 0, :]
         n = x.shape[0]    
         reduce_sim, batched_prompt = self.pool(x, cls_features=None)
+        self.prompts = batched_prompt
         prompt_masks = torch.ones(batched_prompt.shape[0], self.prompt_length, dtype=batched_prompt.dtype, device=batched_prompt.device).long()
         co_masks = torch.cat([prompt_masks, text_masks, image_masks], dim=1)    # torch.Size([batch, 329]);     batch, 353=257+96
         # batch_class_token = self.vit_b32.class_token.expand(n, -1, -1)
@@ -230,6 +235,15 @@ class Model(FModule):
         cls_feats = self.pooler(x)
         return cls_feats
 
+
+    def checking_trained_prompt(self):
+        if self.pool.top_k_idx.device != self.trained_prompts_checklist.device:
+            self.trained_prompts_checklist = self.trained_prompts_checklist.to(self.pool.top_k_idx.device)
+        self.trained_prompts_checklist[self.pool.top_k_idx] += 1.0
+        
+    def reset_trained_pormpts_checklist(self):
+        self.trained_prompts_checklist = torch.zeros(self.pool.prompt.shape[0], dtype=torch.torch.float32)
+        
 
     def forward(self, transformer, text_embeddings, batch):
         

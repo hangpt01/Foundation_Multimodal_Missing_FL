@@ -9,6 +9,7 @@ import torch
 from torch import nn
 from transformers.models.bert.modeling_bert import BertConfig, BertEmbeddings
 import algorithm.multimodal.food101_classification_arrow.vision_transformer_prompts as vit
+from algorithm.multimodal.food101_classification_8_classes.nonparametric_aggregation import *
 from datetime import datetime
 from collections import Counter
 import wandb
@@ -116,22 +117,6 @@ class Server(BasicServer):
 
     @torch.no_grad()
     def aggregate(self, models: list):
-        # metrics_dict = dict()
-        # for client_id in self.selected_clients:
-        #     c = self.clients[client_id]
-        #     # # import pdb; pdb.set_trace()
-        #     # client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
-        #     # for met_name, met_val in client_metrics.items():
-        #     #     all_metrics[met_name].append(met_val)
-        #     client_global_data_metrics = c.test_on_specific_data(models[client_id], self.transformer, self.text_embeddings, self.test_data, client_id, self.option, self.current_round)
-        #     # loss_name = "client_" + str(client_id+1) + "_loss_global_data"
-        #     # acc_name = "client_" + str(client_id+1) + "_acc_global_data"
-        #     metrics_dict["client_" + str(client_id+1) + "_loss_global_data"] = (client_global_data_metrics['loss'])
-        #     metrics_dict["client_" + str(client_id+1) + "_acc_global_data"] = (client_global_data_metrics['acc'])
-        # if self.option['wandb']:
-        #     wandb.log(metrics_dict, step=self.current_round)
-
-
         new_model = copy.deepcopy(self.model)
         p = list()
         chosen_models = list()
@@ -151,6 +136,11 @@ class Server(BasicServer):
 
         average_tensor = sum(pk * model.missing_img_prompt for pk, model in zip(p, models))  / sum(p)
         new_model.missing_img_prompt = nn.Parameter(average_tensor)
+
+        temp = list()
+        for i in            
+            
+            
 
         # pooler
         new_model.pooler = fmodule._model_sum([
@@ -410,3 +400,5 @@ class Client(BasicClient):
             option=option,
             current_round = current_round
         )
+        
+        
