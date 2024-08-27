@@ -18,7 +18,7 @@ def init_weights(module):
         module.bias.data.zero_()
 
 class Pool(FModule):
-    def __init__(self, patch_size=32, embed_dim=768, pool_size=20, top_k=5, dropout_value=0.0):
+    def __init__(self, patch_size=32, embed_dim=768, pool_size=10, top_k=5, dropout_value=0.0):
         super(Pool, self).__init__()
         patch_size_pair = _pair((patch_size, patch_size))
         self.top_k = top_k
@@ -45,21 +45,34 @@ class Pool(FModule):
             x_embed_mean = cls_features
             
         prompt_norm = self.l2_normalize(self.prompt, dim=1) # Pool_size, C
-        x_embed_mean = self.features_proj(self.features_dropout(x_embed_mean))
-        x_embed_norm = self.l2_normalize(x_embed_mean, dim=1) # B, C
+        x_embed_mean = self.features_proj(self.features_dropout(x_embed_mean))      # B, 768
+        x_embed_norm = self.l2_normalize(x_embed_mean, dim=1) # B, C=768    
         similarity = torch.matmul(x_embed_norm, prompt_norm.t()) # B, Pool_size
         _, idx = torch.topk(similarity, k=self.top_k, dim=1) # B, top_k
         # if self.batchwise_prompt:
-        prompt_id, id_counts = torch.unique(idx, return_counts=True, sorted=True)
+        prompt_id, id_counts = torch.unique(idx, return_counts=True, sorted=True)       
+        # prompt_id: [ 1,  2,  4,  7,  8,  9, 12, 13, 14, 15, 18, 19, 20, 21, 22, 23, 24]
+        # id_counts: [284,   1, 511,  44,   4,   1, 511,   2, 170, 511,  14, 240,   4,   5, 168,  81,   9]
+        # import pdb; pdb.set_trace()
+        # print("current pool size", current_pool_size)
+        # if current_pool_size > 10:
+        #     import pdb; pdb.set_trace()
         if prompt_id.shape[0] < current_pool_size:
-            prompt_id = torch.cat([prompt_id, torch.full((current_pool_size - prompt_id.shape[0],), torch.min(idx.flatten()), device=prompt_id.device)])
-            id_counts = torch.cat([id_counts, torch.full((current_pool_size - id_counts.shape[0],), 0, device=id_counts.device)])
-        _, major_idx = torch.topk(id_counts, k=self.top_k) # top_k
-        major_prompt_id = prompt_id[major_idx] # top_k
+            prompt_id = torch.cat([prompt_id, torch.full((current_pool_size - prompt_id.shape[0],), torch.min(idx.flatten()), device=prompt_id.device)])    # current_pool_size=27  
+            # [ 1,  2,  4,  7,  8,  9, 12, 13, 14, 15, 18, 19, 20, 21, 22, 23, 24,  1, 1,  1,  1,  1,  1,  1,  1,  1,  1]
+            id_counts = torch.cat([id_counts, torch.full((current_pool_size - id_counts.shape[0],), 0, device=id_counts.device)])                           # current_pool_size=27  
+            # [284,   1, 511,  44,   4,   1, 511,   2, 170, 511,  14, 240,   4,   5, 168,  81,   9,   0,   0,   0,   0,   0,   0,   0,   0,   0,   0]
+        _, major_idx = torch.topk(id_counts, k=self.top_k) # top_k most  frequently exists in id_counts      
+        # [511, 511, 511, 284, 240], [ 9,  6,  2,  0, 11]
+        major_prompt_id = prompt_id[major_idx] # top_k      
+        # [15, 12,  4,  1, 19]
+        # print("major_prompt_id", major_prompt_id)
         # expand to batch
+        # import pdb; pdb.set_trace()
         idx = major_prompt_id.expand(x_embed.shape[0], -1) # B, top_k
         self.top_k_idx = idx[0]
-        
+        # print("idx", idx.shape, self.top_k_idx)
+        # idx torch.Size([512, 5]) tensor([15, 12,  4,  1, 19], device='cuda:0')
         
         batched_prompt = self.prompt[idx] # B, top_k, C
         batched_key_norm = prompt_norm[idx]
@@ -237,19 +250,32 @@ class Model(FModule):
 
 
     def checking_trained_prompt(self):
+        # import pdb; pdb.set_trace()
         if self.pool.top_k_idx.device != self.trained_prompts_checklist.device:
             self.trained_prompts_checklist = self.trained_prompts_checklist.to(self.pool.top_k_idx.device)
         self.trained_prompts_checklist[self.pool.top_k_idx] += 1.0
+        # print("Done check train prompts")
+        
+    def reset_trained_prompts_checklist(self):
+        self.trained_prompts_checklist = torch.zeros(self.pool.prompt.shape[0], dtype=torch.torch.float32)
         
 
     def forward(self, transformer, text_embeddings, batch):
         
         cls_feats = self.infer(batch, transformer, text_embeddings)
+        # import pdb; pdb.set_trace()
+        # print("cls_feats", cls_feats.shape)
         imgcls_logits = self.classifier(cls_feats)
+        # print("imgcls_logits", imgcls_logits.shape)
         
         imgcls_labels = batch["label"]
         imgcls_labels = torch.tensor(imgcls_labels).to(self.device).long()
+        # print("logits", imgcls_logits.shape, torch.unique(imgcls_logits))
+        # print("labels", imgcls_labels.shape, torch.unique(imgcls_labels))
+    
         imgcls_loss = F.cross_entropy(imgcls_logits, imgcls_labels)
+        # print("Loss", imgcls_loss)
+        self.checking_trained_prompt()
         # import pdb; pdb.set_trace()
 
         return imgcls_loss, imgcls_loss, imgcls_logits
