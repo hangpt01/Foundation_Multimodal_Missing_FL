@@ -18,6 +18,7 @@ class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 2
+        self.num_outer_loops = option['num_outer_loops']
         self.hparams_config = {'batch_size': 32, 
                         'prompt_type': 'input', 
                         'prompt_length': 16, 
@@ -156,7 +157,7 @@ class Server(BasicServer):
         temp = torch.stack(temp, dim=0) # temp is n_clients x prompt_length x 768: 20, 5, 768
         agg = NonparametricAgg(768, n_hidden=128).to(temp.device)
         # import pdb; pdb.set_trace()
-        temp = agg(temp)
+        temp = agg(temp, outer_loop=self.num_outer_loops)
         # print("Passed one")
         #print(temp.shape)
         del agg

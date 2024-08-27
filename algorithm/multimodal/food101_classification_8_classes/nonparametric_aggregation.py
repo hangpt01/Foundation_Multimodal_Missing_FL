@@ -56,6 +56,7 @@ class NonparametricAgg(nn.Module):
 
     # local_prompts: n_clients x n_prompts x 768
     def forward(self, local_prompts, outer_loop=10):
+        # print("Outer loop", outer_loop)
         n_clients, n_local = local_prompts.shape[0], local_prompts.shape[1]
         n_global = n_clients * n_local
         # Initialize z
