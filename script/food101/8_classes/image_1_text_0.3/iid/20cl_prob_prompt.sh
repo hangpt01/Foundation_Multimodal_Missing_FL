@@ -14,7 +14,7 @@ python main.py \
     --num_epochs 1 \
     --num_outer_loops 15 \
     --learning_rate_decay 1.0 \
-    --batch_size 128 \
-    --test_batch_size 128 \
+    --batch_size 512 \
+    --test_batch_size 512 \
     --gpu 0 \
     --wandb
