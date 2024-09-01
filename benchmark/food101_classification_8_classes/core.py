@@ -1080,7 +1080,7 @@ class TaskCalculator(ClassificationCalculator):
         # import pdb;pdb.set_trace()
         # print("Server after server test")
         # print(model)
-        print("Prompt in server_test",model.pool.prompt)
+        # print("Prompt in server_test",model.pool.prompt)
         return result
         
     
