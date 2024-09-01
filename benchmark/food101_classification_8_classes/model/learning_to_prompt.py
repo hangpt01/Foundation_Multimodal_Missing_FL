@@ -109,14 +109,7 @@ class Model(FModule):
         self.text_embeddings = None
         # import pdb; pdb.set_trace()  
         
-        self.hparams_config = {'prompt_type': 'input', 
-                                'prompt_length': 16, 
-                                # 'learnt_p': True, 
-                                # 'prompt_layers': [0, 1, 2, 3, 4, 5], 
-                                # 'multi_layer_prompt': True, 
-                                # 'max_text_len': 40, 
-                                # 'vocab_size': 30522, 
-                                'hidden_size': 768,
+        self.hparams_config = {'hidden_size': 768,
                                 'max_image_len': 40}
 
         self.token_type_embeddings = nn.Embedding(2, self.hparams_config["hidden_size"])
@@ -135,9 +128,6 @@ class Model(FModule):
         self.classifier.apply(init_weights)   
         
         # prompt
-        self.prompt_type = self.hparams_config["prompt_type"]
-        prompt_length = self.hparams_config["prompt_length"]
-        self.prompt_length = prompt_length
         embed_dim = self.hparams_config["hidden_size"]
         
         self.trained_prompts_checklist = torch.zeros(self.pool.prompt.shape[0], dtype=torch.float32)
@@ -195,8 +185,9 @@ class Model(FModule):
         #     cls_features = outputs[:, 0, :]
         n = x.shape[0]    
         reduce_sim, batched_prompt = self.pool(x, cls_features=None)
-        self.prompts = batched_prompt
-        prompt_masks = torch.ones(batched_prompt.shape[0], self.prompt_length, dtype=batched_prompt.dtype, device=batched_prompt.device).long()
+        # self.prompts = batched_prompt       # B, topk, 768
+        # import pdb; pdb.set_trace()
+        prompt_masks = torch.ones(batched_prompt.shape[0], batched_prompt.shape[1], dtype=batched_prompt.dtype, device=batched_prompt.device).long()
         co_masks = torch.cat([prompt_masks, text_masks, image_masks], dim=1)    # torch.Size([batch, 329]);     batch, 353=257+96
         # batch_class_token = self.vit_b32.class_token.expand(n, -1, -1)
         # x = torch.cat([batch_class_token, x], dim=1)

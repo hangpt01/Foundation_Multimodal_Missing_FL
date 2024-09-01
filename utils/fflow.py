@@ -112,7 +112,9 @@ def initialize(option):
     # init partitioned dataset
     TaskPipe = getattr(importlib.import_module(bmk_core_path), 'TaskPipe')
     TaskPipe.set_option(option['cross_validation'], option['train_on_all'])
-    train_datas, valid_datas, test_data, client_names = TaskPipe.load_task(os.path.join('fedtask', option['task']))
+    # train_datas, valid_datas, test_data, client_names = TaskPipe.load_task(os.path.join('fedtask', option['task']))
+    train_datas, test_data, client_names = TaskPipe.load_task(os.path.join('fedtask', option['task']))
+    
     # init model
     try:
         utils.fmodule.Model = getattr(importlib.import_module(bmk_model_path), 'Model')
@@ -169,7 +171,8 @@ def initialize(option):
     client_path = '%s.%s' % ('algorithm', option['algorithm'])
     logger.info('Initializing Clients: '+'{} clients of `{}` being created.'.format(num_clients, client_path+'.Client'))
     Client=getattr(importlib.import_module(client_path), 'Client')
-    clients = [Client(option, name=client_names[cid], train_data=train_datas[cid], valid_data=valid_datas[cid]) for cid in range(num_clients)]
+    # clients = [Client(option, name=client_names[cid], train_data=train_datas[cid], valid_data=valid_datas[cid]) for cid in range(num_clients)]
+    clients = [Client(option, name=client_names[cid], train_data=train_datas[cid]) for cid in range(num_clients)]
     for cid, c in enumerate(clients): c.id = cid
     # init server
     server_path = '%s.%s' % ('algorithm', option['algorithm'])

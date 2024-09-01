@@ -11,6 +11,7 @@ from transformers.models.bert.modeling_bert import BertConfig, BertEmbeddings
 import algorithm.multimodal.food101_classification_arrow.vision_transformer_prompts as vit
 from datetime import datetime
 from collections import Counter
+from sklearn.cluster import KMeans
 import wandb
 
 class Server(BasicServer):
@@ -153,10 +154,6 @@ class Server(BasicServer):
         new_model.classifier = fmodule._model_sum([
             model.classifier * pk for model, pk in zip(models, p)
         ]) / sum(p)
-        
-        # print("First client model", models[0])
-        # print("Server", new_model)
-        
         return new_model
     
     def pack(self, client_id):
@@ -185,7 +182,6 @@ class Server(BasicServer):
         """
         # return dict()
         if model is None: model=self.model
-        # print("Server in TEST", self.model)
         if self.test_data:
             result = self.calculator.server_test(
                 model=model,
@@ -262,6 +258,11 @@ class Client(BasicClient):
     def __init__(self, option, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
+        gpus = option['gpu']
+        self.device = torch.device('cpu') if gpus is None else torch.device('cuda:{}'.format(gpus[0]))
+        self.text_mean = None
+        # print(device)
+        # import pdb; pdb.set_trace()
         # self.get_missing_type_label(dataflag='train')
         # self.get_missing_type_label(dataflag='valid')
 
@@ -327,9 +328,52 @@ class Client(BasicClient):
             "model" : model
         }
 
+    # @ss.with_completeness
+    # @fmodule.with_multi_gpus
+    # def train(self, model, transformer, text_embeddings, client_id):
+    #     """
+    #     Standard local training procedure. Train the transmitted model with local training dataset.
+    #     :param
+    #         model: the global model
+    #     :return
+    #     """
+    #     model.train()
+    #     optimizer = self.calculator.get_optimizer(
+    #         model=model,
+    #         lr=self.learning_rate,
+    #         weight_decay=self.weight_decay,
+    #         momentum=self.momentum
+    #     )
+    #     # print(self.num_steps)
+    #     # TO_DELETE
+    #     self.num_steps = 1
+    #     # print(self.num_steps)
+
+    #     # print("Training client", client_id+1)
+    #     # for iter in tqdm(range(self.num_steps)):
+    #     for iter in range(self.num_steps):
+    #         # get a batch of data
+    #         batch_data = self.get_batch_data()
+    #         # if batch_data[-1].shape[0] == 1:
+    #         #     continue
+    #         model.zero_grad()
+    #         # calculate the loss of the model on batched dataset through task-specified calculator
+            
+    #         # import pdb; pdb.set_trace()
+    #         _, loss, outputs = self.calculator.train_one_step(
+    #             model=model,
+    #             transformer=transformer,
+    #             text_embeddings=text_embeddings,
+    #             data=batch_data
+    #         )['loss']
+    #         print('\t',datetime.now(),iter, loss)
+    #         loss.backward()
+    #         optimizer.step()
+    
+    
     @ss.with_completeness
     @fmodule.with_multi_gpus
-    def train(self, model, transformer, text_embeddings, client_id):
+    def train(self, model, transformer, text_embeddings, client_id, meta_lr=1e-3, inner_steps=1, n_clusters=10):
         """
         Standard local training procedure. Train the transmitted model with local training dataset.
         :param
@@ -345,32 +389,83 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        # self.num_steps = 1
-        # print(self.num_steps)
-
-        # print("Training client", client_id+1)
-        # for iter in tqdm(range(self.num_steps)):
+        self.num_steps = 1
         for iter in range(self.num_steps):
-            # get a batch of data
             batch_data = self.get_batch_data()
-            # if batch_data[-1].shape[0] == 1:
-            #     continue
             model.zero_grad()
-            # calculate the loss of the model on batched dataset through task-specified calculator
             
-            # import pdb; pdb.set_trace()
-            _, loss, outputs = self.calculator.train_one_step(
-                model=model,
-                transformer=transformer,
-                text_embeddings=text_embeddings,
-                data=batch_data
-            )['loss']
-            # print('\t',datetime.now(),iter, loss)
-            loss.backward()
-            optimizer.step()
-        
-        return
+            batch = self.data_to_device(batch_data)
+            model.to(self.device)
+            transformer.to(self.device)
+            text_embeddings.to(self.device)
+            # calculate the loss of the model on batched dataset through task-specified calculator
+            cloned_model = model
+            # cloned_model.load_state_dict(model.state_dict())
 
+            # Inner loop optimization on cloned model
+            inner_optimizer = torch.optim.Adam(cloned_model.parameters(), lr=meta_lr)
+            # import pdb; pdb.set_trace() 
+            for idx in range(batch["image"][0].shape[0]):
+                for _ in range(inner_steps):
+                    if batch["missing_type"][idx] == 0:
+                        loss, _ , _ = cloned_model(transformer, text_embeddings, batch)
+                    elif batch["missing_type"][idx] == 1:
+                        loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_text=True)
+                    elif batch["missing_type"][idx] == 2:
+                        loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_image=True)
+
+                    inner_optimizer.zero_grad()
+                    loss.backward()
+                    inner_optimizer.step()
+            
+                if batch["missing_type"][idx] == 0:
+                    loss, _ , _ = cloned_model(transformer, text_embeddings, batch)
+                elif batch["missing_type"][idx] == 1:
+                    loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_text=True)
+                elif batch["missing_type"][idx] == 2:
+                    loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_image=True)
+            
+                optimizer.zero_grad()
+                loss.backward()
+                optimizer.step()
+
+            # KMeans clustering on the reconstructed features
+            if self.text_mean == None: 
+                self.text_mean = torch.rand(768, 768).to(self.device)
+            reconstructed_features = cloned_model.text_reconstruction(self.text_mean)  # Example feature reconstruction
+            centroids = self.kmeans_clustering(reconstructed_features.detach().cpu().numpy(), n_clusters)
+            self.text_mean = torch.from_numpy(centroids).float().to(self.device)
+
+            print(f'Outer loop loss: {loss.item()}')
+
+            print('\t',datetime.now(),iter, loss)
+
+    def data_to_device(self, data):
+        # for k, v in data.items():
+        #     print(k,len(v))
+        batch = data
+        # import pdb; pdb.set_trace()
+        batch['image'][0] = batch['image'][0].to(self.device)
+        for key in ['text_ids', 'text_labels', 'text_ids_mlm', 'text_labels_mlm', 'text_masks']:
+            new_ls = []
+            for tensor in data[key]:
+                new_ls.append(tensor.to(self.device)) 
+            batch[key] = torch.stack(new_ls)
+        # batch = {k:v.to(self.device) for k,v in data.items()}
+        # import pdb; pdb.set_trace()
+        return batch
+    
+
+    def kmeans_clustering(self, features, n_clusters=10):
+        """
+        Apply KMeans clustering to the feature space.
+        """
+        kmeans = KMeans(n_clusters=n_clusters, random_state=0)
+        kmeans.fit(features)
+        centroids = kmeans.cluster_centers_
+        return centroids
+            
+            
     @fmodule.with_multi_gpus
     def test(self, model, transformer, text_embeddings, dataflag='train'):
         """

@@ -140,10 +140,11 @@ class Logger(logging.Logger):
             for i in range(8):
                 wandb.define_metric("test_loss"+str(i+1), summary="min")
                 wandb.define_metric("test_acc"+str(i+1), summary="max")
-                wandb.define_metric("test_f1_score_"+str(i+1), summary="max")
+                # wandb.define_metric("test_f1_score_"+str(i+1), summary="max")
             wandb.define_metric("test_loss", summary="min")
-            wandb.define_metric("test_acc", summary="max")
+            # wandb.define_metric("test_acc", summary="max")
             wandb.define_metric("test_full_modal_acc", summary="max")
+            wandb.define_metric("test_miss_both_acc", summary="max")
             wandb.define_metric("test_miss_text_acc", summary="max")
             wandb.define_metric("test_image_only_acc", summary="max")
             wandb.define_metric("test_miss_image_acc", summary="max")
@@ -279,15 +280,15 @@ class Logger(logging.Logger):
         # wandb.log(client_global_data_metrics)
         # calculate weighted averaging and other statistics of metrics on validation datasets across clients
 
-        valid_metrics = self.server.test_on_clients('valid')
+        # valid_metrics = self.server.test_on_clients('valid')
         # import pdb; pdb.set_trace()
-        for met_name, met_val in valid_metrics.items():
-            self.output['valid_' + met_name + '_dist'].append(met_val)
-            self.output['valid_' + met_name].append(
-                1.0 * sum([
-                    self.server.clients[client_id].datavol * client_met for client_id, client_met in zip(self.server.selected_clients, met_val)
-                ]) / sum([self.server.clients[client_id].datavol for client_id in self.server.selected_clients])
-            )
+        # for met_name, met_val in valid_metrics.items():
+        #     self.output['valid_' + met_name + '_dist'].append(met_val)
+        #     self.output['valid_' + met_name].append(
+        #         1.0 * sum([
+        #             self.server.clients[client_id].datavol * client_met for client_id, client_met in zip(self.server.selected_clients, met_val)
+        #         ]) / sum([self.server.clients[client_id].datavol for client_id in self.server.selected_clients])
+        #     )
         # output to stdout
         self.show_current_output()
 

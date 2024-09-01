@@ -237,27 +237,14 @@ class TaskPipe(IDXTaskPipe):
 
 
         train_datas = []
-        valid_datas = []
+        # valid_datas = []
         # modalities_list = []
         for name in feddata['client_names']:
             train_data = feddata[name]['dtrain']    # sample idx
-            valid_data = feddata[name]['dvalid']
-            if cls._cross_validation:
-                k = len(train_data)
-                train_data.extend(valid_data)
-                random.shuffle(train_data)
-                all_data = train_data
-                train_data = all_data[:k]
-                valid_data = all_data[k:]
-            if cls._train_on_all:
-                train_data.extend(valid_data)
             train_datas.append(cls.TaskDataset(origin_train_data, train_data))
-            valid_datas.append(cls.TaskDataset(origin_train_data, valid_data))
-            # modalities_list.append(feddata[name]['modalities'])
-            # modalities_list.append(list(range(12)))
         
         test_data = (test_data, other_test_datas)
-        return train_datas, valid_datas, test_data, feddata['client_names']
+        return train_datas, test_data, feddata['client_names']
 
 def collate(batch, mlm_collator):
     batch_size = len(batch)
@@ -378,8 +365,7 @@ def save_task(generator):
         #     }
         # else:
         feddata[generator.cnames[cid]] = {
-            'dtrain': generator.train_cidxs[cid],
-            'dvalid': generator.valid_cidxs[cid]
+            'dtrain': generator.train_cidxs[cid]
         }
     # with open(os.path.join(generator.taskpath, 'data.json'), 'w') as outf:
     #     ujson.dump(feddata, outf)
@@ -606,7 +592,7 @@ class TaskGen(DefaultTaskGen):
         self.image_only = False
 
         self.missing=missing
-        self.local_holdout_rate = 0.2
+        # self.local_holdout_rate = 0.2
         # self.specific_training_leads = None
         
         if self.missing:
@@ -853,6 +839,64 @@ class TaskCalculator(ClassificationCalculator):
         # print(loss)
         return {'loss': loss}
     
+    # def meta_train_with_kmeans(self, model, transformer, text_embeddings, data, outer_optimizer, sound_mean, meta_lr=1e-3, inner_steps=1, n_clusters=10):
+    #     """
+    #     Meta-training loop for SMIL model with KMeans clustering.
+    #     """
+    #     batch = self.data_to_device(data)
+    #     model.to(self.device)
+    #     transformer.to(self.device)
+    #     text_embeddings.to(self.device)
+        
+    #     for images, texts, labels, missing_modality in data_loader:
+    #         # Clone the model parameters for inner loop training
+    #         cloned_model = Model() 
+    #         cloned_model.load_state_dict(model.state_dict())
+
+    #         # Inner loop optimization on cloned model
+    #         inner_optimizer = torch.optim.Adam(cloned_model.parameters(), lr=meta_lr)
+    #         for _ in range(inner_steps):
+    #             # Simulate different missing modality scenarios
+    #             if missing_modality == 'text':
+    #                 loss,_ , _ = cloned_model(transformer, text_embeddings, batch, missing_text=True)
+    #             elif missing_modality == 'image':
+    #                 loss,_ , _ = cloned_model(transformer, text_embeddings, batch, missing_image=True)
+    #             else:
+    #                 loss,_ , _ = cloned_model(transformer, text_embeddings, batch)
+                
+    #             inner_optimizer.zero_grad()
+    #             loss.backward()
+    #             inner_optimizer.step()
+
+    #         # Outer loop optimization: Evaluate the adapted model
+    #         if missing_modality == 'text':
+    #             loss, _ = model(transformer, text_embeddings, batch, missing_text=True)
+    #         elif missing_modality == 'image':
+    #             loss, _ = model(transformer, text_embeddings, batch, missing_image=True)
+    #         else:
+    #             loss, _ = model(transformer, text_embeddings, batch)
+
+    #         outer_optimizer.zero_grad()
+    #         loss.backward()
+    #         outer_optimizer.step()
+
+    #         # KMeans clustering on the reconstructed features
+    #         reconstructed_features = cloned_model.text_reconstruction(sound_mean)  # Example feature reconstruction
+    #         centroids = kmeans_clustering(reconstructed_features.detach().cpu().numpy(), n_clusters)
+    #         sound_mean = torch.from_numpy(centroids).float().to(device)
+
+    #         print(f'Outer loop loss: {loss.item()}')
+
+    # def kmeans_clustering(features, n_clusters=10):
+    #     """
+    #     Apply KMeans clustering to the feature space.
+    #     """
+    #     kmeans = KMeans(n_clusters=n_clusters, random_state=0)
+    #     kmeans.fit(features)
+    #     centroids = kmeans.cluster_centers_
+    #     return centroids
+
+    
     @torch.no_grad()
     def test(self, model, transformer, text_embeddings, dataset, batch_size=64, num_workers=0):
         """
@@ -1034,6 +1078,9 @@ class TaskCalculator(ClassificationCalculator):
         #     'acc': accuracy
         # }
         # import pdb;pdb.set_trace()
+        # print("Server after server test")
+        # print(model)
+        print("Prompt in server_test",model.pool.prompt)
         return result
         
     
