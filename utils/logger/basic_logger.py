@@ -142,7 +142,7 @@ class Logger(logging.Logger):
                 wandb.define_metric("test_acc"+str(i+1), summary="max")
                 # wandb.define_metric("test_f1_score_"+str(i+1), summary="max")
             wandb.define_metric("test_loss", summary="min")
-            # wandb.define_metric("test_acc", summary="max")
+            wandb.define_metric("test_acc", summary="max")
             wandb.define_metric("test_full_modal_acc", summary="max")
             wandb.define_metric("test_miss_both_acc", summary="max")
             wandb.define_metric("test_miss_text_acc", summary="max")

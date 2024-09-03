@@ -136,6 +136,9 @@ class Model(FModule):
         self.pooler = Pooler()
         self.pooler.apply(init_weights)
         
+        # Global prompt
+        self.global_pool = Pool(embed_dim=768, pool_size=pool_size, top_k=top_k)
+        
         # Classifier
         self.classifier = Classifier()
         self.classifier.apply(init_weights)   
@@ -147,7 +150,7 @@ class Model(FModule):
         
         self.criterion = nn.CrossEntropyLoss()
         
-        self.prompts = None
+        self.combined_prompts = None
         
         
     def infer(self, batch, transformer, text_embeddings):
@@ -192,10 +195,15 @@ class Model(FModule):
         x = co_embeds.detach()      # torch.Size([1, 233, 768])     batch, 257, 768=text+img
         n = x.shape[0]    
         reduce_sim, batched_prompt = self.pool(x, cls_features=None)
+        reduce_sim, batched_global_prompt = self.global_pool(x, cls_features=None)
         # self.prompts = batched_prompt
-        prompt_masks = torch.ones(batched_prompt.shape[0], batched_prompt.shape[1], dtype=batched_prompt.dtype, device=batched_prompt.device).long()
+        combined_batched_prompt = torch.concat((batched_prompt, batched_global_prompt), dim=1)
+        self.combined_prompts = torch.concat((self.pool.prompt, self.global_pool.prompt))
+        # print(self.prompts)
+        prompt_masks = torch.ones(combined_batched_prompt.shape[0], combined_batched_prompt.shape[1], dtype=combined_batched_prompt.dtype, device=combined_batched_prompt.device).long()
+        # import pdb; pdb.set_trace()
         co_masks = torch.cat([prompt_masks, text_masks, image_masks], dim=1)    # torch.Size([batch, 329]);     batch, 353=257+96
-        x = torch.cat((batched_prompt, x), dim=1)
+        x = torch.cat((combined_batched_prompt, x), dim=1)
         for i, blk in enumerate(self.transformer.blocks):
             x, _attn = blk(x, mask=co_masks)
             
@@ -205,14 +213,19 @@ class Model(FModule):
 
 
     def checking_trained_prompt(self):
-        # import pdb; pdb.set_trace()
+        num_prompts = self.pool.prompt.shape[0] + self.global_pool.prompt.shape[0]
+        self.trained_prompts_checklist = torch.zeros(num_prompts, dtype=torch.float32)
         if self.pool.top_k_idx.device != self.trained_prompts_checklist.device:
             self.trained_prompts_checklist = self.trained_prompts_checklist.to(self.pool.top_k_idx.device)
         self.trained_prompts_checklist[self.pool.top_k_idx] += 1.0
-        # print("Done check train prompts")
+        top_k_global = self.pool.top_k_idx + self.pool.prompt.shape[0]
+        self.trained_prompts_checklist[top_k_global] += 1.0
+        # print(self.pool.top_k_idx, top_k_global, self.trained_prompts_checklist)
+        
         
     def reset_trained_prompts_checklist(self):
-        self.trained_prompts_checklist = torch.zeros(self.pool.prompt.shape[0], dtype=torch.torch.float32)
+        num_prompts = self.pool.prompt.shape[0] + self.global_pool.prompt.shape[0]
+        self.trained_prompts_checklist = torch.zeros(num_prompts, dtype=torch.torch.float32)
         
 
     def forward(self, transformer, text_embeddings, batch):
