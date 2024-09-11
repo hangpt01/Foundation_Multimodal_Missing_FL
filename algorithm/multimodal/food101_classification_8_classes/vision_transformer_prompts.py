@@ -325,6 +325,7 @@ class Attention(nn.Module):
 
         elif prompt_type == 'attention':
             # prefix prompt tuning
+            # print("Attention")
             P = prompts.size(1)
             qkv = (
                 self.qkv(x)
@@ -333,14 +334,19 @@ class Attention(nn.Module):
             
             if learnt_p:
                 P = P//2
+                # P_k = P//2
+                # P_v = P - P_k
                 prompts_k = prompts[:,:P]
                 prompts_v = prompts[:,P:]
             else:
                 prompts_k = prompts
                 prompts_v = prompts
 
+            # import pdb; pdb.set_trace()
             q, k, v = (
                 qkv[:,:,0,:].reshape(B,N,12,C//12).permute(0,2,1,3),
+                # torch.cat([prompts_k,qkv[:,:,1,:]], dim=1).reshape(B,N+P_k,12,C//12).permute(0,2,1,3),
+                # torch.cat([prompts_v,qkv[:,:,2,:]], dim=1).reshape(B,N+P_v,12,C//12).permute(0,2,1,3),
                 torch.cat([prompts_k,qkv[:,:,1,:]], dim=1).reshape(B,N+P,12,C//12).permute(0,2,1,3),
                 torch.cat([prompts_v,qkv[:,:,2,:]], dim=1).reshape(B,N+P,12,C//12).permute(0,2,1,3),
             )  
@@ -348,6 +354,8 @@ class Attention(nn.Module):
         attn = (q @ k.transpose(-2, -1)) * self.scale
         if mask is not None:
             mask = mask.bool()
+            # import pdb; pdb.set_trace()
+            # print(attn.shape, mask.shape)
             attn = attn.masked_fill(~mask[:, None, None, :], float("-inf"))
         attn = attn.softmax(dim=-1)
         attn = self.attn_drop(attn)
