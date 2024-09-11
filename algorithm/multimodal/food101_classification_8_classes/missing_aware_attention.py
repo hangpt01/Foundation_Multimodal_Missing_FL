@@ -18,7 +18,7 @@ class Server(BasicServer):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 2
         self.hparams_config = {'batch_size': 32, 
-                        'prompt_type': 'input', 
+                        'prompt_type': 'attention', 
                         'prompt_length': 16, 
                         'learnt_p': True, 
                         'prompt_layers': [0, 1, 2, 3, 4, 5], 
