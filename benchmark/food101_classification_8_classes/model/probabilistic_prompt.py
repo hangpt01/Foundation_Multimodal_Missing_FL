@@ -22,6 +22,7 @@ class Pool(FModule):
         super(Pool, self).__init__()
         patch_size_pair = _pair((patch_size, patch_size))
         self.top_k = top_k
+        self.pool_size = pool_size
         self.prompt = nn.Parameter(torch.zeros(pool_size, embed_dim))
         self.features_proj = nn.Linear(embed_dim, embed_dim, bias=False)
         self.features_dropout = nn.Dropout(dropout_value)
@@ -123,6 +124,8 @@ class Model(FModule):
         # import pdb; pdb.set_trace()  
         
         self.hparams_config = {'hidden_size': 768,
+                               'pool_size': 20,
+                               'top_k':10,
                                 'max_image_len': 40}
 
         self.token_type_embeddings = nn.Embedding(2, self.hparams_config["hidden_size"])
@@ -132,7 +135,7 @@ class Model(FModule):
             param.requires_grad=False
 
         # Pool and Pooler
-        self.pool = Pool(embed_dim=768, pool_size=pool_size, top_k=top_k)
+        self.pool = Pool(embed_dim=768, pool_size=self.hparams_config["pool_size"], top_k=self.hparams_config['top_k'])
         self.pooler = Pooler()
         self.pooler.apply(init_weights)
         
@@ -195,6 +198,7 @@ class Model(FModule):
         # self.prompts = batched_prompt
         prompt_masks = torch.ones(batched_prompt.shape[0], batched_prompt.shape[1], dtype=batched_prompt.dtype, device=batched_prompt.device).long()
         co_masks = torch.cat([prompt_masks, text_masks, image_masks], dim=1)    # torch.Size([batch, 329]);     batch, 353=257+96
+        # print(self.pool.pool_size, self.pool.top_k, batched_prompt.shape)
         x = torch.cat((batched_prompt, x), dim=1)
         for i, blk in enumerate(self.transformer.blocks):
             x, _attn = blk(x, mask=co_masks)

@@ -22,6 +22,7 @@ class Pool(FModule):
         super(Pool, self).__init__()
         patch_size_pair = _pair((patch_size, patch_size))
         self.top_k = top_k
+        self.pool_size = pool_size
         self.prompt = nn.Parameter(torch.zeros(pool_size, embed_dim))
         self.features_proj = nn.Linear(embed_dim, embed_dim, bias=False)
         self.features_dropout = nn.Dropout(dropout_value)
@@ -110,6 +111,8 @@ class Model(FModule):
         # import pdb; pdb.set_trace()  
         
         self.hparams_config = {'hidden_size': 768,
+                               'pool_size': 20,
+                               'top_k':10,
                                 'max_image_len': 40}
 
         self.token_type_embeddings = nn.Embedding(2, self.hparams_config["hidden_size"])
@@ -119,7 +122,7 @@ class Model(FModule):
             param.requires_grad=False
 
         # Pool and Pooler
-        self.pool = Pool(embed_dim=768, pool_size=pool_size, top_k=top_k)
+        self.pool = Pool(embed_dim=768, pool_size=self.hparams_config["pool_size"], top_k=self.hparams_config['top_k'])
         self.pooler = Pooler()
         self.pooler.apply(init_weights)
         
@@ -177,51 +180,20 @@ class Model(FModule):
         # co_masks = torch.cat([text_masks, image_masks], dim=1)    # torch.Size([batch, 329]);     batch, 353=257+96
         co_embeds = torch.cat([text_embeds, image_embeds], dim=1)       # torch.Size([1, 233, 768])             batch, 257, 768
         x = co_embeds.detach()      # torch.Size([1, 233, 768])     batch, 257, 768=text+img
-        # import pdb; pdb.set_trace()
-        # INSERT PROMPTTTT
-        # with torch.no_grad():
-        #     outputs = transformer.forward_features(x)
-        #     # Typically, outputs[:, 0, :] contains the class token features
-        #     cls_features = outputs[:, 0, :]
+
         n = x.shape[0]    
         reduce_sim, batched_prompt = self.pool(x, cls_features=None)
         # self.prompts = batched_prompt       # B, topk, 768
         # import pdb; pdb.set_trace()
         prompt_masks = torch.ones(batched_prompt.shape[0], batched_prompt.shape[1], dtype=batched_prompt.dtype, device=batched_prompt.device).long()
         co_masks = torch.cat([prompt_masks, text_masks, image_masks], dim=1)    # torch.Size([batch, 329]);     batch, 353=257+96
-        # batch_class_token = self.vit_b32.class_token.expand(n, -1, -1)
-        # x = torch.cat([batch_class_token, x], dim=1)
-        # x += self.vit_b32.encoder.pos_embedding
-        # x = self.vit_b32.encoder.dropout(x)
-        # x = torch.cat((
-        #     x[:, :1, :],
-        #     batched_prompt,
-        #     x[:, 1:, :]
-        # ), dim=1)
+        # print(self.pool.pool_size, self.pool.top_k, batched_prompt.shape)
         x = torch.cat((batched_prompt, x), dim=1)
-        # x = self.vit_b32.encoder.dropout(x)
+
         for i, blk in enumerate(self.transformer.blocks):
             x, _attn = blk(x, mask=co_masks)
-        # x = self.transformer.encoder.layers(x)
-        
-        # features = self.vit_b32.encoder.ln(x)
-        
-        # for i, blk in enumerate(self.transformer.blocks):
-        #     if i in self.prompt_layers:
-        #         if self.multi_layer_prompt:     # true
-        #             x, _attn = blk(x, mask=co_masks, 
-        #                            prompts=prompts[:,self.prompt_layers.index(i)],      # batch, 16, 768
-        #                            learnt_p=self.learnt_p,
-        #                            prompt_type=self.prompt_type)
-        #         else:
-        #             x, _attn = blk(x, mask=co_masks, prompts=prompts, learnt_p=self.learnt_p)
-        #     else:
-        #         x, _attn = blk(x, mask=co_masks)
-        
-        
-        
-        # import pdb; pdb.set_trace()
-        # x: torch.Size([1, 329, 768])
+     
+
         x = self.transformer.norm(x)
         cls_feats = self.pooler(x)
         return cls_feats
