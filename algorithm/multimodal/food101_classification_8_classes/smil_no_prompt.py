@@ -69,8 +69,8 @@ class Server(BasicServer):
 
         dict_types = Counter(missing_types)
         dict_labels = Counter(labels)
-        print("Server")
-        print({k: dict_types[k] for k in sorted(dict_types)}, '\t\t', {k: dict_labels[k] for k in sorted(dict_labels)})
+        # print("Server")
+        # print({k: dict_types[k] for k in sorted(dict_types)}, '\t\t', {k: dict_labels[k] for k in sorted(dict_labels)})
 
 
     def run(self):
@@ -328,52 +328,10 @@ class Client(BasicClient):
             "model" : model
         }
 
-    # @ss.with_completeness
-    # @fmodule.with_multi_gpus
-    # def train(self, model, transformer, text_embeddings, client_id):
-    #     """
-    #     Standard local training procedure. Train the transmitted model with local training dataset.
-    #     :param
-    #         model: the global model
-    #     :return
-    #     """
-    #     model.train()
-    #     optimizer = self.calculator.get_optimizer(
-    #         model=model,
-    #         lr=self.learning_rate,
-    #         weight_decay=self.weight_decay,
-    #         momentum=self.momentum
-    #     )
-    #     # print(self.num_steps)
-    #     # TO_DELETE
-    #     self.num_steps = 1
-    #     # print(self.num_steps)
-
-    #     # print("Training client", client_id+1)
-    #     # for iter in tqdm(range(self.num_steps)):
-    #     for iter in range(self.num_steps):
-    #         # get a batch of data
-    #         batch_data = self.get_batch_data()
-    #         # if batch_data[-1].shape[0] == 1:
-    #         #     continue
-    #         model.zero_grad()
-    #         # calculate the loss of the model on batched dataset through task-specified calculator
-            
-    #         # import pdb; pdb.set_trace()
-    #         _, loss, outputs = self.calculator.train_one_step(
-    #             model=model,
-    #             transformer=transformer,
-    #             text_embeddings=text_embeddings,
-    #             data=batch_data
-    #         )['loss']
-    #         print('\t',datetime.now(),iter, loss)
-    #         loss.backward()
-    #         optimizer.step()
-    
     
     @ss.with_completeness
     @fmodule.with_multi_gpus
-    def train(self, model, transformer, text_embeddings, client_id, meta_lr=1e-3, inner_steps=2, n_clusters=10):
+    def train(self, model, transformer, text_embeddings, client_id, meta_lr=1e-3, inner_steps=1, n_clusters=10):
         """
         Standard local training procedure. Train the transmitted model with local training dataset.
         :param
@@ -403,10 +361,6 @@ class Client(BasicClient):
             # cloned_model.load_state_dict(model.state_dict())
 
             # Inner loop optimization on cloned model
-            import pdb; pdb.set_trace()
-            # for data in batch:
-            support_set, query_set = self.divide_dict(batch)
-                
             inner_optimizer = torch.optim.Adam(cloned_model.parameters(), lr=meta_lr)
             # import pdb; pdb.set_trace() 
             for idx in range(batch["image"][0].shape[0]):
@@ -468,28 +422,6 @@ class Client(BasicClient):
         kmeans.fit(features)
         centroids = kmeans.cluster_centers_
         return centroids
-    
-    
-    def divide_dict(self, input_dict, ratio=(4, 1)):
-        # Calculate total number of elements
-        total_elements = len(input_dict)
-        
-        # Calculate the number of elements for each new dictionary
-        first_dict_size = (ratio[0] / sum(ratio)) * total_elements
-        first_dict_size = int(round(first_dict_size))
-        
-        # Initialize the two dictionaries
-        dict1 = {}
-        dict2 = {}
-        
-        # Enumerate through the input dictionary and divide the elements
-        for i, (key, value) in enumerate(input_dict.items()):
-            if i < first_dict_size:
-                dict1[key] = value
-            else:
-                dict2[key] = value
-                
-        return dict1, dict2
             
             
     @fmodule.with_multi_gpus
