@@ -134,6 +134,7 @@ class Model(FModule):
             image_feats_reconstructed = self.image_regularization(image_feats_reconstructed)
             image_embeds = image_feats_reconstructed.unsqueeze(1).repeat(1, image_masks.size(1), 1)
 
+
         # Combine real and reconstructed features
         text_embeds = text_embeds + self.token_type_embeddings(torch.zeros_like(text_masks))
         image_embeds = image_embeds + self.token_type_embeddings(torch.full_like(image_masks, image_token_type_idx))
@@ -171,7 +172,7 @@ class Model(FModule):
 
         return ret
 
-    def forward(self, transformer, text_embeddings, batch, missing_text=False, missing_image=False):
+    def forward(self, transformer, text_embeddings, batch, missing_text=True, missing_image=False):
         infer = self.infer(batch, transformer, text_embeddings, mask_text=missing_text, mask_image=missing_image)
         logits = self.classifier(infer["cls_feats"])
 

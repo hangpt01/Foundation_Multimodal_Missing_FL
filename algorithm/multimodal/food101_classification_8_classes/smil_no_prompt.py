@@ -363,29 +363,40 @@ class Client(BasicClient):
             # Inner loop optimization on cloned model
             inner_optimizer = torch.optim.Adam(cloned_model.parameters(), lr=meta_lr)
             # import pdb; pdb.set_trace() 
-            for idx in range(batch["image"][0].shape[0]):
-                for _ in range(inner_steps):
-                    if batch["missing_type"][idx] == 0:
-                        loss, _ , _ = cloned_model(transformer, text_embeddings, batch)
-                    elif batch["missing_type"][idx] == 1:
-                        loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_text=True)
-                    elif batch["missing_type"][idx] == 2:
-                        loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_image=True)
+            # for idx in range(batch["image"][0].shape[0]):
+            #     for _ in range(inner_steps):
+            #         if batch["missing_type"][idx] == 0:
+            #             loss, _ , _ = cloned_model(transformer, text_embeddings, batch)
+            #         elif batch["missing_type"][idx] == 1:
+            #             loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_text=True)
+            #         elif batch["missing_type"][idx] == 2:
+            #             loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_image=True)
 
-                    inner_optimizer.zero_grad()
-                    loss.backward()
-                    inner_optimizer.step()
+            #         inner_optimizer.zero_grad()
+            #         loss.backward()
+            #         inner_optimizer.step()
             
-                if batch["missing_type"][idx] == 0:
-                    loss, _ , _ = cloned_model(transformer, text_embeddings, batch)
-                elif batch["missing_type"][idx] == 1:
-                    loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_text=True)
-                elif batch["missing_type"][idx] == 2:
-                    loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_image=True)
+            #     if batch["missing_type"][idx] == 0:
+            #         loss, _ , _ = cloned_model(transformer, text_embeddings, batch)
+            #     elif batch["missing_type"][idx] == 1:
+            #         loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_text=True)
+            #     elif batch["missing_type"][idx] == 2:
+            #         loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_image=True)
             
-                optimizer.zero_grad()
+            #     optimizer.zero_grad()
+            #     loss.backward()
+            #     optimizer.step()
+
+            for i in range(inner_steps):
+                loss, _ , _ = cloned_model(transformer, text_embeddings, batch)
+                inner_optimizer.zero_grad()
                 loss.backward()
-                optimizer.step()
+                inner_optimizer.step()
+
+            loss, _ , _ = cloned_model(transformer, text_embeddings, batch)
+            optimizer.zero_grad()
+            loss.backward()
+            optimizer.step()
 
             # KMeans clustering on the reconstructed features
             if self.text_mean == None: 
