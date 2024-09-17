@@ -373,7 +373,7 @@ class Client(BasicClient):
     
     @ss.with_completeness
     @fmodule.with_multi_gpus
-    def train(self, model, transformer, text_embeddings, client_id, meta_lr=1e-3, inner_steps=1, n_clusters=10):
+    def train(self, model, transformer, text_embeddings, client_id, meta_lr=1e-3, inner_steps=2, n_clusters=10):
         """
         Standard local training procedure. Train the transmitted model with local training dataset.
         :param
@@ -403,6 +403,10 @@ class Client(BasicClient):
             # cloned_model.load_state_dict(model.state_dict())
 
             # Inner loop optimization on cloned model
+            import pdb; pdb.set_trace()
+            # for data in batch:
+            support_set, query_set = self.divide_dict(batch)
+                
             inner_optimizer = torch.optim.Adam(cloned_model.parameters(), lr=meta_lr)
             # import pdb; pdb.set_trace() 
             for idx in range(batch["image"][0].shape[0]):
@@ -464,6 +468,28 @@ class Client(BasicClient):
         kmeans.fit(features)
         centroids = kmeans.cluster_centers_
         return centroids
+    
+    
+    def divide_dict(self, input_dict, ratio=(4, 1)):
+        # Calculate total number of elements
+        total_elements = len(input_dict)
+        
+        # Calculate the number of elements for each new dictionary
+        first_dict_size = (ratio[0] / sum(ratio)) * total_elements
+        first_dict_size = int(round(first_dict_size))
+        
+        # Initialize the two dictionaries
+        dict1 = {}
+        dict2 = {}
+        
+        # Enumerate through the input dictionary and divide the elements
+        for i, (key, value) in enumerate(input_dict.items()):
+            if i < first_dict_size:
+                dict1[key] = value
+            else:
+                dict2[key] = value
+                
+        return dict1, dict2
             
             
     @fmodule.with_multi_gpus
