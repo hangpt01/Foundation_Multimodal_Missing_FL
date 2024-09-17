@@ -361,7 +361,7 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        # self.num_steps = 1
+        self.num_steps = 1
         # print(self.num_steps)
 
         # print("Training client", client_id+1)

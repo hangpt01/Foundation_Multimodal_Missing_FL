@@ -110,23 +110,6 @@ class SMILModel(nn.Module):  # Change this line to inherit from nn.Module
             list(self.regularization_network.parameters()), lr=self.outer_lr
         )
 
-    # def forward(self, x, modality_missing):
-    #     # import pdb; pdb.set_trace()
-    #     if modality_missing:
-    #         # Reconstruct missing modality using sampled weights and priors
-    #         x_reconstructed, weights, var = self.reconstruction_network.reconstruct(x, self.modality_priors)
-
-    #         # Obtain the mean and std for Gaussian sampling from the regularization network
-    #         mean_reg, std_reg = self.regularization_network(x_reconstructed)
-    #         regularizer = mean_reg + std_reg * torch.randn_like(std_reg)  # Gaussian sampling
-
-    #         # Apply Softplus to the regularizer
-    #         x_regularized = x_reconstructed * F.softplus(regularizer)
-            
-    #         logits = self.main_network(x_regularized)
-    #     else:
-    #         logits = self.main_network(x)
-    #     return logits, weights, var
     def forward(self, x, modality_missing):
         # `x` is the input batch
         # `modality_missing` is a boolean vector indicating whether the modality is missing for each sample in the batch
@@ -187,47 +170,6 @@ class SMILModel(nn.Module):  # Change this line to inherit from nn.Module
         kl = -0.5 * torch.sum(1 + logvar - mean.pow(2) - logvar.exp())
         return kl
 
-    # def meta_train_step(self, data_loader, device):
-    #     self.main_network.train()
-    #     self.reconstruction_network.train()
-    #     self.regularization_network.train()
-
-    #     meta_loss = 0.0
-    #     kl_loss = 0.0
-
-    #     for x, y, modality_missing in data_loader:
-    #         x, y = x.to(device), y.to(device)
-
-    #         # Create a copy of the network parameters for the inner loop
-    #         theta_prime = {name: param.clone().detach().requires_grad_(True) for name, param in self.main_network.named_parameters()}
-
-    #         # Inner loop: Fine-tune on the support set
-    #         for _ in range(self.inner_steps):
-    #             logits, weights, var = self.forward(x, modality_missing)
-    #             loss = F.cross_entropy(logits, y)
-
-    #             # Compute gradients w.r.t. the copied parameters
-    #             grads = torch.autograd.grad(loss, theta_prime.values(), create_graph=True, allow_unused=True)
-    #             theta_prime = {name: param - self.inner_lr * grad if grad is not None else param for (name, param), grad in zip(theta_prime.items(), grads)}
-
-    #         # Compute KL divergence
-    #         if weights is not None and var is not None:  # Ensure weights and var are used in the computation
-    #             kl_loss += self.kl_divergence(weights, torch.log(var))
-
-    #         # Outer loop: Compute meta-loss on the query set
-    #         logits_meta, _, _ = self.forward(x, modality_missing)
-    #         meta_loss += F.cross_entropy(logits_meta, y)
-
-    #     # Combine meta-loss with KL divergence loss
-    #     total_loss = meta_loss / len(data_loader) + kl_loss / len(data_loader)
-    #     print(total_loss)
-
-    #     # Backward pass and optimization step for meta-parameters
-    #     self.optimizer.zero_grad()
-    #     total_loss.backward()
-    #     self.optimizer.step()
-    #     return meta_loss, kl_loss
-    
     def meta_train_step(self, data_loader, device):
         self.main_network.train()
         self.reconstruction_network.train()

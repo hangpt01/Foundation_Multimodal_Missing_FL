@@ -8,26 +8,6 @@ from torch.utils.data import DataLoader
 from transformers import BertTokenizer  # Assuming text_embeddings from a transformer model
 from utils.fmodule import FModule
 
-class FeatureReconstructionNetwork(FModule):
-    def __init__(self, input_dim, output_dim):
-        super(FeatureReconstructionNetwork, self).__init__()
-        self.fc1 = nn.Linear(input_dim, 512)
-        self.fc2 = nn.Linear(512, output_dim)
-
-    def forward(self, x):
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return x
-
-class FeatureRegularizationNetwork(FModule):
-    def __init__(self, input_dim):
-        super(FeatureRegularizationNetwork, self).__init__()
-        self.fc = nn.Linear(input_dim, input_dim)
-
-    def forward(self, x):
-        perturbation = F.softplus(self.fc(x))
-        return x * perturbation
-
 def init_weights(module):
     if isinstance(module, (nn.Linear, nn.Embedding)):
         module.weight.data.normal_(mean=0.0, std=0.02)
@@ -36,6 +16,88 @@ def init_weights(module):
         module.weight.data.fill_(1.0)
     if isinstance(module, nn.Linear) and module.bias is not None:
         module.bias.data.zero_()
+
+def weights_init(m):
+    if isinstance(m, nn.Linear):
+        nn.init.xavier_uniform_(m.weight)
+        if m.bias is not None:
+            nn.init.constant_(m.bias, 0)
+
+### 1. **Main Network (Classifier)**
+
+class MainNetwork(FModule):
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super(MainNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc2 = nn.Linear(hidden_dim, output_dim)
+        
+        self.apply(weights_init)
+
+    def forward(self, x):
+        x = F.relu(self.fc1(x))
+        x = self.fc2(x)
+        return x
+
+### 2. **Reconstruction Network with Variance Output**
+
+class ReconstructionNetwork(FModule):
+    def __init__(self, input_dim, hidden_dim, num_priors):
+        super(ReconstructionNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc_logvar = nn.Linear(hidden_dim, num_priors)  # Only outputs log variance
+        
+        self.apply(weights_init)
+
+    def forward(self, x):
+        h = F.relu(self.fc1(x))
+        logvar = self.fc_logvar(h)
+        var = torch.exp(logvar)  # Convert log variance to variance
+        return var
+
+    def reconstruct(self, x, modality_priors):
+        """
+        Reconstruct the missing modality using variance and modality priors.
+        """
+        var = self.forward(x)
+        
+        # Sample weights from Gaussian with mean I (identity matrix) and variance output by the network
+        mean = torch.ones_like(var)  # Mean is identity (I)
+        weights = mean + torch.sqrt(var) * torch.randn_like(var)  # Gaussian sampling with mean=1
+        
+        # Compute the weighted sum of the modality priors
+        reconstructed_modality = torch.matmul(weights, modality_priors)
+        return reconstructed_modality, weights, var
+
+### 3. **Regularization Network**
+
+class RegularizationNetwork(FModule):       # only miss text, image are full
+    def __init__(self, input_dim, hidden_dim, output_dim):
+        super(RegularizationNetwork, self).__init__()
+        self.fc1 = nn.Linear(input_dim, hidden_dim)
+        self.fc_mean = nn.Linear(hidden_dim, output_dim)
+        self.fc_logvar = nn.Linear(hidden_dim, output_dim)
+        
+        self.apply(weights_init)
+
+    def forward(self, x):
+        h = F.relu(self.fc1(x))
+        mean = self.fc_mean(h)
+        logvar = self.fc_logvar(h)
+        std = torch.exp(0.5 * logvar)  # Convert log variance to standard deviation
+        return mean, std
+
+
+### 5. **Modality Priors Initialization**
+
+def initialize_modality_priors(data, num_priors):
+    """
+    Initialize modality priors using K-means clustering on complete modality data.
+    """
+    kmeans = KMeans(n_clusters=num_priors)
+    kmeans.fit(data)
+    modality_priors = torch.tensor(kmeans.cluster_centers_, dtype=torch.float32)
+    return modality_priors
+
 
 class Pooler(FModule):
     def __init__(self):
@@ -69,6 +131,11 @@ class Model(FModule):
     def __init__(self):
         super(Model, self).__init__()
         self.hparams_config = {'hidden_size': 768, 'max_image_len': 40}
+        input_dim = 768
+        hidden_dim = 768
+        num_priors = 10
+        output_dim = 8
+        
         self.device = None
         self.transformer = None
         self.text_embeddings = None
@@ -85,13 +152,21 @@ class Model(FModule):
         self.classifier = Classifier()
         self.classifier.apply(init_weights)
 
-        # Feature Reconstruction Networks
-        self.text_reconstruction = FeatureReconstructionNetwork(self.hparams_config["hidden_size"], self.hparams_config["hidden_size"])
-        self.image_reconstruction = FeatureReconstructionNetwork(self.hparams_config["hidden_size"], self.hparams_config["hidden_size"])
+        self.main_network = MainNetwork(input_dim, hidden_dim, output_dim)
+        self.reconstruction_network = ReconstructionNetwork(input_dim, hidden_dim, num_priors)
+        self.regularization_network = RegularizationNetwork(input_dim, hidden_dim, input_dim)
+        
+        self.modality_priors = None  # Modality priors learned from complete samples
+        # self.inner_lr = inner_lr
+        # self.outer_lr = outer_lr
+        # self.inner_steps = inner_steps  # Number of gradient steps in the inner loop
 
-        # Feature Regularization Networks
-        self.text_regularization = FeatureRegularizationNetwork(self.hparams_config["hidden_size"])
-        self.image_regularization = FeatureRegularizationNetwork(self.hparams_config["hidden_size"])
+        # self.optimizer = optim.Adam(
+        #     list(self.main_network.parameters()) +
+        #     list(self.reconstruction_network.parameters()) +
+        #     list(self.regularization_network.parameters()), lr=self.outer_lr
+        # )
+        
 
     def infer(self, batch, transformer, text_embeddings, mask_text=False, mask_image=False, image_token_type_idx=1):
         self.transformer = transformer
@@ -121,19 +196,43 @@ class Model(FModule):
             max_image_len=self.hparams_config["max_image_len"],
             mask_it=mask_image,
         )
-
-        if mask_text:
-            # Reconstruct text features if missing
-            text_feats_reconstructed = self.text_reconstruction(image_embeds.mean(dim=1))
-            text_feats_reconstructed = self.text_regularization(text_feats_reconstructed)
-            text_embeds = text_feats_reconstructed.unsqueeze(1).repeat(1, text_masks.size(1), 1)
         
-        if mask_image:
-            # Reconstruct image features if missing
-            image_feats_reconstructed = self.image_reconstruction(text_embeds.mean(dim=1))
-            image_feats_reconstructed = self.image_regularization(image_feats_reconstructed)
-            image_embeds = image_feats_reconstructed.unsqueeze(1).repeat(1, image_masks.size(1), 1)
+        reconstructed_samples = []
+        complete_samples = []
+        weights_list = []
+        var_list = []
 
+        for idx in range(batch["image"][0].shape[0]):
+            if batch["missing_type"][idx] == 1:         # miss text
+                x_reconstructed, weights, var = self.reconstruction_network.reconstruct(image_embeds[idx], self.modality_priors)
+                
+                mean_reg, std_reg = self.regularization_network(x_reconstructed)
+                regularizer = mean_reg + std_reg * torch.randn_like(std_reg)
+                
+                # Apply Softplus to the regularizer
+                x_regularized = x_reconstructed * F.softplus(regularizer)
+
+                # Append results to the lists
+                reconstructed_samples.append(x_regularized)
+                weights_list.append(weights)
+                var_list.append(var)
+            
+            else:
+                complete_samples.append(torch.cat([text_embeds[idx], image_embeds[idx]], dim=1))
+                
+    
+        # Combine complete samples and reconstructed samples
+        if reconstructed_samples:
+            reconstructed_batch = torch.cat(reconstructed_samples, dim=0)
+            text_embeds = torch.cat(complete_samples + reconstructed_samples, dim=0)
+        else:
+            text_embeds = torch.cat(complete_samples, dim=0)
+            
+                # text_feats_reconstructed = self.text_reconstruction(image_embeds.mean(dim=1))
+                # text_feats_reconstructed = self.text_regularization(text_feats_reconstructed)
+                # text_embeds[idx] = text_feats_reconstructed.unsqueeze(1).repeat(1, text_masks.size(1), 1)
+            
+                
         # Combine real and reconstructed features
         text_embeds = text_embeds + self.token_type_embeddings(torch.zeros_like(text_masks))
         image_embeds = image_embeds + self.token_type_embeddings(torch.full_like(image_masks, image_token_type_idx))
