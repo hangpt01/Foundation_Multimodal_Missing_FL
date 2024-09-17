@@ -4,7 +4,7 @@ python main.py \
     --algorithm multimodal.food101_classification_8_classes.smil_no_prompt \
     --sample full \
     --aggregate other \
-    --num_rounds 500 \
+    --num_rounds 200 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
@@ -12,8 +12,7 @@ python main.py \
     --learning_rate 0.05 \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
-    --batch_size 4 \
-    --test_batch_size 4 \
-    --gpu 1 
-    # \
-    # --wandb
+    --batch_size 512 \
+    --test_batch_size 512 \
+    --gpu 0 \
+    --wandb

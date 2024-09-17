@@ -389,7 +389,7 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        self.num_steps = 1
+        # self.num_steps = 1
         for iter in range(self.num_steps):
             batch_data = self.get_batch_data()
             model.zero_grad()
@@ -436,9 +436,9 @@ class Client(BasicClient):
             centroids = self.kmeans_clustering(reconstructed_features.detach().cpu().numpy(), n_clusters)
             self.text_mean = torch.from_numpy(centroids).float().to(self.device)
 
-            print(f'Outer loop loss: {loss.item()}')
+            # print(f'Outer loop loss: {loss.item()}')
 
-            print('\t',datetime.now(),iter, loss)
+            # print('\t',datetime.now(),iter, loss)
 
     def data_to_device(self, data):
         # for k, v in data.items():
