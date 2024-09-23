@@ -18,7 +18,7 @@ def init_weights(module):
         module.bias.data.zero_()
 
 class Pool(FModule):
-    def __init__(self, patch_size=32, embed_dim=768, pool_size=10, top_k=5, dropout_value=0.0):
+    def __init__(self, patch_size=32, embed_dim=768, pool_size=20, top_k=5, dropout_value=0.0):
         super(Pool, self).__init__()
         patch_size_pair = _pair((patch_size, patch_size))
         self.top_k = top_k
@@ -115,7 +115,7 @@ class Classifier(FModule):
     
 
 class Model(FModule):
-    def __init__(self, pool_size=10, top_k=5, num_classes=10):
+    def __init__(self, pool_size=20, top_k=5, num_classes=10):
         super(Model, self).__init__()
 
         self.device = None
@@ -219,10 +219,13 @@ class Model(FModule):
     def checking_trained_prompt(self):
         num_prompts = self.pool.prompt.shape[0] + self.global_pool.prompt.shape[0]
         self.trained_prompts_checklist = torch.zeros(num_prompts, dtype=torch.float32)
+        # print("Total num prompts", num_prompts)
         if self.pool.top_k_idx.device != self.trained_prompts_checklist.device:
             self.trained_prompts_checklist = self.trained_prompts_checklist.to(self.pool.top_k_idx.device)
         self.trained_prompts_checklist[self.pool.top_k_idx] += 1.0
-        top_k_global = self.pool.top_k_idx + self.pool.prompt.shape[0]
+        top_k_global = self.pool.top_k_idx + self.global_pool.prompt.shape[0]
+        # print("Top k", top_k_global, self.pool.top_k_idx, self.global_pool.prompt.shape[0])
+        # print("In checking prompts",self.trained_prompts_checklist, top_k_global)
         self.trained_prompts_checklist[top_k_global] += 1.0
         # print(self.pool.top_k_idx, top_k_global, self.trained_prompts_checklist)
         
@@ -235,14 +238,18 @@ class Model(FModule):
     def forward(self, transformer, text_embeddings, batch):
         
         cls_feats = self.infer(batch, transformer, text_embeddings)
+        # print("Done infer")
         imgcls_logits = self.classifier(cls_feats)
+        # print("Done classify")
         
         imgcls_labels = batch["label"]
+        # print("Label in model", imgcls_labels)
         imgcls_labels = torch.tensor(imgcls_labels).to(self.device).long()
-    
+
         imgcls_loss = F.cross_entropy(imgcls_logits, imgcls_labels)
         # print("Loss", imgcls_loss)
         self.checking_trained_prompt()
+        # print("Done self checking train prompts")
         # import pdb; pdb.set_trace()
 
         return imgcls_loss, imgcls_loss, imgcls_logits

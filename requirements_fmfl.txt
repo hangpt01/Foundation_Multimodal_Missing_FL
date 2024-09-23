@@ -1,12 +1,11 @@
-# numpy >= 1.17.2
-# # pytorch >= 1.3.1
-# torchvision >= 0.4.2
-# cvxopt >= 1.2.0
-# scipy >= 1.3.1
-matplotlib >= 3.1.1
-# prettytable >= 2.1.0
+numpy==1.23.5
+pandas==1.5.2
+scikit-learn==1.3.0
+scipy==1.10.0
+matplotlib==3.6.2
+tqdm
 ujson >= 4.0.2
-scikit-learn
-psutil
-# wandb
-# pip install git+https://github.com/huggingface/transformers
+wandb
+pyarrow==2.0.0
+transformers
+timm

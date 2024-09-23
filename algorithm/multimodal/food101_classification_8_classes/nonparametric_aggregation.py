@@ -70,6 +70,7 @@ class NonparametricAgg(nn.Module):
             z.append(zi)
 
         # centroids = nn.ParameterList([copy.deepcopy(local_prompts.flatten(0, 1))]) # (n_clients x n_prompts) x 768
+        # print(local_prompts.shape, local_prompts)
         centroids = nn.ParameterList([local_prompts.flatten(0, 1).clone()]) # (n_clients x n_prompts) x 768
         
         opt = Adam([
