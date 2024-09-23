@@ -868,7 +868,8 @@ class TaskCalculator(ClassificationCalculator):
         labels = list()
         predicts = list()   
         avg_loss = 0
-        avg_probabilities = torch.zeros(len(data_loader), 8)
+        # avg_probabilities = torch.zeros(len(data_loader), 8)
+        avg_probabilities = list()
         # print(len(model.client_global_prompts))
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
@@ -881,12 +882,13 @@ class TaskCalculator(ClassificationCalculator):
                 # import pdb; pdb.set_trace()
                 loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
                 probabilities = F.softmax(outputs, dim=1)
-                if avg_probabilities.device != probabilities.device:
-                    avg_probabilities = avg_probabilities.to(probabilities.device)
-                avg_probabilities += probabilities
+                # if avg_probabilities.device != probabilities.device:
+                #     avg_probabilities = avg_probabilities.to(probabilities.device)
+                avg_probabilities.append(probabilities)
                 avg_loss += loss
             
-            avg_probabilities /= len(model.client_global_prompts)
+            avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
+            # avg_probabilities /= len(model.client_global_prompts)
             avg_loss /= len(model.client_global_prompts)
 
             predicted_classes = torch.argmax(avg_probabilities, dim=1)
@@ -925,7 +927,7 @@ class TaskCalculator(ClassificationCalculator):
             labels = list()
             predicts = list()   
             avg_loss = 0
-            avg_probabilities = torch.zeros(len(data_loader), 8)
+            avg_probabilities = list()
 
             for batch_id, batch_data in enumerate(data_loader):
                 batch_data = self.data_to_device(batch_data)
@@ -938,12 +940,12 @@ class TaskCalculator(ClassificationCalculator):
                     # import pdb; pdb.set_trace()
                     loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
                     probabilities = F.softmax(outputs, dim=1)
-                    if avg_probabilities.device != probabilities.device:
-                        avg_probabilities = avg_probabilities.to(probabilities.device)
-                    avg_probabilities += probabilities
+                    # if avg_probabilities.device != probabilities.device:
+                    #     avg_probabilities = avg_probabilities.to(probabilities.device)
+                    avg_probabilities.append(probabilities)
                     avg_loss += loss
                 
-                avg_probabilities /= len(model.client_global_prompts)
+                avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
                 avg_loss /= len(model.client_global_prompts)
 
                 predicted_classes = torch.argmax(avg_probabilities, dim=1)
