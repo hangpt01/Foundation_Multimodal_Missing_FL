@@ -867,15 +867,15 @@ class TaskCalculator(ClassificationCalculator):
         total_loss = 0.0
         labels = list()
         predicts = list()   
-        avg_loss = 0
-        # avg_probabilities = torch.zeros(len(data_loader), 8)
-        avg_probabilities = list()
         # print(len(model.client_global_prompts))
+        ls_prompt = [torch.sum(i) for i in model.client_local_prompts]
+        print("Sum prompts in testing", ls_prompt)
         for batch_id, batch_data in enumerate(data_loader):
+            avg_loss = 0
+            avg_probabilities = list()
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
-            ls_prompt = [torch.sum(i) for i in model.client_local_prompts]
-            print("Sum prompts in testing", ls_prompt)
+            
             for global_prompt in model.client_local_prompts:
                 model.global_pool.prompt = global_prompt
                 # print(torch.sum(global_prompt))
@@ -884,6 +884,7 @@ class TaskCalculator(ClassificationCalculator):
                 probabilities = F.softmax(outputs, dim=1)
                 # if avg_probabilities.device != probabilities.device:
                 #     avg_probabilities = avg_probabilities.to(probabilities.device)
+                # import pdb; pdb.set_trace()
                 avg_probabilities.append(probabilities)
                 avg_loss += loss
             
@@ -926,10 +927,9 @@ class TaskCalculator(ClassificationCalculator):
             total_loss = 0.0
             labels = list()
             predicts = list()   
-            avg_loss = 0
-            avg_probabilities = list()
-
             for batch_id, batch_data in enumerate(data_loader):
+                avg_loss = 0
+                avg_probabilities = list()
                 batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data['label'])
                 ls_prompt = [torch.sum(i) for i in model.client_local_prompts]
