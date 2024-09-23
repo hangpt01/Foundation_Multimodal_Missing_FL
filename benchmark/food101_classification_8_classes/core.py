@@ -868,7 +868,7 @@ class TaskCalculator(ClassificationCalculator):
         labels = list()
         predicts = list()   
         avg_loss = 0
-        avg_probabilities = torch.zeros(batch_size, 8)
+        avg_probabilities = torch.zeros(len(data_loader), 8)
         # print(len(model.client_global_prompts))
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
@@ -900,6 +900,69 @@ class TaskCalculator(ClassificationCalculator):
         result['acc'] = accuracy
         return result
 
+
+    @torch.no_grad()
+    def server_other_test_soft_voting(self, model, transformer, text_embeddings, datasets, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        # import pdb; pdb.set_trace()
+        model.eval()
+        # TO_CHANGE
+        # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
+        names = ['miss_image', 'miss_both', 'full_modal', 'image_only', 'text_only']
+        result = dict() 
+        for i in range(len(datasets)):
+            dataset = datasets[i]
+            if batch_size==-1:batch_size=len(dataset)
+            data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+            # for test_combi_index in range(len(2)):
+            total_loss = 0.0
+            labels = list()
+            predicts = list()   
+            avg_loss = 0
+            avg_probabilities = torch.zeros(len(data_loader), 8)
+
+            for batch_id, batch_data in enumerate(data_loader):
+                batch_data = self.data_to_device(batch_data)
+                labels.extend(batch_data['label'])
+                ls_prompt = [torch.sum(i) for i in model.client_local_prompts]
+                # print("Sum prompts in testing", ls_prompt)
+                for global_prompt in model.client_local_prompts:
+                    model.global_pool.prompt = global_prompt
+                    # print(torch.sum(global_prompt))
+                    # import pdb; pdb.set_trace()
+                    loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+                    probabilities = F.softmax(outputs, dim=1)
+                    if avg_probabilities.device != probabilities.device:
+                        avg_probabilities = avg_probabilities.to(probabilities.device)
+                    avg_probabilities += probabilities
+                    avg_loss += loss
+                
+                avg_probabilities /= len(model.client_global_prompts)
+                avg_loss /= len(model.client_global_prompts)
+
+                predicted_classes = torch.argmax(avg_probabilities, dim=1)
+                total_loss += avg_loss.item() * len(batch_data['label'])
+                # import pdb; pdb.set_trace()
+                predicts.extend(predicted_classes.cpu().tolist())
+            
+                # TO_DELETE
+                # if batch_id==1:
+                #     break
+            # import pdb; pdb.set_trace()
+            labels = np.array(labels)
+            predicts = np.array(predicts)
+            accuracy = accuracy_score(labels, predicts)
+            # for i in range(self.n_leads):
+            #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
+            result[names[i]+'_loss'] = total_loss / len(dataset)
+            result[names[i]+'_acc'] = accuracy
+        return result
 
 def plot_confusion_matrix(y_true, y_pred, model='server', current_round=-1, output_file=None, classes=None, normalize=True):
     """
