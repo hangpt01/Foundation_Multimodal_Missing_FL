@@ -61,7 +61,7 @@ class Pool(FModule):
         idx = major_prompt_id.expand(x_embed.shape[0], -1) # B, top_k
         self.top_k_idx = idx[0]
         
-        
+        # print("Top k", self.top_k_idx)
         batched_prompt = self.prompt[idx] # B, top_k, C
         batched_key_norm = prompt_norm[idx]
         

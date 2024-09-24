@@ -31,6 +31,8 @@ class Pool(FModule):
         val = math.sqrt(6. / float(3 * reduce(mul, patch_size_pair, 1) + embed_dim))
         nn.init.uniform_(self.prompt.data, -val, val)
         nn.init.uniform_(self.features_proj.weight, -1, 1)
+        # nn.init.xavier_uniform_(self.prompt.data)
+        # nn.init.xavier_uniform_(self.features_proj.weight)
 
     def l2_normalize(self, x, dim=None, epsilon=1e-12):
         square_sum = torch.sum(x ** 2, dim=dim, keepdim=True)

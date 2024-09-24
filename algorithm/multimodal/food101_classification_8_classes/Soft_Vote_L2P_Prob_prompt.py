@@ -142,9 +142,11 @@ class Server(BasicServer):
         # print(average_prompt.device)
         new_model.pool.prompt = nn.Parameter(average_prompt)
         self.client_local_pools.append(copy.deepcopy(new_model.pool))
+        # print(new_model.pool.prompt[new_model.pool.top_k_idx])
         
         for k in range(n_models):
             self.client_local_pools.append(copy.deepcopy(self.clients[self.selected_clients[k]].local_model.pool))
+            # print(self.clients[self.selected_clients[k]].local_model.pool.prompt[self.clients[self.selected_clients[k]].local_model.pool.top_k_idx])
             self.clients[self.selected_clients[k]].local_model.pooler = new_model.pooler
             self.clients[self.selected_clients[k]].local_model.classifier = new_model.classifier
             self.clients[self.selected_clients[k]].local_model.pool.prompt = new_model.pool.prompt
@@ -176,8 +178,10 @@ class Server(BasicServer):
         with torch.no_grad():
             new_model.global_pool.prompt = nn.Parameter(temp, requires_grad=True)
             self.client_global_pools.append(copy.deepcopy(new_model.global_pool))
+            # print(new_model.global_pool.prompt[new_model.global_pool.top_k_idx])
             for k in range(n_models):
                 self.client_global_pools.append(copy.deepcopy(self.clients[self.selected_clients[k]].local_model.global_pool))
+                # print(self.clients[self.selected_clients[k]].local_model.global_pool.prompt[self.clients[self.selected_clients[k]].local_model.global_pool.top_k_idx])   
                 self.clients[self.selected_clients[k]].local_model.global_pool.prompt = new_model.global_pool.prompt
         print("Temp", temp.shape[0])
                 
@@ -394,9 +398,11 @@ class Client(BasicClient):
                 text_embeddings=text_embeddings,
                 data=batch_data
             )['loss']
-            # print('\t',datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
+            # import pdb; pdb.set_trace()
+            # print('\t',datetime.now(),iter, loss, torch.sum(model.pool.prompt), torch.sum(model.global_pool.prompt), torch.sum(model.combined_prompts))
+            # print(model.global_pool.prompt[model.global_pool.top_k_idx])
         
         return
 

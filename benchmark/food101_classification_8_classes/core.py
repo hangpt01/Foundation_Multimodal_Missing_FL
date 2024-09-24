@@ -25,8 +25,6 @@ import warnings
 import collections
 import torch
 import torch.nn.functional as F
-from concurrent.futures import ThreadPoolExecutor
-import torch.multiprocessing as mp
 warnings.filterwarnings('ignore')
     
 class TaskPipe(IDXTaskPipe):
@@ -793,8 +791,6 @@ class TaskCalculator(ClassificationCalculator):
         total_loss = 0.0
         labels = list()
         predicts = list()   
-        loss_each_modal = [[] for i in range(3)]
-        loss_each_modal = [0]*3
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
@@ -852,67 +848,58 @@ class TaskCalculator(ClassificationCalculator):
         return result
 
 
-
     @torch.no_grad()
-    # def parallel_inference(model, data_loader, transformer, text_embeddings, device, num_workers=4):
     def server_test_soft_voting(self, model, transformer, text_embeddings, dataset, batch_size=64, num_workers=0):
-        """Run inference in parallel across global prompts using ThreadPoolExecutor."""
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        # import pdb; pdb.set_trace()
         model.eval()
         if batch_size==-1:batch_size=len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
         result = dict() 
         total_loss = 0.0
         labels = list()
-        predicts = list() 
-        ls_local_prompt = [torch.sum(i.prompt) for i in model.client_local_pools]
-        ls_global_prompt = [torch.sum(i.prompt) for i in model.client_global_pools]
+        predicts = list()   
 
-        print("Sum prompts in testing", ls_local_prompt)
-        print("Sum prompts in testing", ls_global_prompt)
-        # Set up the ThreadPoolExecutor for parallelism
         for batch_id, batch_data in enumerate(data_loader):
             avg_loss = 0
-            avg_probabilities = []
-            batch_data = self.data_to_device(batch_data)  # Move data to the correct device
+            avg_probabilities = list()
+            batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
-
-            # Prepare multiprocessing manager dictionary to collect results
-            manager = mp.Manager()
-            return_dict = manager.dict()
-
-            # Spawn subprocesses for each global_prompt
-            processes = []
-            for idx, global_pool in enumerate(model.client_local_pools):
-                p = mp.Process(target=process_global_prompt, args=(model, transformer, text_embeddings, batch_data, global_pool, return_dict, idx))
-                processes.append(p)
-                p.start()
-
-            # Wait for all processes to finish
-            for p in processes:
-                p.join()
-
-            # Gather the results from the return_dict
-            for idx in range(len(model.client_local_pools)):
-                loss, probabilities = return_dict[idx]
+            
+            for global_pool in model.client_global_pools:
+                model.global_pool = global_pool
+                # print(torch.sum(global_prompt))
+                # import pdb; pdb.set_trace()
+                loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+                probabilities = F.softmax(outputs, dim=1)
+                # if avg_probabilities.device != probabilities.device:
+                #     avg_probabilities = avg_probabilities.to(probabilities.device)
+                # import pdb; pdb.set_trace()
                 avg_probabilities.append(probabilities)
                 avg_loss += loss
-
-
-            # Average the probabilities and loss over all global prompts
+            
             avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
+            # avg_probabilities /= len(model.client_global_prompts)
             avg_loss /= len(model.client_global_pools)
 
-            # Get the predicted classes
             predicted_classes = torch.argmax(avg_probabilities, dim=1)
             total_loss += avg_loss.item() * len(batch_data['label'])
+            # import pdb; pdb.set_trace()
             predicts.extend(predicted_classes.cpu().tolist())
-            
+            # TO_DELETE
+            if batch_id==1:
+                break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
         result['loss'] = total_loss / len(dataset)
         result['acc'] = accuracy
-
         return result
 
 
@@ -941,41 +928,30 @@ class TaskCalculator(ClassificationCalculator):
             predicts = list()   
             for batch_id, batch_data in enumerate(data_loader):
                 avg_loss = 0
-                avg_probabilities = []
-                batch_data = self.data_to_device(batch_data)  # Move data to the correct device
+                avg_probabilities = list()
+                batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data['label'])
-
-                # Prepare multiprocessing manager dictionary to collect results
-                manager = mp.Manager()
-                return_dict = manager.dict()
-
-                # Spawn subprocesses for each global_prompt
-                processes = []
-                for idx, global_pool in enumerate(model.client_local_pools):
-                    p = mp.Process(target=process_global_prompt, args=(model, transformer, text_embeddings, batch_data, global_pool, return_dict, idx))
-                    processes.append(p)
-                    p.start()
-
-                # Wait for all processes to finish
-                for p in processes:
-                    p.join()
-
-                # Gather the results from the return_dict
-                for idx in range(len(model.client_local_pools)):
-                    loss, probabilities = return_dict[idx]
+                # ls_prompt = [torch.sum(i) for i in model.client_local_prompts]
+                # print("Sum prompts in testing", ls_prompt)
+                for global_pool in model.client_global_pools:
+                    model.global_pool = global_pool
+                    # print(torch.sum(global_prompt))
+                    # import pdb; pdb.set_trace()
+                    loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+                    probabilities = F.softmax(outputs, dim=1)
+                    # if avg_probabilities.device != probabilities.device:
+                    #     avg_probabilities = avg_probabilities.to(probabilities.device)
                     avg_probabilities.append(probabilities)
                     avg_loss += loss
-
-
-                # Average the probabilities and loss over all global prompts
+                
                 avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
                 avg_loss /= len(model.client_global_pools)
 
-                # Get the predicted classes
                 predicted_classes = torch.argmax(avg_probabilities, dim=1)
                 total_loss += avg_loss.item() * len(batch_data['label'])
+                # import pdb; pdb.set_trace()
                 predicts.extend(predicted_classes.cpu().tolist())
-                
+            
                 # TO_DELETE
                 if batch_id==1:
                     break
@@ -988,17 +964,6 @@ class TaskCalculator(ClassificationCalculator):
             result[names[i]+'_loss'] = total_loss / len(dataset)
             result[names[i]+'_acc'] = accuracy
         return result
-
-
-def process_global_prompt(model, transformer, text_embeddings, batch_data, global_pool, return_dict, idx):
-    """Helper function to process each global prompt concurrently."""
-    model.global_pool = global_pool
-    torch.cuda.set_per_process_memory_fraction(0.8, global_pool.prompt.device)
-    loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
-    probabilities = F.softmax(outputs, dim=1)
-    return_dict[idx] = (loss.cpu(), probabilities.cpu())
-    # return loss, probabilities
-
 
 def plot_confusion_matrix(y_true, y_pred, model='server', current_round=-1, output_file=None, classes=None, normalize=True):
     """

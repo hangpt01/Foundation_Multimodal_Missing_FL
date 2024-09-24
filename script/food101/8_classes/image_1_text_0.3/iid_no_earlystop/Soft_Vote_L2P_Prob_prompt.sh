@@ -14,8 +14,7 @@ python main.py \
     --num_outer_loops 5 \
     --learning_rate_decay 1.0 \
     --note size_20_topk_5x2 \
-    --batch_size 4 \
-    --test_batch_size 4 \
-    --gpu 1
-    # \
-    # --wandb
+    --batch_size 512 \
+    --test_batch_size 512 \
+    --gpu 0 \
+    --wandb

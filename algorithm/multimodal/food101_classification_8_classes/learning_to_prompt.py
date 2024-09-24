@@ -370,9 +370,10 @@ class Client(BasicClient):
                 text_embeddings=text_embeddings,
                 data=batch_data
             )['loss']
-            # print('\t',datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
+            # print('\t',datetime.now(),iter, loss, torch.sum(model.pool.prompt))
+            # print(model.pool.prompt[model.pool.top_k_idx])
         
         return
 
