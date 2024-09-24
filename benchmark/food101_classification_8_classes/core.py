@@ -680,8 +680,8 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==0:
+            #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
@@ -717,8 +717,8 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==0:
+            #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
@@ -764,8 +764,8 @@ class TaskCalculator(ClassificationCalculator):
             else:
                 total_loss = loss + total_loss
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==0:
+            #     break
         loss_eval = loss / (batch_id + 1) 
         # import pdb; pdb.set_trace()
         loss_eval = [loss for loss in loss_eval]
@@ -835,8 +835,8 @@ class TaskCalculator(ClassificationCalculator):
                 total_loss += loss.item() * len(batch_data['label'])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
                 # TO_DELETE
-                if batch_id==1:
-                    break
+                # if batch_id==0:
+                #     break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)
@@ -893,8 +893,8 @@ class TaskCalculator(ClassificationCalculator):
             # import pdb; pdb.set_trace()
             predicts.extend(predicted_classes.cpu().tolist())
             # TO_DELETE
-            if batch_id==1:
-                break
+            # if batch_id==0:
+            #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
@@ -953,8 +953,8 @@ class TaskCalculator(ClassificationCalculator):
                 predicts.extend(predicted_classes.cpu().tolist())
             
                 # TO_DELETE
-                if batch_id==1:
-                    break
+                # if batch_id==0:
+                #     break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)

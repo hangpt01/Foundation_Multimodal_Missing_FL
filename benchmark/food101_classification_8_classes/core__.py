@@ -682,7 +682,7 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==1:
+            if batch_id==0:
                 break
         labels = np.array(labels)
         predicts = np.array(predicts)
@@ -719,7 +719,7 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==1:
+            if batch_id==0:
                 break
         labels = np.array(labels)
         predicts = np.array(predicts)
@@ -766,7 +766,7 @@ class TaskCalculator(ClassificationCalculator):
             else:
                 total_loss = loss + total_loss
             # TO_DELETE
-            if batch_id==1:
+            if batch_id==0:
                 break
         loss_eval = loss / (batch_id + 1) 
         # import pdb; pdb.set_trace()
@@ -839,7 +839,7 @@ class TaskCalculator(ClassificationCalculator):
                 total_loss += loss.item() * len(batch_data['label'])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
                 # TO_DELETE
-                if batch_id==1:
+                if batch_id==0:
                     break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
@@ -972,7 +972,7 @@ class TaskCalculator(ClassificationCalculator):
                 predicts.extend(predicted_classes.cpu().tolist())
                 
                 # TO_DELETE
-                if batch_id==1:
+                if batch_id==0:
                     break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
