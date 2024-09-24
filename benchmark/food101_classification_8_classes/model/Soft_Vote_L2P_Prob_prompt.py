@@ -226,6 +226,7 @@ class Model(FModule):
         top_k_global = self.pool.top_k_idx + self.global_pool.prompt.shape[0]
         # print("Top k", top_k_global, self.pool.top_k_idx, self.global_pool.prompt.shape[0])
         # print("In checking prompts",self.trained_prompts_checklist, top_k_global)
+        # print(self.trained_prompts_checklist, top_k_global)
         self.trained_prompts_checklist[top_k_global] += 1.0
         # print(self.pool.top_k_idx, top_k_global, self.trained_prompts_checklist)
         

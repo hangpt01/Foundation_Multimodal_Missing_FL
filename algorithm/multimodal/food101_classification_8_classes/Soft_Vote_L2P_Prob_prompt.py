@@ -37,8 +37,8 @@ class Server(BasicServer):
                         'load_path': 'benchmark/food101_classification_arrow/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
         # the first element is the aggregated global model (new model)
-        self.client_local_prompts = list()
-        self.client_global_prompts = list()
+        self.client_local_pools = list()
+        self.client_global_pools = list()
 
         self.transformer = getattr(vit, self.hparams_config["vit"])(
             pretrained=False, config=self.hparams_config
@@ -138,12 +138,13 @@ class Server(BasicServer):
         ]) / sum(p)
         
         # local prompt
-        average_prompt = sum(pk * model.pool.prompt for pk, model in zip(p, models))  / sum(p)
+        average_prompt = sum(pk * model.pool.prompt for pk, model in zip(p, models))  / sum(p)      # device: cuda
+        # print(average_prompt.device)
         new_model.pool.prompt = nn.Parameter(average_prompt)
-        self.client_local_prompts.append(new_model.pool.prompt)
+        self.client_local_pools.append(copy.deepcopy(new_model.pool))
         
         for k in range(n_models):
-            self.client_local_prompts.append(self.clients[self.selected_clients[k]].local_model.pool.prompt)
+            self.client_local_pools.append(copy.deepcopy(self.clients[self.selected_clients[k]].local_model.pool))
             self.clients[self.selected_clients[k]].local_model.pooler = new_model.pooler
             self.clients[self.selected_clients[k]].local_model.classifier = new_model.classifier
             self.clients[self.selected_clients[k]].local_model.pool.prompt = new_model.pool.prompt
@@ -174,9 +175,9 @@ class Server(BasicServer):
         del agg
         with torch.no_grad():
             new_model.global_pool.prompt = nn.Parameter(temp, requires_grad=True)
-            self.client_global_prompts.append(new_model.global_pool.prompt)
+            self.client_global_pools.append(copy.deepcopy(new_model.global_pool))
             for k in range(n_models):
-                self.client_global_prompts.append(self.clients[self.selected_clients[k]].local_model.global_pool.prompt)
+                self.client_global_pools.append(copy.deepcopy(self.clients[self.selected_clients[k]].local_model.global_pool))
                 self.clients[self.selected_clients[k]].local_model.global_pool.prompt = new_model.global_pool.prompt
         print("Temp", temp.shape[0])
                 
@@ -209,37 +210,15 @@ class Server(BasicServer):
         :return:
             metrics: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
-        if model is None: model=self.model
-        # if self.test_data:
-        #     result = self.calculator.server_test(
-        #         model=model,
-        #         transformer=self.transformer,
-        #         text_embeddings=self.text_embeddings,
-        #         dataset=self.test_data,
-        #         batch_size=self.option['test_batch_size'],
-        #         option=self.option,
-        #         current_round = self.current_round
-        #     )
-        #     if self.other_test_datas:
-        #         result.update(self.calculator.server_other_test(
-        #             model=model,
-        #             transformer=self.transformer,
-        #             text_embeddings=self.text_embeddings,
-        #             datasets=self.other_test_datas,
-        #             batch_size=self.option['test_batch_size']
-        #         ))
-        #     return result
-        
-        # else:
-        #     return None
+        if model is None: model=copy.deepcopy(self.model)
 
         # First, keep the global local pool and voting between global prompts from clients only
         # But same global prompt in the previous round?
-        model.client_global_prompts = self.client_global_prompts
-        model.client_local_prompts = self.client_local_prompts
+        model.client_global_pools = self.client_global_pools
+        model.client_local_pools = self.client_local_pools
         if self.test_data:
                 result = self.calculator.server_test_soft_voting(
-                model=model,
+                model=copy.deepcopy(model),
                 transformer=self.transformer,
                 text_embeddings=self.text_embeddings,
                 dataset=self.test_data,
@@ -247,12 +226,13 @@ class Server(BasicServer):
                 )
                 if self.other_test_datas:
                     result.update(self.calculator.server_other_test_soft_voting(
-                        model=model,
+                        model=copy.deepcopy(model),
                         transformer=self.transformer,
                         text_embeddings=self.text_embeddings,
                         datasets=self.other_test_datas,
-                        batch_size=self.option['test_batch_size']
-                    ))
+                        batch_size=self.option['test_batch_size'])
+                        )
+
         return result
 
 
@@ -391,7 +371,7 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        # self.num_steps = 1
+        self.num_steps = 1
         # print(self.num_steps)
 
         # print("Training client", client_id+1)
