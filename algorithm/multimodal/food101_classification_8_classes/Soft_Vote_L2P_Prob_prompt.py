@@ -232,6 +232,8 @@ class Server(BasicServer):
                         datasets=self.other_test_datas,
                         batch_size=self.option['test_batch_size'])
                         )
+        self.client_global_pools = list()
+        self.client_local_pools = list()
 
         return result
 
@@ -371,7 +373,7 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        self.num_steps = 1
+        # self.num_steps = 1
         # print(self.num_steps)
 
         # print("Training client", client_id+1)
