@@ -21,3 +21,21 @@ bash script/food101/8_classes/image_1_text_0.3/iid/20cl_missing_aware.sh
 git pull
 bash script/food101/8_classes/image_1_text_0.3/iid/20cl_missing_aware.sh
 bash script/food101/8_classes/image_1_text_0.3/noniid_0.1/20cl_missing_aware.sh
+
+
+# MM-IMDB
+cd benchmark/RAW_DATA/IMDB
+tar -xzvf mmimdb.tar.gz
+cd ../../..
+python notebook/create_fols_imdb.py
+rm -r benchmark/RAW_DATA/IMDB/mmimdb
+python notebook/make_arrow_imdb.py
+
+
+
+# HATEMEMES
+python notebook/make_arrow_hatememe.py
+
+mkdir benchmark/RAW_DATA/HATEMEME/missing_tables/
+
+mkdir benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/

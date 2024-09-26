@@ -1,6 +1,6 @@
 import functools
 import time
-from .dataset import FOOD101Dataset
+from .dataset import HATEMEMEDataset
 from benchmark.toolkits import DefaultTaskGen
 from benchmark.toolkits import ClassificationCalculator
 from benchmark.toolkits import IDXTaskPipe
@@ -49,7 +49,7 @@ class TaskPipe(IDXTaskPipe):
         
         origin_class = getattr(importlib.import_module(class_path), class_name)
         # import pdb; pdb.set_trace()
-        data_dir = "./benchmark/RAW_DATA/FOOD101/generate_arrows"
+        data_dir = "./benchmark/RAW_DATA/HATEMEME/generate_arrows"
         transform_keys = ['pixelbert']
         split="train"
         image_size = 384
@@ -70,7 +70,7 @@ class TaskPipe(IDXTaskPipe):
         # import pdb; pdb.set_trace()
         collator = DataCollatorForLanguageModeling
 
-        origin_train_data = FOOD101Dataset(data_dir, transform_keys, split='train', 
+        origin_train_data = HATEMEMEDataset(data_dir, transform_keys, split='train', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -81,7 +81,7 @@ class TaskPipe(IDXTaskPipe):
         # origin_train_data.mlm_collator = collator(tokenizer=origin_train_data.tokenizer, mlm=True, mlm_probability=0.15)
         # origin_train_data.collate = functools.partial(origin_train_data.collate, mlm_collator=origin_train_data.mlm_collator)
 
-        origin_test_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_data = HATEMEMEDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -102,14 +102,14 @@ class TaskPipe(IDXTaskPipe):
         'ratio':
             {'test': 0.7,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/',
         'type':
             {'test': 'image',
             'train': 'both'},
         'both_ratio': 0,
         'simulate_missing': False
         }
-        origin_test_miss_image_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_miss_image_data = HATEMEMEDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -120,44 +120,19 @@ class TaskPipe(IDXTaskPipe):
         test_miss_image_data = cls.TaskDataset(origin_test_miss_image_data, [_ for _ in range(len(origin_test_miss_image_data))])
         other_test_datas.append(test_miss_image_data)
 
-        # import pdb; pdb.set_trace()
-        
-        # TO_CHANGE
-        # missing_text_config = {
-        # 'ratio':
-        #     {'test': 0.7,
-        #     'train': 0.7},
-        # 'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
-        # 'type':
-        #     {'test': 'text',
-        #     'train': 'both'},
-        # 'both_ratio': 0,
-        # 'simulate_missing': False
-        # }
-        # origin_test_miss_text_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
-        #                         image_size=image_size,
-        #                         max_text_len=max_text_len,
-        #                         draw_false_image=draw_false_image,
-        #                         draw_false_text=draw_false_text,
-        #                         image_only=image_only,
-        #                         missing_info=missing_text_config)
-        # origin_test_miss_text_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-        # test_miss_text_data = cls.TaskDataset(origin_test_miss_text_data, [_ for _ in range(len(origin_test_miss_text_data))])
-        # other_test_datas.append(test_miss_text_data)
-
 
         missing_both_config = {
         'ratio':
             {'test': 0.7,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/',
         'type':
             {'test': 'both',
             'train': 'both'},
         'both_ratio': 0.5,
         'simulate_missing': False
         }
-        origin_test_miss_both_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_miss_both_data = HATEMEMEDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -173,14 +148,14 @@ class TaskPipe(IDXTaskPipe):
         'ratio':
             {'test': 0,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/',
         'type':
             {'test': 'both',
             'train': 'both'},
         'both_ratio': 0,
         'simulate_missing': False
         }
-        origin_test_full_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_full_data = HATEMEMEDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -196,14 +171,14 @@ class TaskPipe(IDXTaskPipe):
         'ratio':
             {'test': 1,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/',
         'type':
             {'test': 'text',
             'train': 'both'},
         'both_ratio': 0,
         'simulate_missing': False
         }
-        origin_test_image_only_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_image_only_data = HATEMEMEDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -219,14 +194,14 @@ class TaskPipe(IDXTaskPipe):
         'ratio':
             {'test': 1,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/',
         'type':
             {'test': 'image',
             'train': 'both'},
         'both_ratio': 0,
         'simulate_missing': False
         }
-        origin_test_text_only_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_text_only_data = HATEMEMEDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -489,7 +464,7 @@ def by_labels_non_iid_split(dataset, n_classes, n_clients, n_clusters, alpha, fr
 def noniid_partition(generator):
     print(generator)
     labels = np.unique(generator.train_data.labels)
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     clients_indices = by_labels_non_iid_split(generator.train_data, labels.shape[0], generator.num_clients, labels.shape[0], generator.skewness, frac=1, seed=generator.seed)
     # import pdb; pdb.set_trace()
     return clients_indices  
@@ -507,29 +482,14 @@ def iid_partition(generator):
     # import pdb; pdb.set_trace()
     return local_datas
 
-# def local_holdout(self, local_datas, shuffle=False):
-#         """split each local dataset into train data and valid data according the rate."""
-#         train_cidxs = []
-#         valid_cidxs = []
-#         for local_data in local_datas:
-#             if shuffle:
-#                 np.random.shuffle(local_data)
-#             k = int(len(local_data) * (1-self.local_holdout_rate))
-#             train_cidxs.append(local_data[:k])
-#             valid_cidxs.append(local_data[k:])
-#         return train_cidxs, valid_cidxs
-
-# def get_food101_loader(dataset, batch_size=40, shuffle=True, num_workers=8, vocab_size=30522):
-#     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, collate_fn=dataset.collate)
-    
 
 class TaskGen(DefaultTaskGen):
     def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False, missing_ratio_train=0.7, missing_ratio_test=0.7, missing_type_train='both', missing_type_test='both', both_ratio=0.5):
-        super(TaskGen, self).__init__(benchmark='food101_classification_8_classes',
+        super(TaskGen, self).__init__(benchmark='hatememe_classification',
                                       dist_id=dist_id, 
                                       num_clients=num_clients,
                                       skewness=skewness,
-                                      rawdata_path='./benchmark/RAW_DATA/FOOD101',
+                                      rawdata_path='./benchmark/RAW_DATA/HATEMEME',
                                       local_hld_rate=local_hld_rate,
                                       seed=seed)
         if self.dist_id==0:
@@ -537,14 +497,14 @@ class TaskGen(DefaultTaskGen):
         else: 
             self.partition = noniid_partition
         
-        self.num_classes=8
+        self.num_classes = 2
         self.save_task=save_task
         self.visualize=self.visualize_by_class
         # import pdb; pdb.set_trace()
         # self.rawdata_path = os.path.join(self.rawdata_path, str(self.num_classes)+'_classes')
         self.source_dict = {
-            'class_path': 'benchmark.food101_classification_8_classes.dataset',
-            'class_name': 'FOOD101Dataset',
+            'class_path': 'benchmark.hatememe_classification.dataset',
+            'class_name': 'HATEMEMEDataset',
             'train_args': {
                 'root': '"'+self.rawdata_path+'"',
                 'download': 'True',
@@ -559,7 +519,7 @@ class TaskGen(DefaultTaskGen):
                 'train': missing_ratio_train,
                 'test': missing_ratio_test 
             },
-            'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_8_classes/',
+            'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables/',
             'missing_type': {
                 'train': missing_type_train,
                 'test': missing_type_test 
@@ -572,7 +532,7 @@ class TaskGen(DefaultTaskGen):
             'missing_ratio':
                 {'train': missing_ratio_train,
                 'test': missing_ratio_test},
-            'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_8_classes/',
+            'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables/',
             'missing_type':
                 {'train': missing_type_train,
                 'test': missing_type_test},
@@ -604,30 +564,31 @@ class TaskGen(DefaultTaskGen):
         
         self.taskpath = os.path.join(self.task_rootpath, self.taskname)
 
-    def load_data(self):
-            collator = DataCollatorForLanguageModeling
 
-            self.train_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='train', 
-                                    image_size=self.image_size,
-                                    max_text_len=self.max_text_len,
-                                    draw_false_image=self.draw_false_image,
-                                    draw_false_text=self.draw_false_text,
-                                    image_only=self.image_only,
-                                    missing_info=self.missing_info)
-            self.train_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-            self.train_data.mlm_collator = collator(tokenizer=self.train_data.tokenizer, mlm=True, mlm_probability=0.15)
-            self.train_data.collate = functools.partial(self.train_data.collate, mlm_collator=self.train_data.mlm_collator)
-            # import pdb; pdb.set_trace()
-            self.test_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
-                                    image_size=self.image_size,
-                                    max_text_len=self.max_text_len,
-                                    draw_false_image=self.draw_false_image,
-                                    draw_false_text=self.draw_false_text,
-                                    image_only=self.image_only,
-                                    missing_info=self.missing_info)
-            self.test_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
-            self.test_data.mlm_collator = collator(tokenizer=self.test_data.tokenizer, mlm=True, mlm_probability=0.15)
-            self.test_data.collate = functools.partial(self.test_data.collate, mlm_collator=self.test_data.mlm_collator)
+    def load_data(self):
+        collator = DataCollatorForLanguageModeling
+
+        self.train_data = HATEMEMEDataset(self.data_dir, self.transform_keys, split='train', 
+                                image_size=self.image_size,
+                                max_text_len=self.max_text_len,
+                                draw_false_image=self.draw_false_image,
+                                draw_false_text=self.draw_false_text,
+                                image_only=self.image_only,
+                                missing_info=self.missing_info)
+        self.train_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.train_data.mlm_collator = collator(tokenizer=self.train_data.tokenizer, mlm=True, mlm_probability=0.15)
+        self.train_data.collate = functools.partial(self.train_data.collate, mlm_collator=self.train_data.mlm_collator)
+        # import pdb; pdb.set_trace()
+        self.test_data = HATEMEMEDataset(self.data_dir, self.transform_keys, split='test', 
+                                image_size=self.image_size,
+                                max_text_len=self.max_text_len,
+                                draw_false_image=self.draw_false_image,
+                                draw_false_text=self.draw_false_text,
+                                image_only=self.image_only,
+                                missing_info=self.missing_info)
+        self.test_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.test_data.mlm_collator = collator(tokenizer=self.test_data.tokenizer, mlm=True, mlm_probability=0.15)
+        self.test_data.collate = functools.partial(self.test_data.collate, mlm_collator=self.test_data.mlm_collator)
     
 class TaskCalculator(ClassificationCalculator):
     def __init__(self, device, optimizer_name='sgd'):
@@ -704,8 +665,8 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            # if batch_id==0:
-            #     break
+            if batch_id==0:
+                break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
@@ -741,8 +702,8 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            # if batch_id==0:
-            #     break
+            if batch_id==0:
+                break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
@@ -788,8 +749,8 @@ class TaskCalculator(ClassificationCalculator):
             else:
                 total_loss = loss + total_loss
             # TO_DELETE
-            # if batch_id==0:
-            #     break
+            if batch_id==0:
+                break
         loss_eval = loss / (batch_id + 1) 
         # import pdb; pdb.set_trace()
         loss_eval = [loss for loss in loss_eval]
@@ -859,8 +820,8 @@ class TaskCalculator(ClassificationCalculator):
                 total_loss += loss.item() * len(batch_data['label'])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
                 # TO_DELETE
-                # if batch_id==0:
-                #     break
+                if batch_id==0:
+                    break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)
@@ -917,8 +878,8 @@ class TaskCalculator(ClassificationCalculator):
             # import pdb; pdb.set_trace()
             predicts.extend(predicted_classes.cpu().tolist())
             # TO_DELETE
-            # if batch_id==0:
-            #     break
+            if batch_id==0:
+                break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
@@ -977,8 +938,8 @@ class TaskCalculator(ClassificationCalculator):
                 predicts.extend(predicted_classes.cpu().tolist())
             
                 # TO_DELETE
-                # if batch_id==0:
-                #     break
+                if batch_id==0:
+                    break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)
