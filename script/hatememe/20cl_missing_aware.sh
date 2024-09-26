@@ -1,4 +1,4 @@
-python main.py \
+CUDA_LAUNCH_BLOCKING=1 python main.py \
     --task hatememe_classification_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
     --model missing_aware \
     --algorithm multimodal.hatememe_classification.missing_aware \
@@ -13,7 +13,8 @@ python main.py \
     --learning_rate 0.05 \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
-    --batch_size 512 \
-    --test_batch_size 512 \
-    --gpu 0 \
-    --wandb
+    --batch_size 8 \
+    --test_batch_size 8 \
+    --gpu 1 
+    # \
+    # --wandb
