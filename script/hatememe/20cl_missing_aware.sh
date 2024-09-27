@@ -4,8 +4,7 @@ python main.py \
     --algorithm multimodal.hatememe_classification.missing_aware \
     --sample full \
     --aggregate other \
-    --num_rounds 1000 \
-    --early_stop 50  \
+    --num_rounds 500 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
