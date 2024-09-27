@@ -228,14 +228,14 @@ class Server(BasicServer):
                 dataset=self.test_data,
                 batch_size=self.option['test_batch_size']
                 )
-                if self.other_test_datas:
-                    result.update(self.calculator.server_other_test_soft_voting(
-                        model=copy.deepcopy(model),
-                        transformer=self.transformer,
-                        text_embeddings=self.text_embeddings,
-                        datasets=self.other_test_datas,
-                        batch_size=self.option['test_batch_size'])
-                        )
+                # if self.other_test_datas:
+                #     result.update(self.calculator.server_other_test_soft_voting(
+                #         model=copy.deepcopy(model),
+                #         transformer=self.transformer,
+                #         text_embeddings=self.text_embeddings,
+                #         datasets=self.other_test_datas,
+                #         batch_size=self.option['test_batch_size'])
+                #         )
         self.client_global_pools = list()
         self.client_local_pools = list()
 
