@@ -274,7 +274,7 @@ class Server(BasicServer):
         """
         # This function uses global model after aggregation to tr
         # TO_DELETE
-        print("Test on clients but using Global model")
+        # print("Test on clients but using Global model")
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
@@ -282,7 +282,7 @@ class Server(BasicServer):
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
             # TO_DELETE
-            print("Client {}".format(client_id+1), client_metrics)
+            # print("Client {}".format(client_id+1), client_metrics)
         return all_metrics
     
     def test_on_clients_using_client_models(self, dataflag='train'):
@@ -295,7 +295,7 @@ class Server(BasicServer):
         """
         # This function uses global model after aggregation to tr
         # TO_DELETE
-        print("Test on clients using their models")
+        # print("Test on clients using their models")
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
@@ -303,7 +303,7 @@ class Server(BasicServer):
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
             # TO_DELETE
-            print("Client {}".format(client_id+1), client_metrics)
+            # print("Client {}".format(client_id+1), client_metrics)
         return all_metrics
 
 def init_weights(module):
@@ -424,8 +424,8 @@ class Client(BasicClient):
                 data=batch_data
             )['loss']
             # TO_DELETE
-            if iter==0:
-                print('\t',"Training client {}".format(client_id+1), datetime.now(),iter, loss)
+            # if iter==0:
+            #     print('\t',"Training client {}".format(client_id+1), datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
             # import pdb; pdb.set_trace()
