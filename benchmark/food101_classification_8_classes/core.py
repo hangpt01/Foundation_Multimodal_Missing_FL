@@ -807,6 +807,7 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
+        print("Starting server test")
         model.eval()
         if batch_size==-1:batch_size=len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
@@ -815,17 +816,21 @@ class TaskCalculator(ClassificationCalculator):
         total_loss = 0.0
         labels = list()
         predicts = list()   
+        print("\tStarting batch test")
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
             loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
             total_loss += loss.item() * len(batch_data['label'])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+            print("\tEnd each batch test")
+
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
         result['loss'] = total_loss / len(dataset)
         result['acc'] = accuracy
+        print("End server test")
         return result
         
     
@@ -839,6 +844,7 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
+        print("Starting server_other_test")
         model.eval()
         # TO_CHANGE
         # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
@@ -852,12 +858,14 @@ class TaskCalculator(ClassificationCalculator):
             total_loss = 0.0
             labels = list()
             predicts = list()   
+            print("\tStarting batch test")
             for batch_id, batch_data in enumerate(data_loader):
                 batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data['label'])
                 loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
                 total_loss += loss.item() * len(batch_data['label'])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
+                print("\tEnd each batch test") 
                 # TO_DELETE
                 # if batch_id==0:
                 #     break
@@ -869,6 +877,8 @@ class TaskCalculator(ClassificationCalculator):
             #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result[names[i]+'_loss'] = total_loss / len(dataset)
             result[names[i]+'_acc'] = accuracy
+        
+        print("End server_other_test")
         return result
 
 
@@ -882,6 +892,7 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
+        print("Starting server test - Soft voting")
         model.eval()
         if batch_size==-1:batch_size=len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
@@ -890,16 +901,17 @@ class TaskCalculator(ClassificationCalculator):
         labels = list()
         predicts = list()   
 
+        print("\tStarting batch test - Soft voting")
+
         for batch_id, batch_data in enumerate(data_loader):
             avg_loss = 0
             avg_probabilities = list()
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
+            print("\tStarting each ensembled model - Soft voting")
             
             for local_pool in model.client_local_pools:
-                model.local_pool = local_pool
-                # print(torch.sum(local_prompt))
-                # import pdb; pdb.set_trace()
+                model.local = local_pool
                 loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
                 probabilities = F.softmax(outputs, dim=1)
                 # if avg_probabilities.device != probabilities.device:
@@ -907,7 +919,11 @@ class TaskCalculator(ClassificationCalculator):
                 # import pdb; pdb.set_trace()
                 avg_probabilities.append(probabilities)
                 avg_loss += loss
+                print("\tEnd each ensembled model - Soft voting")
+
             
+            # print("Average prob", avg_probabilities)
+            # import pdb; pdb.set_trace()
             avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
             # avg_probabilities /= len(model.client_local_prompts)
             avg_loss /= len(model.client_local_pools)
@@ -919,11 +935,17 @@ class TaskCalculator(ClassificationCalculator):
             # TO_DELETE
             # if batch_id==0:
             #     break
+            print("\tEnd batch test - Soft voting")
+
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
         result['loss'] = total_loss / len(dataset)
         result['acc'] = accuracy
+        print("End server test - Soft voting")
+
+        # print(accuracy)
+        # import pdb; pdb.set_trace()
         return result
 
 
@@ -958,7 +980,8 @@ class TaskCalculator(ClassificationCalculator):
                 # ls_prompt = [torch.sum(i) for i in model.client_local_prompts]
                 # print("Sum prompts in testing", ls_prompt)
                 for local_pool in model.client_local_pools:
-                    model.local_pool = local_pool
+                    model.pool = local_pool
+                    # print(model.pool.prompt[model.pool.top_k_idx])
                     # print(torch.sum(local_prompt))
                     # import pdb; pdb.set_trace()
                     loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
