@@ -274,11 +274,32 @@ class Server(BasicServer):
         """
         # This function uses global model after aggregation to tr
         # TO_DELETE
-        print("Test on clients but in server")
+        print("Test on clients but using Global model")
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
             client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
+            for met_name, met_val in client_metrics.items():
+                all_metrics[met_name].append(met_val)
+            # TO_DELETE
+            print("Client {}".format(client_id+1), client_metrics)
+        return all_metrics
+    
+    def test_on_clients_using_client_models(self, dataflag='train'):
+        """
+        Validate accuracies and losses on clients' local datasets
+        :param
+            dataflag: choose train data or valid data to evaluate
+        :return
+            metrics: a dict contains the lists of each metric_value of the clients
+        """
+        # This function uses global model after aggregation to tr
+        # TO_DELETE
+        print("Test on clients using their models")
+        all_metrics = collections.defaultdict(list)
+        for client_id in self.selected_clients:
+            c = self.clients[client_id]
+            client_metrics = c.test(c.local_model, self.transformer, self.text_embeddings, dataflag)
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
             # TO_DELETE
