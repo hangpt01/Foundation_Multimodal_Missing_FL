@@ -808,6 +808,7 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
+        print("-------------------------SERVER_TEST-----------------------")
         print("Starting server test", datetime.now())
         model.eval()
         if batch_size==-1:batch_size=len(dataset)
@@ -817,14 +818,16 @@ class TaskCalculator(ClassificationCalculator):
         total_loss = 0.0
         labels = list()
         predicts = list()   
-        print("\tStarting batch test", datetime.now())
+        print("     Starting batch test", datetime.now())
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
+            print("          Starting 1 inference", datetime.now())
             loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+            print("          End 1 inference", datetime.now())
             total_loss += loss.item() * len(batch_data['label'])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
-            print("\tEnd each batch test", datetime.now())
+            print("     End each batch test", datetime.now())
 
         labels = np.array(labels)
         predicts = np.array(predicts)
@@ -845,6 +848,7 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
+        print("-------------------------SERVER_OTHER_TEST-----------------------")
         print("Starting server_other_test", datetime.now())
         model.eval()
         # TO_CHANGE
@@ -859,14 +863,16 @@ class TaskCalculator(ClassificationCalculator):
             total_loss = 0.0
             labels = list()
             predicts = list()   
-            print("\tStarting batch test", datetime.now())
+            print("     Starting batch test", datetime.now())
             for batch_id, batch_data in enumerate(data_loader):
                 batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data['label'])
+                print("          Starting 1 inference", datetime.now())
                 loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+                print("          End 1 inference", datetime.now())
                 total_loss += loss.item() * len(batch_data['label'])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
-                print("\tEnd each batch test", datetime.now()) 
+                print("     End each batch test", datetime.now()) 
                 # TO_DELETE
                 # if batch_id==0:
                 #     break
@@ -893,6 +899,7 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
+        print("-------------------------SERVER_TEST_SOFT_VOTING-----------------------")
         print("Starting server test - Soft voting", datetime.now())
         model.eval()
         if batch_size==-1:batch_size=len(dataset)
@@ -902,27 +909,27 @@ class TaskCalculator(ClassificationCalculator):
         labels = list()
         predicts = list()   
 
-        print("\tStarting batch test - Soft voting", datetime.now())
-
+        print("     Starting batch test - Soft voting", datetime.now())
         for batch_id, batch_data in enumerate(data_loader):
             avg_loss = 0
             avg_probabilities = list()
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
-            print("\t\t\tStarting each ensembled model - Soft voting", datetime.now())
+            print("          Starting each ensembled model - Soft voting", datetime.now())
             
             for local_pool in model.client_local_pools:
                 model.local = local_pool
+                print("               Starting 1 inference", datetime.now())
                 loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+                print("               End 1 inference", datetime.now())
                 probabilities = F.softmax(outputs, dim=1)
                 # if avg_probabilities.device != probabilities.device:
                 #     avg_probabilities = avg_probabilities.to(probabilities.device)
                 # import pdb; pdb.set_trace()
                 avg_probabilities.append(probabilities)
                 avg_loss += loss
-                print("\t\t\tEnd each ensembled model - Soft voting", datetime.now())
-
-            
+                print("          End each ensembled model - Soft voting", datetime.now())
+                
             # print("Average prob", avg_probabilities)
             # import pdb; pdb.set_trace()
             avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
@@ -936,7 +943,7 @@ class TaskCalculator(ClassificationCalculator):
             # TO_DELETE
             # if batch_id==0:
             #     break
-            print("\tEnd batch test - Soft voting", datetime.now())
+            print("     End batch test - Soft voting", datetime.now())
 
         labels = np.array(labels)
         predicts = np.array(predicts)
@@ -960,6 +967,7 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
+        print("-------------------------SERVER_OTHER_TEST_SOFT_VOTING-----------------------")
         print("Starting other server test - Soft voting", datetime.now())
         model.eval()
         # TO_CHANGE
@@ -974,7 +982,7 @@ class TaskCalculator(ClassificationCalculator):
             total_loss = 0.0
             labels = list()
             predicts = list()
-            print("\tStarting batch test - Soft voting", datetime.now())
+            print("     Starting batch test - Soft voting", datetime.now())
             
             for batch_id, batch_data in enumerate(data_loader):
                 avg_loss = 0
@@ -983,19 +991,21 @@ class TaskCalculator(ClassificationCalculator):
                 labels.extend(batch_data['label'])
                 # ls_prompt = [torch.sum(i) for i in model.client_local_prompts]
                 # print("Sum prompts in testing", ls_prompt)
-                print("\t\tStarting each ensembled model - Soft voting", datetime.now())
+                print("          Starting each ensembled model - Soft voting", datetime.now())
                 for local_pool in model.client_local_pools:
                     model.pool = local_pool
                     # print(model.pool.prompt[model.pool.top_k_idx])
                     # print(torch.sum(local_prompt))
                     # import pdb; pdb.set_trace()
+                    print("               Starting 1 inference", datetime.now())
                     loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+                    print("               End 1 inference", datetime.now())
                     probabilities = F.softmax(outputs, dim=1)
                     # if avg_probabilities.device != probabilities.device:
                     #     avg_probabilities = avg_probabilities.to(probabilities.device)
                     avg_probabilities.append(probabilities)
                     avg_loss += loss
-                    print("\t\tEnd each ensembled model - Soft voting", datetime.now())
+                    print("          End each ensembled model - Soft voting", datetime.now())
                 
                 
                 avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
