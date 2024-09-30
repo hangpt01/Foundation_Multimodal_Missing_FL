@@ -25,6 +25,7 @@ import warnings
 import collections
 import torch
 import torch.nn.functional as F
+from datetime import datetime
 warnings.filterwarnings('ignore')
     
 class TaskPipe(IDXTaskPipe):
@@ -807,7 +808,7 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
-        print("Starting server test")
+        print("Starting server test", datetime.now())
         model.eval()
         if batch_size==-1:batch_size=len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
@@ -816,21 +817,21 @@ class TaskCalculator(ClassificationCalculator):
         total_loss = 0.0
         labels = list()
         predicts = list()   
-        print("\tStarting batch test")
+        print("\tStarting batch test", datetime.now())
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
             loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
             total_loss += loss.item() * len(batch_data['label'])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
-            print("\tEnd each batch test")
+            print("\tEnd each batch test", datetime.now())
 
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
         result['loss'] = total_loss / len(dataset)
         result['acc'] = accuracy
-        print("End server test")
+        print("End server test", datetime.now())
         return result
         
     
@@ -844,7 +845,7 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
-        print("Starting server_other_test")
+        print("Starting server_other_test", datetime.now())
         model.eval()
         # TO_CHANGE
         # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
@@ -858,14 +859,14 @@ class TaskCalculator(ClassificationCalculator):
             total_loss = 0.0
             labels = list()
             predicts = list()   
-            print("\tStarting batch test")
+            print("\tStarting batch test", datetime.now())
             for batch_id, batch_data in enumerate(data_loader):
                 batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data['label'])
                 loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
                 total_loss += loss.item() * len(batch_data['label'])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
-                print("\tEnd each batch test") 
+                print("\tEnd each batch test", datetime.now()) 
                 # TO_DELETE
                 # if batch_id==0:
                 #     break
@@ -878,7 +879,7 @@ class TaskCalculator(ClassificationCalculator):
             result[names[i]+'_loss'] = total_loss / len(dataset)
             result[names[i]+'_acc'] = accuracy
         
-        print("End server_other_test")
+        print("End server_other_test", datetime.now())
         return result
 
 
@@ -892,7 +893,7 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
-        print("Starting server test - Soft voting")
+        print("Starting server test - Soft voting", datetime.now())
         model.eval()
         if batch_size==-1:batch_size=len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
@@ -901,14 +902,14 @@ class TaskCalculator(ClassificationCalculator):
         labels = list()
         predicts = list()   
 
-        print("\tStarting batch test - Soft voting")
+        print("\tStarting batch test - Soft voting", datetime.now())
 
         for batch_id, batch_data in enumerate(data_loader):
             avg_loss = 0
             avg_probabilities = list()
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
-            print("\t\tStarting each ensembled model - Soft voting")
+            print("\t\tStarting each ensembled model - Soft voting", datetime.now())
             
             for local_pool in model.client_local_pools:
                 model.local = local_pool
@@ -919,7 +920,7 @@ class TaskCalculator(ClassificationCalculator):
                 # import pdb; pdb.set_trace()
                 avg_probabilities.append(probabilities)
                 avg_loss += loss
-                print("\t\tEnd each ensembled model - Soft voting")
+                print("\t\tEnd each ensembled model - Soft voting", datetime.now())
 
             
             # print("Average prob", avg_probabilities)
@@ -935,14 +936,14 @@ class TaskCalculator(ClassificationCalculator):
             # TO_DELETE
             # if batch_id==0:
             #     break
-            print("\tEnd batch test - Soft voting")
+            print("\tEnd batch test - Soft voting", datetime.now())
 
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
         result['loss'] = total_loss / len(dataset)
         result['acc'] = accuracy
-        print("End server test - Soft voting")
+        print("End server test - Soft voting", datetime.now())
 
         # print(accuracy)
         # import pdb; pdb.set_trace()
@@ -959,7 +960,7 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
-        print("Starting other server test - Soft voting")
+        print("Starting other server test - Soft voting", datetime.now())
         model.eval()
         # TO_CHANGE
         # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
@@ -973,7 +974,7 @@ class TaskCalculator(ClassificationCalculator):
             total_loss = 0.0
             labels = list()
             predicts = list()
-            print("\tStarting batch test - Soft voting")
+            print("\tStarting batch test - Soft voting", datetime.now())
             
             for batch_id, batch_data in enumerate(data_loader):
                 avg_loss = 0
@@ -982,7 +983,7 @@ class TaskCalculator(ClassificationCalculator):
                 labels.extend(batch_data['label'])
                 # ls_prompt = [torch.sum(i) for i in model.client_local_prompts]
                 # print("Sum prompts in testing", ls_prompt)
-                print("\t\tStarting each ensembled model - Soft voting")
+                print("\t\tStarting each ensembled model - Soft voting", datetime.now())
                 for local_pool in model.client_local_pools:
                     model.pool = local_pool
                     # print(model.pool.prompt[model.pool.top_k_idx])
@@ -994,7 +995,7 @@ class TaskCalculator(ClassificationCalculator):
                     #     avg_probabilities = avg_probabilities.to(probabilities.device)
                     avg_probabilities.append(probabilities)
                     avg_loss += loss
-                    print("\t\tEnd each ensembled model - Soft voting")
+                    print("\t\tEnd each ensembled model - Soft voting", datetime.now())
                 
                 
                 avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
@@ -1004,7 +1005,7 @@ class TaskCalculator(ClassificationCalculator):
                 total_loss += avg_loss.item() * len(batch_data['label'])
                 # import pdb; pdb.set_trace()
                 predicts.extend(predicted_classes.cpu().tolist())
-                print("\tEnd batch test - Soft voting")
+                print("\tEnd batch test - Soft voting", datetime.now())
                 # TO_DELETE
                 # if batch_id==0:
                 #     break
@@ -1017,7 +1018,7 @@ class TaskCalculator(ClassificationCalculator):
             result[names[i]+'_loss'] = total_loss / len(dataset)
             result[names[i]+'_acc'] = accuracy
         
-        print("End other server test - Soft voting")
+        print("End other server test - Soft voting", datetime.now())
             
         return result
 
