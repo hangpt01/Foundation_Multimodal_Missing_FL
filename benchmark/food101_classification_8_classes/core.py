@@ -917,8 +917,8 @@ class TaskCalculator(ClassificationCalculator):
             labels.extend(batch_data['label'])
             # print("          Starting each ensembled model - Soft voting", datetime.now())
             
-            for local_pool in model.client_local_pools:
-                model.pool = local_pool
+            for glo_pool in model.client_global_pools:
+                model.global_pool = glo_pool
                 # print("               Starting 1 inference", datetime.now())
                 loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
                 # print("               End 1 inference", datetime.now())
@@ -934,7 +934,7 @@ class TaskCalculator(ClassificationCalculator):
             # import pdb; pdb.set_trace()
             avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
             # avg_probabilities /= len(model.client_local_prompts)
-            avg_loss /= len(model.client_local_pools)
+            avg_loss /= len(model.client_global_pools)
 
             predicted_classes = torch.argmax(avg_probabilities, dim=1)
             total_loss += avg_loss.item() * len(batch_data['label'])
@@ -992,8 +992,8 @@ class TaskCalculator(ClassificationCalculator):
                 # ls_prompt = [torch.sum(i) for i in model.client_local_prompts]
                 # print("Sum prompts in testing", ls_prompt)
                 # print("          Starting each ensembled model - Soft voting", datetime.now())
-                for local_pool in model.client_local_pools:
-                    model.pool = local_pool
+                for glo_pool in model.client_glo_pools:
+                    model.global_pool = glo_pool
                     # print(model.pool.prompt[model.pool.top_k_idx])
                     # print(torch.sum(local_prompt))
                     # import pdb; pdb.set_trace()
@@ -1009,7 +1009,7 @@ class TaskCalculator(ClassificationCalculator):
                 
                 
                 avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
-                avg_loss /= len(model.client_local_pools)
+                avg_loss /= len(model.client_global_pools)
 
                 predicted_classes = torch.argmax(avg_probabilities, dim=1)
                 total_loss += avg_loss.item() * len(batch_data['label'])
