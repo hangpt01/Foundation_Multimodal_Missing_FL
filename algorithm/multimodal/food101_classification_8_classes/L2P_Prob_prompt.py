@@ -264,7 +264,6 @@ class Server(BasicServer):
             c = self.clients[client_id]
             client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
             for met_name, met_val in client_metrics.items():
-                print(met_name,)
                 all_metrics[met_name].append(met_val)
             # TO_DELETE
             print("Client {}".format(client_id+1), client_metrics)
