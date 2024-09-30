@@ -10,7 +10,7 @@ import importlib
 import random
 import torch
 from torch.utils.data import DataLoader
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import roc_auc_score
 from transformers import (
     ViltProcessor,
     DataCollatorForLanguageModeling,
@@ -665,14 +665,14 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==0:
-                break
+            # if batch_id==0:
+            #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
-        accuracy = accuracy_score(labels, predicts)
+        roc_auc = roc_auc_score(labels, predicts)
         return {
             'loss': total_loss / (batch_id+1),
-            'acc': accuracy
+            'roc_auc': roc_auc
         }
     
 
@@ -702,11 +702,11 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==0:
-                break
+            # if batch_id==0:
+            #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
-        accuracy = accuracy_score(labels, predicts)
+        roc_auc = roc_auc_score(labels, predicts)
         # print("Client {}\n".format(client_id+1), labels, predicts)
         # if current_round % 1 == 0:
         #     confusion_matrix_save_path = 'fedtask/' + option['task'] + '/plot_confusion_matrix/' + option['model']
@@ -718,7 +718,7 @@ class TaskCalculator(ClassificationCalculator):
         #         plot_confusion_matrix(labels, predicts, 'client_{}'.format(client_id+1), current_round, confusion_matrix_save_file, list_class)
         return {
             'loss': total_loss / (batch_id+1),
-            'acc': accuracy
+            'roc_auc': roc_auc
         }
 
     @torch.no_grad()
@@ -749,8 +749,8 @@ class TaskCalculator(ClassificationCalculator):
             else:
                 total_loss = loss + total_loss
             # TO_DELETE
-            if batch_id==0:
-                break
+            # if batch_id==0:
+            #     break
         loss_eval = loss / (batch_id + 1) 
         # import pdb; pdb.set_trace()
         loss_eval = [loss for loss in loss_eval]
@@ -784,9 +784,9 @@ class TaskCalculator(ClassificationCalculator):
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
         labels = np.array(labels)
         predicts = np.array(predicts)
-        accuracy = accuracy_score(labels, predicts)
+        roc_auc = roc_auc_score(labels, predicts)
         result['loss'] = total_loss / len(dataset)
-        result['acc'] = accuracy
+        result['roc_auc'] = roc_auc
         return result
         
     
@@ -820,16 +820,16 @@ class TaskCalculator(ClassificationCalculator):
                 total_loss += loss.item() * len(batch_data['label'])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
                 # TO_DELETE
-                if batch_id==0:
-                    break
+                # if batch_id==0:
+                #     break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)
-            accuracy = accuracy_score(labels, predicts)
+            roc_auc = roc_auc_score(labels, predicts)
             # for i in range(self.n_leads):
             #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result[names[i]+'_loss'] = total_loss / len(dataset)
-            result[names[i]+'_acc'] = accuracy
+            result[names[i]+'_roc_auc'] = roc_auc
         return result
 
 
@@ -878,13 +878,13 @@ class TaskCalculator(ClassificationCalculator):
             # import pdb; pdb.set_trace()
             predicts.extend(predicted_classes.cpu().tolist())
             # TO_DELETE
-            if batch_id==0:
-                break
+            # if batch_id==0:
+            #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
-        accuracy = accuracy_score(labels, predicts)
+        roc_auc = roc_auc_score(labels, predicts)
         result['loss'] = total_loss / len(dataset)
-        result['acc'] = accuracy
+        result['roc_auc'] = roc_auc
         return result
 
 
@@ -938,16 +938,16 @@ class TaskCalculator(ClassificationCalculator):
                 predicts.extend(predicted_classes.cpu().tolist())
             
                 # TO_DELETE
-                if batch_id==0:
-                    break
+                # if batch_id==0:
+                #     break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)
-            accuracy = accuracy_score(labels, predicts)
+            roc_auc = roc_auc_score(labels, predicts)
             # for i in range(self.n_leads):
             #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result[names[i]+'_loss'] = total_loss / len(dataset)
-            result[names[i]+'_acc'] = accuracy
+            result[names[i]+'_roc_auc'] = roc_auc
         return result
 
 def plot_confusion_matrix(y_true, y_pred, model='server', current_round=-1, output_file=None, classes=None, normalize=True):

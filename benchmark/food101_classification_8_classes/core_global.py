@@ -874,9 +874,11 @@ class TaskCalculator(ClassificationCalculator):
             
             for global_pool in model.client_global_pools:
                 model.global_pool = global_pool
+                # print(model.global_pool.prompt[model.global_pool.top_k_idx])
                 # print(torch.sum(global_prompt))
                 # import pdb; pdb.set_trace()
                 loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+                # print(loss)
                 probabilities = F.softmax(outputs, dim=1)
                 # if avg_probabilities.device != probabilities.device:
                 #     avg_probabilities = avg_probabilities.to(probabilities.device)
@@ -884,6 +886,8 @@ class TaskCalculator(ClassificationCalculator):
                 avg_probabilities.append(probabilities)
                 avg_loss += loss
             
+            # print("Average prob", avg_probabilities)
+            # import pdb; pdb.set_trace()
             avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
             # avg_probabilities /= len(model.client_global_prompts)
             avg_loss /= len(model.client_global_pools)
@@ -900,6 +904,8 @@ class TaskCalculator(ClassificationCalculator):
         accuracy = accuracy_score(labels, predicts)
         result['loss'] = total_loss / len(dataset)
         result['acc'] = accuracy
+        # print(accuracy)
+        # import pdb; pdb.set_trace()
         return result
 
 
@@ -935,6 +941,7 @@ class TaskCalculator(ClassificationCalculator):
                 # print("Sum prompts in testing", ls_prompt)
                 for global_pool in model.client_global_pools:
                     model.global_pool = global_pool
+                    # print(model.global_pool.prompt[model.global_pool.top_k_idx])
                     # print(torch.sum(global_prompt))
                     # import pdb; pdb.set_trace()
                     loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)

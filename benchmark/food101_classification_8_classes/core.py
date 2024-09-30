@@ -919,11 +919,7 @@ class TaskCalculator(ClassificationCalculator):
                 # import pdb; pdb.set_trace()
                 avg_probabilities.append(probabilities)
                 avg_loss += loss
-                print("\tEnd each ensembled model - Soft voting")
-
             
-            # print("Average prob", avg_probabilities)
-            # import pdb; pdb.set_trace()
             avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
             # avg_probabilities /= len(model.client_local_prompts)
             avg_loss /= len(model.client_local_pools)
@@ -942,10 +938,6 @@ class TaskCalculator(ClassificationCalculator):
         accuracy = accuracy_score(labels, predicts)
         result['loss'] = total_loss / len(dataset)
         result['acc'] = accuracy
-        print("End server test - Soft voting")
-
-        # print(accuracy)
-        # import pdb; pdb.set_trace()
         return result
 
 
