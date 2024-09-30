@@ -918,7 +918,7 @@ class TaskCalculator(ClassificationCalculator):
             # print("          Starting each ensembled model - Soft voting", datetime.now())
             
             for local_pool in model.client_local_pools:
-                model.local = local_pool
+                model.pool = local_pool
                 # print("               Starting 1 inference", datetime.now())
                 loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
                 # print("               End 1 inference", datetime.now())
