@@ -992,7 +992,7 @@ class TaskCalculator(ClassificationCalculator):
                 # ls_prompt = [torch.sum(i) for i in model.client_local_prompts]
                 # print("Sum prompts in testing", ls_prompt)
                 # print("          Starting each ensembled model - Soft voting", datetime.now())
-                for glo_pool in model.client_glo_pools:
+                for glo_pool in model.client_global_pools:
                     model.global_pool = glo_pool
                     # print(model.pool.prompt[model.pool.top_k_idx])
                     # print(torch.sum(local_prompt))
