@@ -908,7 +908,7 @@ class TaskCalculator(ClassificationCalculator):
             avg_probabilities = list()
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
-            print("\tStarting each ensembled model - Soft voting")
+            print("\t\tStarting each ensembled model - Soft voting")
             
             for local_pool in model.client_local_pools:
                 model.local = local_pool
@@ -919,7 +919,7 @@ class TaskCalculator(ClassificationCalculator):
                 # import pdb; pdb.set_trace()
                 avg_probabilities.append(probabilities)
                 avg_loss += loss
-                print("\tEnd each ensembled model - Soft voting")
+                print("\t\tEnd each ensembled model - Soft voting")
 
             
             # print("Average prob", avg_probabilities)
@@ -959,6 +959,7 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
+        print("Starting other server test - Soft voting")
         model.eval()
         # TO_CHANGE
         # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
@@ -971,7 +972,9 @@ class TaskCalculator(ClassificationCalculator):
             # for test_combi_index in range(len(2)):
             total_loss = 0.0
             labels = list()
-            predicts = list()   
+            predicts = list()
+            print("\tStarting batch test - Soft voting")
+            
             for batch_id, batch_data in enumerate(data_loader):
                 avg_loss = 0
                 avg_probabilities = list()
@@ -979,6 +982,7 @@ class TaskCalculator(ClassificationCalculator):
                 labels.extend(batch_data['label'])
                 # ls_prompt = [torch.sum(i) for i in model.client_local_prompts]
                 # print("Sum prompts in testing", ls_prompt)
+                print("\t\tStarting each ensembled model - Soft voting")
                 for local_pool in model.client_local_pools:
                     model.pool = local_pool
                     # print(model.pool.prompt[model.pool.top_k_idx])
@@ -990,6 +994,8 @@ class TaskCalculator(ClassificationCalculator):
                     #     avg_probabilities = avg_probabilities.to(probabilities.device)
                     avg_probabilities.append(probabilities)
                     avg_loss += loss
+                    print("\t\tEnd each ensembled model - Soft voting")
+                
                 
                 avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
                 avg_loss /= len(model.client_local_pools)
@@ -998,7 +1004,7 @@ class TaskCalculator(ClassificationCalculator):
                 total_loss += avg_loss.item() * len(batch_data['label'])
                 # import pdb; pdb.set_trace()
                 predicts.extend(predicted_classes.cpu().tolist())
-            
+                print("\tEnd batch test - Soft voting")
                 # TO_DELETE
                 # if batch_id==0:
                 #     break
@@ -1010,6 +1016,9 @@ class TaskCalculator(ClassificationCalculator):
             #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result[names[i]+'_loss'] = total_loss / len(dataset)
             result[names[i]+'_acc'] = accuracy
+        
+        print("End other server test - Soft voting")
+            
         return result
 
 def plot_confusion_matrix(y_true, y_pred, model='server', current_round=-1, output_file=None, classes=None, normalize=True):
