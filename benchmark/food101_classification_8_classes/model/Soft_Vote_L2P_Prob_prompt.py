@@ -104,7 +104,7 @@ class Classifier(FModule):
     def __init__(self):
         super().__init__()
         self.hidden_size = 768
-        cls_num = 8
+        cls_num = 101
         self.classifier = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size * 2),
             nn.LayerNorm(self.hidden_size * 2),
