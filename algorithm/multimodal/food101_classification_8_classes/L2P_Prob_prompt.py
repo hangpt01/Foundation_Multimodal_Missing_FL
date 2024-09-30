@@ -257,12 +257,17 @@ class Server(BasicServer):
             metrics: a dict contains the lists of each metric_value of the clients
         """
         # This function uses global model after aggregation to tr
+        # TO_DELETE
+        print("Test on clients but in server")
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
             client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
             for met_name, met_val in client_metrics.items():
+                print(met_name,)
                 all_metrics[met_name].append(met_val)
+            # TO_DELETE
+            print("Client {}".format(client_id+1), client_metrics)
         return all_metrics
 
 def init_weights(module):
@@ -382,7 +387,9 @@ class Client(BasicClient):
                 text_embeddings=text_embeddings,
                 data=batch_data
             )['loss']
-            # print('\t',datetime.now(),iter, loss)
+            # TO_DELETE
+            if iter==0:
+                print('\t',"Training client {}".format(client_id+1), datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
         
