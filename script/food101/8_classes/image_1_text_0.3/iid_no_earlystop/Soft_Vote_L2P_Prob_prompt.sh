@@ -13,7 +13,7 @@ python main.py \
     --num_epochs 1 \
     --num_outer_loops 5 \
     --learning_rate_decay 1.0 \
-    --note size_20_topk_5x2 \
+    --note size_20_topk_5x2_local_pool \
     --batch_size 512 \
     --test_batch_size 512 \
     --gpu 0 \
