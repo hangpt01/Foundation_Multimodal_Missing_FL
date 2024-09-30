@@ -909,7 +909,7 @@ class TaskCalculator(ClassificationCalculator):
             avg_probabilities = list()
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
-            print("\t\tStarting each ensembled model - Soft voting", datetime.now())
+            print("\t\t\tStarting each ensembled model - Soft voting", datetime.now())
             
             for local_pool in model.client_local_pools:
                 model.local = local_pool
@@ -920,7 +920,7 @@ class TaskCalculator(ClassificationCalculator):
                 # import pdb; pdb.set_trace()
                 avg_probabilities.append(probabilities)
                 avg_loss += loss
-                print("\t\tEnd each ensembled model - Soft voting", datetime.now())
+                print("\t\t\tEnd each ensembled model - Soft voting", datetime.now())
 
             
             # print("Average prob", avg_probabilities)
