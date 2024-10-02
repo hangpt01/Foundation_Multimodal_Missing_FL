@@ -18,7 +18,7 @@ from transformers import (
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.metrics import accuracy_score, confusion_matrix
-from sklearn.cluster import KMeans
+from sklearn.cluster import KMeans, AgglomerativeClustering
 from sklearn.metrics.pairwise import cosine_similarity
 import wandb
 from tqdm import tqdm
@@ -1097,6 +1097,77 @@ class TaskCalculator(ClassificationCalculator):
         # print(accuracy)
         # import pdb; pdb.set_trace()
         return result
+    
+
+    @torch.no_grad()
+    def server_test_agglo_median_soft_voting(self, model, transformer, text_embeddings, dataset, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        # import pdb; pdb.set_trace()
+        # print("-------------------------SERVER_TEST_SOFT_VOTING-----------------------")
+        # print("Starting server test - Soft voting", datetime.now())
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        result = dict() 
+        total_loss = 0.0
+        labels = list()
+        predicts = list()   
+
+        # Get representative pools using clustering based on prompt similarity
+        representative_pools = get_representative_pools_agglomerative(model, n_clusters=3)
+
+        # print("     Starting batch test - Soft voting", datetime.now())
+        for batch_id, batch_data in enumerate(data_loader):
+            avg_loss = 0
+            avg_probabilities = list()
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data['label'])
+            # print("          Starting each ensembled model - Soft voting", datetime.now())
+            
+            for glo_pool in representative_pools:
+                model.global_pool = glo_pool
+                # print("               Starting 1 inference", datetime.now())
+                loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+                # print("               End 1 inference", datetime.now())
+                probabilities = F.softmax(outputs, dim=1)
+                # if avg_probabilities.device != probabilities.device:
+                #     avg_probabilities = avg_probabilities.to(probabilities.device)
+                # import pdb; pdb.set_trace()
+                avg_probabilities.append(probabilities)
+                avg_loss += loss
+                # print("          End each ensembled model - Soft voting", datetime.now())
+                
+            # print("Average prob", avg_probabilities)
+            # import pdb; pdb.set_trace()
+            median_probabilities, _ = torch.median(torch.stack(avg_probabilities), dim=0)
+            # avg_probabilities /= len(model.client_local_prompts)
+            avg_loss /= len(model.client_global_pools)
+
+            predicted_classes = torch.argmax(median_probabilities, dim=1)
+            total_loss += avg_loss.item() * len(batch_data['label'])
+            # import pdb; pdb.set_trace()
+            predicts.extend(predicted_classes.cpu().tolist())
+            # TO_DELETE
+            # if batch_id==0:
+            #     break
+            # print("     End batch test - Soft voting", datetime.now())
+
+        labels = np.array(labels)
+        predicts = np.array(predicts)
+        accuracy = accuracy_score(labels, predicts)
+        result['loss'] = total_loss / len(dataset)
+        result['acc'] = accuracy
+        # print("End server test - Soft voting", datetime.now())
+
+        # print(accuracy)
+        # import pdb; pdb.set_trace()
+        return result
 
 
     @torch.no_grad()
@@ -1328,6 +1399,84 @@ class TaskCalculator(ClassificationCalculator):
         return result
 
 
+    @torch.no_grad()
+    def server_other_test_agglo_median_soft_voting(self, model, transformer, text_embeddings, datasets, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        # import pdb; pdb.set_trace()
+        # print("-------------------------SERVER_OTHER_TEST_SOFT_VOTING-----------------------")
+        # print("Starting other server test - Soft voting", datetime.now())
+        model.eval()
+        # TO_CHANGE
+        # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
+        names = ['miss_image', 'miss_both', 'full_modal', 'image_only', 'text_only']
+        result = dict() 
+        for i in range(len(datasets)):
+            dataset = datasets[i]
+            if batch_size==-1:batch_size=len(dataset)
+            data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+            # for test_combi_index in range(len(2)):
+            total_loss = 0.0
+            labels = list()
+            predicts = list()
+            # print("     Starting batch test - Soft voting", datetime.now())
+            
+            # Get representative pools using clustering based on prompt similarity
+            representative_pools = get_representative_pools_agglomerative(model, n_clusters=3)
+
+            for batch_id, batch_data in enumerate(data_loader):
+                avg_loss = 0
+                avg_probabilities = list()
+                batch_data = self.data_to_device(batch_data)
+                labels.extend(batch_data['label'])
+                # ls_prompt = [torch.sum(i) for i in model.client_local_prompts]
+                # print("Sum prompts in testing", ls_prompt)
+                # print("          Starting each ensembled model - Soft voting", datetime.now())
+                for glo_pool in representative_pools:
+                    model.global_pool = glo_pool
+                    # print(model.pool.prompt[model.pool.top_k_idx])
+                    # print(torch.sum(local_prompt))
+                    # import pdb; pdb.set_trace()
+                    # print("               Starting 1 inference", datetime.now())
+                    loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+                    # print("               End 1 inference", datetime.now())
+                    probabilities = F.softmax(outputs, dim=1)
+                    # if avg_probabilities.device != probabilities.device:
+                    #     avg_probabilities = avg_probabilities.to(probabilities.device)
+                    avg_probabilities.append(probabilities)
+                    avg_loss += loss
+                    # print("          End each ensembled model - Soft voting", datetime.now())
+                
+                
+                median_probabilities, _ = torch.median(torch.stack(avg_probabilities), dim=0)
+                avg_loss /= len(model.client_global_pools)
+
+                predicted_classes = torch.argmax(median_probabilities, dim=1)
+                total_loss += avg_loss.item() * len(batch_data['label'])
+                # import pdb; pdb.set_trace()
+                predicts.extend(predicted_classes.cpu().tolist())
+                # print("\tEnd batch test - Soft voting", datetime.now())
+                # TO_DELETE
+                # if batch_id==0:
+                #     break
+            # import pdb; pdb.set_trace()
+            labels = np.array(labels)
+            predicts = np.array(predicts)
+            accuracy = accuracy_score(labels, predicts)
+            # for i in range(self.n_leads):
+            #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
+            result[names[i]+'_loss'] = total_loss / len(dataset)
+            result[names[i]+'_acc'] = accuracy
+        
+        # print("End other server test - Soft voting", datetime.now())
+            
+        return result
+
 @torch.no_grad()
 def get_representative_pools(model, n_clusters=3):
     """
@@ -1339,12 +1488,13 @@ def get_representative_pools(model, n_clusters=3):
     """
     # Extract prompts from each global pool
     prompts = []
-    for glo_pool in model.client_global_pools:
+    for glo_pool in model.client_global_pools[1:]:
         prompts.append(glo_pool.prompt.detach().cpu().numpy())  # Convert prompts (nn.Parameter) to numpy array
     
     # Assume each prompt is a 2D array, we will flatten it for similarity calculation
     flattened_prompts = [prompt.flatten() for prompt in prompts]  # Flatten 2D prompt to 1D
     
+    flattened_prompts = np.array(flattened_prompts)
     # Compute cosine similarity between all prompts
     similarity_matrix = cosine_similarity(flattened_prompts)  # Shape: (num_pools, num_pools)
     
@@ -1355,9 +1505,54 @@ def get_representative_pools(model, n_clusters=3):
     # Group pools by cluster and select the one closest to the centroid for each cluster
     pool_features = np.array(flattened_prompts)
     representatives = []
+    representatives.append(model.client_global_pools[0])
     
     for i in range(n_clusters):
         # Find all pools in the current cluster
+        group_indices = np.where(cluster_labels == i)[0]
+        if len(group_indices) == 0:
+            continue
+        group_pools = pool_features[group_indices]
+        # print([i.shape for i in group_pools])
+        # Calculate the centroid of the cluster
+        centroid = np.mean(group_pools, axis=0)
+        # import pdb; pdb.set_trace()
+        # Find the pool closest to the centroid
+        closest_index = np.argmin(np.linalg.norm(group_pools - centroid, axis=1))
+        
+        # Append the representative (the closest pool to the centroid)
+        representatives.append(model.client_global_pools[group_indices[closest_index] + 1])
+
+    return representatives
+
+
+@torch.no_grad()
+def get_representative_pools_agglomerative(model, n_clusters=3):
+    """
+    Find representative pools from all client_global_pools by using Agglomerative Clustering based on prompt similarity.
+    :param model: The model containing client_global_pools with prompt as nn.Parameter (2D).
+    :param n_clusters: Number of clusters to form.
+    :return: List of representative client_global_pools.
+    """
+    # Extract prompts from each global pool
+    prompts = []
+    for glo_pool in model.client_global_pools[1:]:
+        prompts.append(glo_pool.prompt.detach().cpu().numpy())  # Convert prompts (nn.Parameter) to numpy array
+    
+    # Flatten the prompts (2D -> 1D)
+    flattened_prompts = [prompt.flatten() for prompt in prompts]
+    
+    flattened_prompts = np.array(flattened_prompts)
+    # Apply Agglomerative Clustering
+    agglomerative = AgglomerativeClustering(n_clusters=n_clusters)
+    cluster_labels = agglomerative.fit_predict(flattened_prompts)
+    
+    # Group pools by cluster and select the one closest to the centroid for each cluster
+    pool_features = np.array(flattened_prompts)
+    representatives = []
+    representatives.append(model.client_global_pools[0])
+    
+    for i in range(n_clusters):
         group_indices = np.where(cluster_labels == i)[0]
         group_pools = pool_features[group_indices]
         
@@ -1368,7 +1563,7 @@ def get_representative_pools(model, n_clusters=3):
         closest_index = np.argmin(np.linalg.norm(group_pools - centroid, axis=1))
         
         # Append the representative (the closest pool to the centroid)
-        representatives.append(model.client_global_pools[group_indices[closest_index]])
+        representatives.append(model.client_global_pools[group_indices[closest_index] + 1])
 
     return representatives
 
