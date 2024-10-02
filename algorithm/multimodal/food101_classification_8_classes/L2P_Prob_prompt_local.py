@@ -36,10 +36,6 @@ class Server(BasicServer):
                         'max_image_len': 40,
                         'load_path': 'benchmark/food101_classification_arrow/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
-        # the first element is the aggregated global model (new model)
-        self.client_local_pools = list()
-        self.client_global_pools = list()
-
         self.transformer = getattr(vit, self.hparams_config["vit"])(
             pretrained=False, config=self.hparams_config
         )
@@ -138,15 +134,10 @@ class Server(BasicServer):
         ]) / sum(p)
         
         # local prompt
-        average_prompt = sum(pk * model.pool.prompt for pk, model in zip(p, models))  / sum(p)      # device: cuda
-        # print(average_prompt.device)
+        average_prompt = sum(pk * model.pool.prompt for pk, model in zip(p, models))  / sum(p)
         new_model.pool.prompt = nn.Parameter(average_prompt)
-        self.client_local_pools.append(copy.deepcopy(new_model.pool))
-        # print(new_model.pool.prompt[new_model.pool.top_k_idx])
         
         for k in range(n_models):
-            self.client_local_pools.append(copy.deepcopy(self.clients[self.selected_clients[k]].local_model.pool))
-            # print(self.clients[self.selected_clients[k]].local_model.pool.prompt[self.clients[self.selected_clients[k]].local_model.pool.top_k_idx])
             self.clients[self.selected_clients[k]].local_model.pooler = new_model.pooler
             self.clients[self.selected_clients[k]].local_model.classifier = new_model.classifier
             self.clients[self.selected_clients[k]].local_model.pool.prompt = new_model.pool.prompt
@@ -177,11 +168,7 @@ class Server(BasicServer):
         del agg
         with torch.no_grad():
             new_model.global_pool.prompt = nn.Parameter(temp, requires_grad=True)
-            self.client_global_pools.append(copy.deepcopy(new_model.global_pool))
-            # print(new_model.global_pool.prompt[new_model.global_pool.top_k_idx])
             for k in range(n_models):
-                self.client_global_pools.append(copy.deepcopy(self.clients[self.selected_clients[k]].local_model.global_pool))
-                # print(self.clients[self.selected_clients[k]].local_model.global_pool.prompt[self.clients[self.selected_clients[k]].local_model.global_pool.top_k_idx])   
                 self.clients[self.selected_clients[k]].local_model.global_pool.prompt = new_model.global_pool.prompt
         print("Temp", temp.shape[0])
                 
@@ -214,58 +201,30 @@ class Server(BasicServer):
         :return:
             metrics: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
-        if model is None: model=copy.deepcopy(self.model)
-
-        # First, keep the global local pool and voting between global prompts from clients only
-        # But same global prompt in the previous round?
-        model.client_global_pools = self.client_global_pools
-        model.client_local_pools = self.client_local_pools
+        # return dict()
+        if model is None: model=self.model
         if self.test_data:
-                state_before = {k: v.clone() for k, v in model.state_dict().items()}
-                result = self.calculator.server_test_soft_voting(
-                model=copy.deepcopy(model),
+            result = self.calculator.server_test(
+                model=model,
                 transformer=self.transformer,
                 text_embeddings=self.text_embeddings,
                 dataset=self.test_data,
-                batch_size=self.option['test_batch_size']
-                )
-                # TO_DELETE
-                # state_after = {k: v.clone() for k, v in model.state_dict().items()}
-                # modified = False
-                # for key in state_before:
-                #     if not torch.equal(state_before[key], state_after[key]):
-                #         modified = True
-                #         print(f"Model parameter {key} has been modified after server test.")
-                #         break
-
-                # if not modified:
-                #     print("The model has not been modified after server test.")
-
-                if self.other_test_datas:
-                    result.update(self.calculator.server_other_test_soft_voting(
-                        model=copy.deepcopy(model),
-                        transformer=self.transformer,
-                        text_embeddings=self.text_embeddings,
-                        datasets=self.other_test_datas,
-                        batch_size=self.option['test_batch_size'])
-                        )
-                # TO_DELETE
-                # state_after_other_test = {k: v.clone() for k, v in model.state_dict().items()}
-                # modified = False
-                # for key in state_before:
-                #     if not torch.equal(state_after_other_test[key], state_after[key]):
-                #         modified = True
-                #         print(f"Model parameter {key} has been modified after server other test.")
-                #         break
-
-                # if not modified:
-                #     print("The model has not been modified after server other test.")
-
-        self.client_global_pools = list()
-        self.client_local_pools = list()
-
-        return result
-
+                batch_size=self.option['test_batch_size'],
+                option=self.option,
+                current_round = self.current_round
+            )
+            if self.other_test_datas:
+                result.update(self.calculator.server_other_test(
+                    model=model,
+                    transformer=self.transformer,
+                    text_embeddings=self.text_embeddings,
+                    datasets=self.other_test_datas,
+                    batch_size=self.option['test_batch_size']
+                ))
+            return result
+        
+        else:
+            return None
 
     def validate(self, model=None):
         """
@@ -299,7 +258,7 @@ class Server(BasicServer):
         """
         # This function uses global model after aggregation to tr
         # TO_DELETE
-        # print("Test on clients but using Global model")
+        print("Test on clients but using Global model")
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
@@ -307,7 +266,11 @@ class Server(BasicServer):
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
             # TO_DELETE
-            # print("Client {}".format(client_id+1), client_metrics)
+            print("Client {}".format(client_id+1), client_metrics)
+        
+        # batch_data = c.get_batch_data()
+        # print(batch_data["label"])
+        # import pdb; pdb.set_trace()
         return all_metrics
     
     def test_on_clients_using_client_models(self, dataflag='train'):
@@ -320,15 +283,34 @@ class Server(BasicServer):
         """
         # This function uses global model after aggregation to tr
         # TO_DELETE
-        # print("Test on clients using their models")
+        print("Test on clients using their models")
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
+            # import pdb; pdb.set_trace()
+
+            # state_before = {k: v.clone() for k, v in c.local_model.state_dict().items()}
             client_metrics = c.test(c.local_model, self.transformer, self.text_embeddings, dataflag)
+            # TO_DELETE
+            # state_after = {k: v.clone() for k, v in c.local_model.state_dict().items()}
+            # modified = False
+            # for key in state_before:
+            #     if not torch.equal(state_before[key], state_after[key]):
+            #         modified = True
+            #         print(f"Model parameter {key} has been modified.")
+            #         break
+
+            # if not modified:
+            #     print("The model has not been modified.")
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
             # TO_DELETE
-            # print("Client {}".format(client_id+1), client_metrics)
+            print("Client {}".format(client_id+1), client_metrics)
+        # import pdb; pdb.set_trace()
+        batch_data = c.get_batch_data()
+        print(batch_data["label"])
+        import pdb; pdb.set_trace()
+        
         return all_metrics
 
 def init_weights(module):
@@ -427,7 +409,7 @@ class Client(BasicClient):
         )
         # print(self.num_steps)
         # TO_DELETE
-        # self.num_steps = 1
+        self.num_steps = 1
         # print(self.num_steps)
 
         # print("Training client", client_id+1)
@@ -436,6 +418,8 @@ class Client(BasicClient):
         for iter in range(self.num_steps):
             # get a batch of data
             batch_data = self.get_batch_data()
+            if client_id==19:
+                print("In client 20 training", batch_data["label"])
             # if batch_data[-1].shape[0] == 1:
             #     continue
             model.zero_grad()
@@ -449,13 +433,10 @@ class Client(BasicClient):
                 data=batch_data
             )['loss']
             # TO_DELETE
-            # if iter==0:
-            #     print('\t',"Training client {}".format(client_id+1),iter, loss)
+            if iter==0:
+                print('\t',"Training client {}".format(client_id+1),iter, loss)
             loss.backward()
             optimizer.step()
-            # import pdb; pdb.set_trace()
-            # print('\t',datetime.now(),iter, loss, torch.sum(model.pool.prompt), torch.sum(model.global_pool.prompt), torch.sum(model.combined_prompts))
-            # print(model.global_pool.prompt[model.global_pool.top_k_idx])
         
         return
 

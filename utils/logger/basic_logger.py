@@ -285,15 +285,15 @@ class Logger(logging.Logger):
                 ]) / sum([self.server.clients[client_id].datavol for client_id in self.server.selected_clients])
             )
         
-        train_using_local_metrics = self.server.test_on_clients_using_client_models('train')
-        for met_name, met_val in train_using_local_metrics.items():
-            self.output['train_use_local_' + met_name + '_dist'].append(met_val)
-            # self.output['train_' + met_name].append(1.0 * sum([client_vol * client_met for client_vol, client_met in zip(self.server.local_data_vols, met_val)]) / self.server.total_data_vol)
-            self.output['train_use_local_' + met_name].append(
-                1.0 * sum([
-                    self.server.clients[client_id].datavol * client_met for client_id, client_met in zip(self.server.selected_clients, met_val)
-                ]) / sum([self.server.clients[client_id].datavol for client_id in self.server.selected_clients])
-            )
+        # train_using_local_metrics = self.server.test_on_clients_using_client_models('train')
+        # for met_name, met_val in train_using_local_metrics.items():
+        #     self.output['train_use_local_' + met_name + '_dist'].append(met_val)
+        #     # self.output['train_' + met_name].append(1.0 * sum([client_vol * client_met for client_vol, client_met in zip(self.server.local_data_vols, met_val)]) / self.server.total_data_vol)
+        #     self.output['train_use_local_' + met_name].append(
+        #         1.0 * sum([
+        #             self.server.clients[client_id].datavol * client_met for client_id, client_met in zip(self.server.selected_clients, met_val)
+        #         ]) / sum([self.server.clients[client_id].datavol for client_id in self.server.selected_clients])
+        #     )
         
         # wandb.log(client_global_data_metrics)
         # calculate weighted averaging and other statistics of metrics on validation datasets across clients

@@ -258,7 +258,7 @@ class Server(BasicServer):
         """
         # This function uses global model after aggregation to tr
         # TO_DELETE
-        print("Test on clients but using Global model")
+        # print("Test on clients but using Global model")
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
@@ -266,29 +266,53 @@ class Server(BasicServer):
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
             # TO_DELETE
-            print("Client {}".format(client_id+1), client_metrics)
+            # print("Client {}".format(client_id+1), client_metrics)
+        
+        # TO_DELETE
+        # batch_data = c.get_batch_data()
+        # print(batch_data["label"])
+        # import pdb; pdb.set_trace()
         return all_metrics
     
-    def test_on_clients_using_client_models(self, dataflag='train'):
-        """
-        Validate accuracies and losses on clients' local datasets
-        :param
-            dataflag: choose train data or valid data to evaluate
-        :return
-            metrics: a dict contains the lists of each metric_value of the clients
-        """
+    # def test_on_clients_using_client_models(self, dataflag='train'):
+    #     """
+    #     Validate accuracies and losses on clients' local datasets
+    #     :param
+    #         dataflag: choose train data or valid data to evaluate
+    #     :return
+    #         metrics: a dict contains the lists of each metric_value of the clients
+    #     """
         # This function uses global model after aggregation to tr
         # TO_DELETE
-        print("Test on clients using their models")
-        all_metrics = collections.defaultdict(list)
-        for client_id in self.selected_clients:
-            c = self.clients[client_id]
-            client_metrics = c.test(c.local_model, self.transformer, self.text_embeddings, dataflag)
-            for met_name, met_val in client_metrics.items():
-                all_metrics[met_name].append(met_val)
-            # TO_DELETE
-            print("Client {}".format(client_id+1), client_metrics)
-        return all_metrics
+        # print("Test on clients using their models")
+        # all_metrics = collections.defaultdict(list)
+        # for client_id in self.selected_clients:
+        #     c = self.clients[client_id]
+        #     # import pdb; pdb.set_trace()
+
+        #     # state_before = {k: v.clone() for k, v in c.local_model.state_dict().items()}
+        #     client_metrics = c.test(c.local_model, self.transformer, self.text_embeddings, dataflag)
+        #     # TO_DELETE
+        #     # state_after = {k: v.clone() for k, v in c.local_model.state_dict().items()}
+        #     # modified = False
+        #     # for key in state_before:
+        #     #     if not torch.equal(state_before[key], state_after[key]):
+        #     #         modified = True
+        #     #         print(f"Model parameter {key} has been modified.")
+        #     #         break
+
+        #     # if not modified:
+        #     #     print("The model has not been modified.")
+        #     for met_name, met_val in client_metrics.items():
+        #         all_metrics[met_name].append(met_val)
+        #     # TO_DELETE
+        #     print("Client {}".format(client_id+1), client_metrics)
+        # # import pdb; pdb.set_trace()
+        # batch_data = c.get_batch_data()
+        # print(batch_data["label"])
+        # all_metric = collections.defaultdict(list)
+
+        # return all_metrics
 
 def init_weights(module):
     if isinstance(module, (nn.Linear, nn.Embedding)):
@@ -395,6 +419,8 @@ class Client(BasicClient):
         for iter in range(self.num_steps):
             # get a batch of data
             batch_data = self.get_batch_data()
+            # if client_id==19:
+            #     print("In client 20 training", batch_data["label"])
             # if batch_data[-1].shape[0] == 1:
             #     continue
             model.zero_grad()
@@ -408,8 +434,8 @@ class Client(BasicClient):
                 data=batch_data
             )['loss']
             # TO_DELETE
-            if iter==0:
-                print('\t',"Training client {}".format(client_id+1), datetime.now(),iter, loss)
+            # if iter==0:
+            #     print('\t',"Training client {}".format(client_id+1),iter, loss)
             loss.backward()
             optimizer.step()
         

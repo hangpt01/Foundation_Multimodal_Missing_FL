@@ -524,7 +524,9 @@ class BasicClient():
         # import pdb; pdb.set_trace()
         try:
             batch_data = next(self.data_loader)
+            print("Using old train dataloader")
         except:
+            print("Using new train dataloader, batch {}, num_workers {}".format(self.batch_size, self.loader_num_workers))
             self.data_loader = iter(self.calculator.get_data_loader(self.train_data, batch_size=self.batch_size, num_workers=self.loader_num_workers))
             # import pdb; pdb.set_trace()
             batch_data = next(self.data_loader)
