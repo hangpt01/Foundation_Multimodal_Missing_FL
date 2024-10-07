@@ -12,8 +12,7 @@ python main.py \
     --learning_rate 0.05 \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
-    --batch_size 4 \
-    --test_batch_size 4 \
-    --gpu 1 
-    # \
-    # --wandb
+    --batch_size 512 \
+    --test_batch_size 512 \
+    --gpu 0 \
+    --wandb
