@@ -22,7 +22,7 @@ class IMDBDataset(BaseDataset):
             *args,
             **kwargs,
             names=names,
-            text_column_name="text",
+            text_column_name="plots",
             split=self.split,
             remove_duplicate=False,
         )

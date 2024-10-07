@@ -1,6 +1,6 @@
 import functools
 import time
-from .dataset import HATEMEMEDataset
+from .dataset import IMDBDataset
 from benchmark.toolkits import DefaultTaskGen
 from benchmark.toolkits import ClassificationCalculator
 from benchmark.toolkits import IDXTaskPipe
@@ -49,7 +49,7 @@ class TaskPipe(IDXTaskPipe):
         
         origin_class = getattr(importlib.import_module(class_path), class_name)
         # import pdb; pdb.set_trace()
-        data_dir = "./benchmark/RAW_DATA/HATEMEME/generate_arrows"
+        data_dir = "./benchmark/RAW_DATA/IMDB/generate_arrows"
         transform_keys = ['pixelbert']
         split="train"
         image_size = 384
@@ -70,7 +70,7 @@ class TaskPipe(IDXTaskPipe):
         # import pdb; pdb.set_trace()
         collator = DataCollatorForLanguageModeling
 
-        origin_train_data = HATEMEMEDataset(data_dir, transform_keys, split='train', 
+        origin_train_data = IMDBDataset(data_dir, transform_keys, split='train', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -81,7 +81,7 @@ class TaskPipe(IDXTaskPipe):
         # origin_train_data.mlm_collator = collator(tokenizer=origin_train_data.tokenizer, mlm=True, mlm_probability=0.15)
         # origin_train_data.collate = functools.partial(origin_train_data.collate, mlm_collator=origin_train_data.mlm_collator)
 
-        origin_test_data = HATEMEMEDataset(data_dir, transform_keys, split='test', 
+        origin_test_data = IMDBDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -102,14 +102,14 @@ class TaskPipe(IDXTaskPipe):
         'ratio':
             {'test': 0.7,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
         'type':
             {'test': 'image',
             'train': 'both'},
         'both_ratio': 0,
         'simulate_missing': False
         }
-        origin_test_miss_image_data = HATEMEMEDataset(data_dir, transform_keys, split='test', 
+        origin_test_miss_image_data = IMDBDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -125,14 +125,14 @@ class TaskPipe(IDXTaskPipe):
         'ratio':
             {'test': 0.7,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
         'type':
             {'test': 'both',
             'train': 'both'},
         'both_ratio': 0.5,
         'simulate_missing': False
         }
-        origin_test_miss_both_data = HATEMEMEDataset(data_dir, transform_keys, split='test', 
+        origin_test_miss_both_data = IMDBDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -148,14 +148,14 @@ class TaskPipe(IDXTaskPipe):
         'ratio':
             {'test': 0,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
         'type':
             {'test': 'both',
             'train': 'both'},
         'both_ratio': 0,
         'simulate_missing': False
         }
-        origin_test_full_data = HATEMEMEDataset(data_dir, transform_keys, split='test', 
+        origin_test_full_data = IMDBDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -171,14 +171,14 @@ class TaskPipe(IDXTaskPipe):
         'ratio':
             {'test': 1,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
         'type':
             {'test': 'text',
             'train': 'both'},
         'both_ratio': 0,
         'simulate_missing': False
         }
-        origin_test_image_only_data = HATEMEMEDataset(data_dir, transform_keys, split='test', 
+        origin_test_image_only_data = IMDBDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -194,14 +194,14 @@ class TaskPipe(IDXTaskPipe):
         'ratio':
             {'test': 1,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
         'type':
             {'test': 'image',
             'train': 'both'},
         'both_ratio': 0,
         'simulate_missing': False
         }
-        origin_test_text_only_data = HATEMEMEDataset(data_dir, transform_keys, split='test', 
+        origin_test_text_only_data = IMDBDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -483,28 +483,59 @@ def iid_partition(generator):
     return local_datas
 
 
+
+def iid_partition_imdb(generator):
+    import numpy as np
+    print(generator)
+    
+    labels = np.array(generator.train_data.labels)
+    # Initialize the local data list for each client
+    local_datas = [[] for _ in range(generator.num_clients)]
+    
+    # Iterate over each of the 23 labels (assuming the dataset has up to 23 possible labels)
+    for label in range(generator.num_classes):  # assuming num_classes is 23
+        # Find the indices of samples that have this label (multi-label case)
+        label_indices = np.where(labels[:, label] == 1)[0]  # multi-labels are binary vectors
+        
+        # Randomly shuffle the indices for this label
+        permutation = np.random.permutation(label_indices)
+        
+        # Split the permuted indices equally across all clients
+        split = np.array_split(permutation, generator.num_clients)
+        
+        # Assign the split indices to the respective clients
+        for i, idxs in enumerate(split):
+            local_datas[i] += idxs.tolist()  # Add the indices to each client's dataset
+            
+    # Optional: Shuffle each client's local data to ensure randomness
+    for i in range(generator.num_clients):
+        local_datas[i] = np.random.permutation(local_datas[i]).tolist()
+    
+    return local_datas
+
+
 class TaskGen(DefaultTaskGen):
     def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False, missing_ratio_train=0.7, missing_ratio_test=0.7, missing_type_train='both', missing_type_test='both', both_ratio=0.5):
-        super(TaskGen, self).__init__(benchmark='hatememe_classification',
+        super(TaskGen, self).__init__(benchmark='imdb_classification',
                                       dist_id=dist_id, 
                                       num_clients=num_clients,
                                       skewness=skewness,
-                                      rawdata_path='./benchmark/RAW_DATA/HATEMEME',
+                                      rawdata_path='./benchmark/RAW_DATA/IMDB',
                                       local_hld_rate=local_hld_rate,
                                       seed=seed)
         if self.dist_id==0:
-            self.partition = iid_partition
+            self.partition = iid_partition_imdb
         else: 
             self.partition = noniid_partition
         
-        self.num_classes = 2
+        self.num_classes = 23
         self.save_task=save_task
-        self.visualize=self.visualize_by_class
+        self.visualize=self.visualize_by_class_imdb
         # import pdb; pdb.set_trace()
         # self.rawdata_path = os.path.join(self.rawdata_path, str(self.num_classes)+'_classes')
         self.source_dict = {
-            'class_path': 'benchmark.hatememe_classification.dataset',
-            'class_name': 'HATEMEMEDataset',
+            'class_path': 'benchmark.imdb_classification.dataset',
+            'class_name': 'IMDBDataset',
             'train_args': {
                 'root': '"'+self.rawdata_path+'"',
                 'download': 'True',
@@ -519,7 +550,7 @@ class TaskGen(DefaultTaskGen):
                 'train': missing_ratio_train,
                 'test': missing_ratio_test 
             },
-            'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables/',
+            'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables/',
             'missing_type': {
                 'train': missing_type_train,
                 'test': missing_type_test 
@@ -532,7 +563,7 @@ class TaskGen(DefaultTaskGen):
             'missing_ratio':
                 {'train': missing_ratio_train,
                 'test': missing_ratio_test},
-            'missing_table_root': './benchmark/RAW_DATA/HATEMEME/missing_tables/',
+            'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables/',
             'missing_type':
                 {'train': missing_type_train,
                 'test': missing_type_test},
@@ -568,7 +599,7 @@ class TaskGen(DefaultTaskGen):
     def load_data(self):
         collator = DataCollatorForLanguageModeling
 
-        self.train_data = HATEMEMEDataset(self.data_dir, self.transform_keys, split='train', 
+        self.train_data = IMDBDataset(self.data_dir, self.transform_keys, split='train', 
                                 image_size=self.image_size,
                                 max_text_len=self.max_text_len,
                                 draw_false_image=self.draw_false_image,
@@ -579,7 +610,7 @@ class TaskGen(DefaultTaskGen):
         self.train_data.mlm_collator = collator(tokenizer=self.train_data.tokenizer, mlm=True, mlm_probability=0.15)
         self.train_data.collate = functools.partial(self.train_data.collate, mlm_collator=self.train_data.mlm_collator)
         # import pdb; pdb.set_trace()
-        self.test_data = HATEMEMEDataset(self.data_dir, self.transform_keys, split='test', 
+        self.test_data = IMDBDataset(self.data_dir, self.transform_keys, split='test', 
                                 image_size=self.image_size,
                                 max_text_len=self.max_text_len,
                                 draw_false_image=self.draw_false_image,

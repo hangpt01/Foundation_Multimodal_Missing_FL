@@ -1,1 +1,1 @@
-from .dataset import HATEMEMEDataset
+from .dataset import IMDBDataset

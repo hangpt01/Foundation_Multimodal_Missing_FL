@@ -1,7 +1,7 @@
 python main.py \
-    --task hatememe_classification_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
+    --task imdb_classification_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
     --model L2P_Prob_prompt \
-    --algorithm multimodal.hatememe_classification.L2P_Prob_prompt \
+    --algorithm multimodal.imdb_classification.L2P_Prob_prompt \
     --sample full \
     --aggregate other \
     --num_rounds 500 \

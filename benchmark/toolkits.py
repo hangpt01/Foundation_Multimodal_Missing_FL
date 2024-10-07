@@ -200,7 +200,7 @@ class DefaultTaskGen(BasicTaskGen):
         except Exception as e:
             print(e)
             self._remove_task()
-            print("Failed to saving splited dataset.")
+            print("Failed to save splited dataset.")
         print('Done.')
         return
 
@@ -495,7 +495,7 @@ class DefaultTaskGen(BasicTaskGen):
             # print(row_map)
             for cid, cidxs in enumerate(train_cidxs):       # list of all clients' sample indices
                 # import pdb; pdb.set_trace() 
-                print(datetime.now(), cid)
+                # print(datetime.now(), cid)
                 # labels = [int(self.train_data[did][-1]) for did in cidxs]       # ucihar
                 labels = [int(self.train_data[did]['label']) for did in cidxs]       # ptbxl
                 
@@ -591,6 +591,84 @@ class DefaultTaskGen(BasicTaskGen):
         plt.show()
         # import pdb; pdb.set_trace()
         
+
+    def visualize_by_class_imdb(self, train_cidxs):
+        import collections
+        import matplotlib.pyplot as plt
+        import matplotlib.colors
+        import numpy as np
+        import random
+        import os
+
+        # Create figure for plotting
+        fig, ax = plt.subplots()
+
+        # Set colors for the different classes
+        colors = [key for key in matplotlib.colors.CSS4_COLORS.keys()]
+        random.shuffle(colors)  # Shuffle colors for random class-color assignment
+
+        client_height = 1  # Height of each client bar
+
+        # If there is a Dirichlet distribution for the clients
+        if hasattr(self, 'dirichlet_dist'):
+            client_dist = self.dirichlet_dist.tolist()
+            data_columns = [sum(cprop) for cprop in client_dist]
+            row_map = {k: i for k, i in zip(np.argsort(data_columns), [_ for _ in range(self.num_clients)])}
+
+            # Visualize each client’s class distribution
+            for cid, cprop in enumerate(client_dist):
+                offset = 0
+                y_bottom = row_map[cid] - client_height / 2.0
+                y_top = row_map[cid] + client_height / 2.0
+                for lbi in range(len(cprop)):
+                    plt.fill_between([offset, offset + cprop[lbi]], y_bottom, y_top, facecolor=colors[lbi])
+                    offset += cprop[lbi]
+
+        else:
+            # Number of samples per client
+            data_columns = [len(cidx) for cidx in train_cidxs]
+            row_map = {k: i for k, i in zip(np.argsort(data_columns), [_ for _ in range(self.num_clients)])}
+            # import pdb; pdb.set_trace()
+            # Iterate over each client to visualize the class distribution
+            for cid, cidxs in enumerate(train_cidxs):  # list of all clients' sample indices
+                # Extract multi-label information for each sample
+                # import pdb; pdb.set_trace()
+                labels_list = [self.train_data[did]['label'] for did in cidxs]  # Assuming 'labels' is a list of 23 elements
+
+                # Initialize a counter for each class across the multi-label data
+                lb_counter = np.zeros(self.num_classes)  # self.num_classes = 23 in this case
+
+                # Count the occurrence of each label across all samples for the client
+                for labels in labels_list:
+                    lb_counter += np.array(labels)  # Sum across the multi-labels
+
+                offset = 0
+                y_bottom = row_map[cid] - client_height / 2.0
+                y_top = row_map[cid] + client_height / 2.0
+
+                # Plot the class distribution for each label
+                for lbi in range(self.num_classes):  # Iterate over 23 classes
+                    if lb_counter[lbi] > 0:  # Only plot if this label has any data
+                        if cid == 0:
+                            plt.fill_between([offset, offset + lb_counter[lbi]], y_bottom, y_top, facecolor=colors[lbi], label='Class ' + str(lbi))
+                        else:
+                            plt.fill_between([offset, offset + lb_counter[lbi]], y_bottom, y_top, facecolor=colors[lbi])
+                        offset += lb_counter[lbi]
+
+        # Set limits for the x-axis and y-axis
+        plt.xlim(0, max(data_columns))
+        plt.ylim(-0.5, len(train_cidxs) - 0.5)
+        plt.ylabel('Client ID')
+        plt.xlabel('Number of Samples')
+        
+        # Add title and legend
+        plt.title(self.get_taskname())
+        plt.legend(loc='lower right')
+        
+        # Save the figure as an image file
+        plt.savefig(os.path.join(self.taskpath, 'data_dist.jpg'))
+        plt.show()
+
 # =======================================Task Calculator===============================================
 # This module is to seperate the task-specific calculating part from the federated algorithms, since the
 # way of calculation (e.g. loss, evaluating metrics, optimizer) and the format of data (e.g. image, text)

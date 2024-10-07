@@ -65,18 +65,14 @@ class BaseDataset(torch.utils.data.Dataset):
             self.table = pa.concat_tables(tables, promote=True)
             #-------------------------------------------------------
             # # use a subset of data 
-            # total_rows = self.table.num_rows
-            # # Determine the range of rows you want to extract (for example, the first quarter of the data)
-            # start_index = 0
+            total_rows = self.table.num_rows
+            # Determine the range of rows you want to extract (for example, the first quarter of the data)
+            start_index = 0
             # print(total_rows)
-            # if split == 'train':
-            #     end_index = total_rows // 13.86         # 7: 592
-            # else:
-            #     # import pdb; pdb.set_trace()
-            #     end_index = total_rows // 12.458        # 7: 220
-            # # Extract the subset of the table
-            # # end_index = total_rows
-            # self.table = self.table.slice(start_index, end_index)
+            end_index = total_rows // 3        # train 5184, test 2599
+            # Extract the subset of the table
+            # end_index = total_rows
+            self.table = self.table.slice(start_index, end_index)
             #-------------------------------------------------------
             # import pdb; pdb.set_trace()
             self.labels = self.table['label'].to_pandas().tolist()
