@@ -149,6 +149,7 @@ class Logger(logging.Logger):
             wandb.define_metric("test_image_only_acc", summary="max")
             wandb.define_metric("test_miss_image_acc", summary="max")
             wandb.define_metric("test_text_only_acc", summary="max")
+
             wandb.define_metric("test_roc_auc", summary="max")
             wandb.define_metric("test_full_modal_roc_auc", summary="max")
             wandb.define_metric("test_miss_both_roc_auc", summary="max")
@@ -156,6 +157,14 @@ class Logger(logging.Logger):
             wandb.define_metric("test_image_only_roc_auc", summary="max")
             wandb.define_metric("test_miss_image_roc_auc", summary="max")
             wandb.define_metric("test_text_only_roc_auc", summary="max")
+
+            wandb.define_metric("test_f1_macro", summary="max")
+            wandb.define_metric("test_full_modal_f1_macro", summary="max")
+            wandb.define_metric("test_miss_both_f1_macro", summary="max")
+            wandb.define_metric("test_miss_text_f1_macro", summary="max")
+            wandb.define_metric("test_image_only_f1_macro", summary="max")
+            wandb.define_metric("test_miss_image_f1_macro", summary="max")
+            wandb.define_metric("test_text_only_f1_macro", summary="max")
 
             wandb.log(tmp, step=self.current_round)
 
