@@ -6,7 +6,7 @@ from collections import Counter
 for mode in ['train','test']:
     tables = [
                     pa.ipc.RecordBatchFileReader(
-                    pa.memory_map(f"benchmark/RAW_DATA/FOOD101/food101_{mode}.arrow", "r")
+                    pa.memory_map(f"benchmark/RAW_DATA/IMDB/generate_arrows/mmimdb_{mode}.arrow", "r")
                 ).read_all()
             ]
 
@@ -18,7 +18,7 @@ for mode in ['train','test']:
     total_rows = table.num_rows
     # Determine the range of rows you want to extract (for example, the first quarter of the data)
     start_index = 0
-    end_index = total_rows // 50
+    end_index = total_rows // 13.86
     # Extract the subset of the table
     table = table.slice(start_index, end_index)
     #-------------------------------------------------------

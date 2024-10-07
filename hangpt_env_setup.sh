@@ -30,12 +30,12 @@ cd ../../..
 python notebook/create_fols_imdb.py
 rm -r benchmark/RAW_DATA/IMDB/mmimdb
 python notebook/make_arrow_imdb.py
+mkdir benchmark/RAW_DATA/IMDB/missing_tables/
+mkdir benchmark/RAW_DATA/IMDB/missing_tables_other_tests/
 
 
 
 # HATEMEMES
 python notebook/make_arrow_hatememe.py
-
 mkdir benchmark/RAW_DATA/HATEMEME/missing_tables/
-
 mkdir benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/
