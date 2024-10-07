@@ -812,8 +812,8 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
-        # print("-------------------------SERVER_TEST-----------------------")
-        # print("Starting server test", datetime.now())
+        print("-------------------------SERVER_TEST-----------------------")
+        print("Starting server test", datetime.now())
         model.eval()
         if batch_size==-1:batch_size=len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
@@ -822,23 +822,26 @@ class TaskCalculator(ClassificationCalculator):
         total_loss = 0.0
         labels = list()
         predicts = list()   
-        # print("     Starting batch test", datetime.now())
+        print("     Starting batch test", datetime.now())
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
-            # print("          Starting 1 inference", datetime.now())
+            if batch_id==0:
+                print("          Starting 1 inference", datetime.now())
             loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
-            # print("          End 1 inference", datetime.now())
+            if batch_id==0:
+                print("          End 1 inference", datetime.now())
             total_loss += loss.item() * len(batch_data['label'])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
-            # print("     End each batch test", datetime.now())
+            if batch_id==0:
+                print("     End each batch test", datetime.now())
 
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
         result['loss'] = total_loss / len(dataset)
         result['acc'] = accuracy
-        # print("End server test", datetime.now())
+        print("End server test", datetime.now())
         return result
         
     

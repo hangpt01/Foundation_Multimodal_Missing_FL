@@ -365,6 +365,8 @@ class Client(BasicClient):
                 text_embeddings=text_embeddings,
                 data=batch_data
             )['loss']
+            if iter==0:
+                print('\t',datetime.now(),iter, loss)
             # print('\t',datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
