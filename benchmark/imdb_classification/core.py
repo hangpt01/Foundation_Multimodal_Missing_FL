@@ -551,7 +551,9 @@ class TaskGen(DefaultTaskGen):
             }
         self.transform_keys = ['pixelbert']
         self.image_size = 384
-        self.max_text_len = 40
+        # TO_DELETE
+        # self.max_text_len = 40
+        self.max_text_len = 1024
         self.draw_false_image = 0
         self.draw_false_text = 0
         self.image_only = False
