@@ -772,8 +772,8 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
-        print("-------------------------SERVER_TEST-----------------------")
-        print("Starting server test", datetime.now())
+        # print("-------------------------SERVER_TEST-----------------------")
+        # print("Starting server test", datetime.now())
         model.eval()
         if batch_size==-1:batch_size=len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
