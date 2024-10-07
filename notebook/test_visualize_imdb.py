@@ -30,7 +30,7 @@ def generate_iid_partition(generator):
     # Ensure that the labels are in numpy array format
     # labels = np.array(generator.train_data.labels)  # Convert labels to numpy array if it's a list
     labels = np.array([sample['labels'] for sample in generator.train_data])  # Convert list of labels to numpy array
-    
+    import pdb; pdb.set_trace()
     # Initialize the local data list for each client
     local_datas = [[] for _ in range(generator.num_clients)]
     
@@ -52,7 +52,7 @@ def generate_iid_partition(generator):
     # Optional: Shuffle each client's local data to ensure randomness
     for i in range(generator.num_clients):
         local_datas[i] = np.random.permutation(local_datas[i]).tolist()
-    
+
     return local_datas
 
 
@@ -77,12 +77,13 @@ def visualize_by_class_imdb(self, train_cidxs):
     # Number of samples per client
     data_columns = [len(cidx) for cidx in train_cidxs]
     row_map = {k: i for k, i in zip(np.argsort(data_columns), [_ for _ in range(self.num_clients)])}
-
+    # import pdb; pdb.set_trace()
+    # print([len(i) for i in train_cidxs])
     # Iterate over each client to visualize the class distribution
     for cid, cidxs in enumerate(train_cidxs):  # list of all clients' sample indices
         # Extract multi-label information for each sample
         labels_list = [self.train_data[did]['labels'] for did in cidxs]  # Assuming 'labels' is a list of 23 elements
-
+        
         # Initialize a counter for each class across the multi-label data
         lb_counter = np.zeros(self.num_classes)  # self.num_classes = 23 in this case
 
