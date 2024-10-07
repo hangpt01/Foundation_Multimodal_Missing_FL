@@ -432,7 +432,6 @@ def by_labels_non_iid_split(dataset, n_classes, n_clients, n_clusters, alpha, fr
     for idx in selected_indices:
         # import pdb; pdb.set_trace()
         label = dataset[idx]['label']
-        # import pdb; pdb.set_trace()
         group_id = label2cluster[int(label)]
         clusters_sizes[group_id] += 1
         clusters[group_id].append(idx)
@@ -484,6 +483,37 @@ def iid_partition(generator):
     return local_datas
 
 
+
+def iid_partition_imdb(generator):
+    import numpy as np
+    print(generator)
+    
+    labels = np.array(generator.train_data.labels)
+    # Initialize the local data list for each client
+    local_datas = [[] for _ in range(generator.num_clients)]
+    
+    # Iterate over each of the 23 labels (assuming the dataset has up to 23 possible labels)
+    for label in range(generator.num_classes):  # assuming num_classes is 23
+        # Find the indices of samples that have this label (multi-label case)
+        label_indices = np.where(labels[:, label] == 1)[0]  # multi-labels are binary vectors
+        
+        # Randomly shuffle the indices for this label
+        permutation = np.random.permutation(label_indices)
+        
+        # Split the permuted indices equally across all clients
+        split = np.array_split(permutation, generator.num_clients)
+        
+        # Assign the split indices to the respective clients
+        for i, idxs in enumerate(split):
+            local_datas[i] += idxs.tolist()  # Add the indices to each client's dataset
+            
+    # Optional: Shuffle each client's local data to ensure randomness
+    for i in range(generator.num_clients):
+        local_datas[i] = np.random.permutation(local_datas[i]).tolist()
+    
+    return local_datas
+
+
 class TaskGen(DefaultTaskGen):
     def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False, missing_ratio_train=0.7, missing_ratio_test=0.7, missing_type_train='both', missing_type_test='both', both_ratio=0.5):
         super(TaskGen, self).__init__(benchmark='imdb_classification',
@@ -494,13 +524,13 @@ class TaskGen(DefaultTaskGen):
                                       local_hld_rate=local_hld_rate,
                                       seed=seed)
         if self.dist_id==0:
-            self.partition = iid_partition
+            self.partition = iid_partition_imdb
         else: 
             self.partition = noniid_partition
         
-        self.num_classes = 8
+        self.num_classes = 23
         self.save_task=save_task
-        self.visualize=self.visualize_by_class
+        self.visualize=self.visualize_by_class_imdb
         # import pdb; pdb.set_trace()
         # self.rawdata_path = os.path.join(self.rawdata_path, str(self.num_classes)+'_classes')
         self.source_dict = {
@@ -666,8 +696,8 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==0:
-                break
+            # if batch_id==0:
+            #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
         roc_auc = roc_auc_score(labels, predicts)
@@ -703,8 +733,8 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            if batch_id==0:
-                break
+            # if batch_id==0:
+            #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
         roc_auc = roc_auc_score(labels, predicts)
@@ -750,8 +780,8 @@ class TaskCalculator(ClassificationCalculator):
             else:
                 total_loss = loss + total_loss
             # TO_DELETE
-            if batch_id==0:
-                break
+            # if batch_id==0:
+            #     break
         loss_eval = loss / (batch_id + 1) 
         # import pdb; pdb.set_trace()
         loss_eval = [loss for loss in loss_eval]
@@ -821,8 +851,8 @@ class TaskCalculator(ClassificationCalculator):
                 total_loss += loss.item() * len(batch_data['label'])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
                 # TO_DELETE
-                if batch_id==0:
-                    break
+                # if batch_id==0:
+                #     break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)
@@ -879,8 +909,8 @@ class TaskCalculator(ClassificationCalculator):
             # import pdb; pdb.set_trace()
             predicts.extend(predicted_classes.cpu().tolist())
             # TO_DELETE
-            if batch_id==0:
-                break
+            # if batch_id==0:
+            #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
         roc_auc = roc_auc_score(labels, predicts)
@@ -939,8 +969,8 @@ class TaskCalculator(ClassificationCalculator):
                 predicts.extend(predicted_classes.cpu().tolist())
             
                 # TO_DELETE
-                if batch_id==0:
-                    break
+                # if batch_id==0:
+                #     break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)

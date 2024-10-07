@@ -32,9 +32,11 @@ for mode in ['train','test']:
     # import pdb; pdb.set_trace()
     labels = table["label"].to_pandas().tolist()
     label_np = np.array(labels)
-    unilabel = [row for row in label_np if np.count_nonzero(row) == 1]
-    print(mode, len(unilabel))
-    # print(label_np.shape, np.unique(label_np), label_np[:5])
+    # unilabel = [row for row in label_np if np.count_nonzero(row) == 1]
+    # print(mode, len(unilabel))
+    
+    print(mode,label_np.shape, np.unique(label_np), label_np[:5])
+    print(Counter(labels))
     # import pdb; pdb.set_trace()
     # print(Counter(labels))
 # import pdb; pdb.set_trace()

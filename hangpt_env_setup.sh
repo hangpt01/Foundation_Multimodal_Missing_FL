@@ -34,6 +34,22 @@ mkdir benchmark/RAW_DATA/IMDB/missing_tables/
 mkdir benchmark/RAW_DATA/IMDB/missing_tables_other_tests/
 
 
+# change mmimdb arrow
+rm -r benchmark/RAW_DATA/IMDB/generate_arrows
+rm -r benchmark/RAW_DATA/IMDB/missing_tables/
+rm -r benchmark/RAW_DATA/IMDB/missing_tables_other_tests/
+python notebook/make_arrow_imdb.py
+mkdir benchmark/RAW_DATA/IMDB/missing_tables/
+mkdir benchmark/RAW_DATA/IMDB/missing_tables_other_tests/
+
+
+
+# Or download the arrows from ggdrive
+# test
+gdown 1CWMulgXrEXKjjAoW-so2JSYRsKLKp6za
+# train
+gdown 
+
 
 # HATEMEMES
 python notebook/make_arrow_hatememe.py

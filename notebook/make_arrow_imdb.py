@@ -215,7 +215,7 @@ def make_arrow(root, dataset_root, single_plot=False, missing_type=None):
     with open(f"{root}/split.json", "r") as fp:
         split_sets = json.load(fp)
         
-    merge_keys(split_sets, 'val', 'train')
+    merge_keys(split_sets, 'dev', 'train')
     
     total_genres = []
     for split, samples in split_sets.items():
@@ -251,9 +251,26 @@ def make_arrow(root, dataset_root, single_plot=False, missing_type=None):
                 "split",
             ],
         )
+        
+        # import pdb; pdb.set_trace()
+        df_filtered = dataframe[dataframe['label'].apply(lambda x: sum([1 for i in x if i != 0]) == 1)]
 
-        table = pa.Table.from_pandas(dataframe)
+        df_filtered['label'] = df_filtered['label'].apply(lambda x: x.index(1))
+        df_filtered = df_filtered[df_filtered['label'] < 23]
+        
+        label_counts = df_filtered['label'].value_counts()
+        top_8_labels = label_counts.nlargest(8).index
+        
+        label_mapping = {label: i for i, label in enumerate(top_8_labels)}
 
+        df_top_8 = df_filtered[df_filtered['label'].isin(top_8_labels)]
+        df_top_8['label'] = df_top_8['label'].map(label_mapping)
+        
+        
+        table = pa.Table.from_pandas(df_top_8)
+        
+        
+        # import pdb; pdb.set_trace()
         os.makedirs(dataset_root, exist_ok=True)
         with pa.OSFile(f"{dataset_root}/mmimdb_{split}.arrow", "wb") as sink:
             with pa.RecordBatchFileWriter(sink, table.schema) as writer:
