@@ -48,7 +48,7 @@ mkdir benchmark/RAW_DATA/IMDB/missing_tables_other_tests/
 # test
 gdown 1CWMulgXrEXKjjAoW-so2JSYRsKLKp6za
 # train
-gdown 
+gdown 1tP11TWnlQK8x3moG2IcC8CwW33deAwLL
 
 
 # HATEMEMES
