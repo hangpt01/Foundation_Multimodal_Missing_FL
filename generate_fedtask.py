@@ -14,6 +14,9 @@ def read_option():
     parser.add_argument('--missing_type_train', type=str, default='both')
     parser.add_argument('--missing_type_test', type=str, default='both')
     parser.add_argument('--both_ratio', type=float, default=0.5)
+    parser.add_argument('--max_text_len', help='Max text len (the larger the more informative)', type=int, default=40)
+
+
 
 
     # parser.add_argument('--num_classes', help='between 3, 10, and 101 (full);', type=int, default=10)
@@ -34,6 +37,7 @@ if __name__ == '__main__':
     TaskGen = getattr(importlib.import_module('.'.join(['benchmark', option['benchmark'], 'core'])), 'TaskGen')
     generator = TaskGen(
         dist_id = option['dist'],
+        option = option,
         skewness = option['skew'],
         num_clients=option['num_clients'],
         seed = option['seed'],
@@ -42,7 +46,8 @@ if __name__ == '__main__':
         missing_ratio_test = option['missing_ratio_test'],
         missing_type_train = option['missing_type_train'],
         missing_type_test = option['missing_type_test'],
-        both_ratio = option['both_ratio']
+        both_ratio = option['both_ratio'],
+        max_text_len = option['max_text_len']
         # num_classes = option['num_classes']
         # ,
         # missing_all_6 = option['missing_all_6'],

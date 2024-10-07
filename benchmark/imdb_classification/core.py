@@ -55,7 +55,7 @@ class TaskPipe(IDXTaskPipe):
         transform_keys = ['pixelbert']
         split="train"
         image_size = 384
-        max_text_len = 40
+        max_text_len = 1024
         draw_false_image = 0
         draw_false_text = 0
         image_only = False
@@ -487,7 +487,7 @@ def iid_partition(generator):
 
 
 class TaskGen(DefaultTaskGen):
-    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False, missing_ratio_train=0.7, missing_ratio_test=0.7, missing_type_train='both', missing_type_test='both', both_ratio=0.5):
+    def __init__(self, dist_id, option, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False, missing_ratio_train=0.7, missing_ratio_test=0.7, missing_type_train='both', missing_type_test='both', both_ratio=0.5):
         super(TaskGen, self).__init__(benchmark='imdb_classification',
                                       dist_id=dist_id, 
                                       num_clients=num_clients,
@@ -551,9 +551,7 @@ class TaskGen(DefaultTaskGen):
             }
         self.transform_keys = ['pixelbert']
         self.image_size = 384
-        # TO_DELETE
-        # self.max_text_len = 40
-        self.max_text_len = 1024
+        self.max_text_len = option['max_text_len']
         self.draw_false_image = 0
         self.draw_false_text = 0
         self.image_only = False
@@ -601,7 +599,7 @@ class TaskCalculator(ClassificationCalculator):
         self.n_leads=2
         self.DataLoader = DataLoader
         
-    def get_data_loader(self, dataset, batch_size=40, shuffle=True, num_workers=8, vocab_size=30522):
+    def get_data_loader(self, dataset, batch_size=64, shuffle=True, num_workers=8, vocab_size=30522):
         # import pdb; pdb.set_trace()
         collator = DataCollatorForLanguageModeling
         tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
@@ -783,25 +781,25 @@ class TaskCalculator(ClassificationCalculator):
         total_loss = 0.0
         labels = list()
         predicts = list()   
-        print("     Starting batch test", datetime.now())
+        # print("     Starting batch test", datetime.now())
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
-            if batch_id==0:
-                print("          Starting 1 inference", datetime.now())
+            # if batch_id==0:
+            #     print("          Starting 1 inference", datetime.now())
             loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
-            if batch_id==0:
-                print("          End 1 inference", datetime.now())
+            # if batch_id==0:
+            #     print("          End 1 inference", datetime.now())
             total_loss += loss.item() * len(batch_data['label'])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
-            if batch_id==0:
-                print("     End each batch test", datetime.now())
+            # if batch_id==0:
+            #     print("     End each batch test", datetime.now())
         labels = np.array(labels)
         predicts = np.array(predicts)
         f1_macro = f1_score(labels, predicts, average='macro')
         result['loss'] = total_loss / len(dataset)
         result['f1_macro'] = f1_macro
-        print("End server test", datetime.now())
+        # print("End server test", datetime.now())
         return result
         
     

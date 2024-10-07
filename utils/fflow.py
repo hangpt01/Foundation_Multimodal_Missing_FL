@@ -75,6 +75,7 @@ def read_option():
     parser.add_argument('--contrastive_weight', help='Local contrastive weight;', type=float, default=0.0)
     # Probabilistic prompt
     parser.add_argument('--num_outer_loops', help='Number of outer loop in Probabilistic prompts;', type=int, default=0.0)
+    parser.add_argument('--max_text_len', help='Max text len (the larger the more informative)', type=int, default=40)
     parser.add_argument('--note', help='Note for some special params;', type=str, default="")
     
 

@@ -118,7 +118,7 @@ if __name__=='__main__':
     transform_keys = ['pixelbert']
     split="test"
     image_size = 384
-    max_text_len = 40
+    max_text_len = 1024
     draw_false_image = 0
     draw_false_text = 0
     image_only = False

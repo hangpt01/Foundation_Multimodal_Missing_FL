@@ -23,9 +23,7 @@ class Server(BasicServer):
                                 'learnt_p': True, 
                                 'prompt_layers': [0, 1, 2, 3, 4, 5], 
                                 'multi_layer_prompt': True, 
-                                # TO_DELETE
-                                # 'max_text_len': 40, 
-                                'max_text_len': 1024, 
+                                'max_text_len': option['max_text_len'], 
                                 'vocab_size': 30522, 
                                 'vit': 'vit_base_patch32_384', 
                                 'hidden_size': 768, 
@@ -351,8 +349,8 @@ class Client(BasicClient):
                 text_embeddings=text_embeddings,
                 data=batch_data
             )['loss']
-            if iter==0:
-                print('\t',datetime.now(),iter, loss)
+            # if iter==0:
+            #     print('\t',datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
         
