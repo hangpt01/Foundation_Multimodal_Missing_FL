@@ -57,7 +57,7 @@ class Model(FModule):
                                 'learnt_p': True, 
                                 'prompt_layers': [0, 1, 2, 3, 4, 5], 
                                 'multi_layer_prompt': True, 
-                                'max_text_len': 40, 
+                                'max_text_len': option['max_text_len'], 
                                 'vocab_size': 30522, 
                                 'hidden_size': 768, 
                                 'num_heads': 12, 

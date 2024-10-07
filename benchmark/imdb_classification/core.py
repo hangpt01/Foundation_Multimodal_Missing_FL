@@ -55,7 +55,8 @@ class TaskPipe(IDXTaskPipe):
         transform_keys = ['pixelbert']
         split="train"
         image_size = 384
-        max_text_len = 1024
+        # TO_DELETE
+        max_text_len = 512
         draw_false_image = 0
         draw_false_text = 0
         image_only = False
