@@ -56,7 +56,7 @@ class TaskPipe(IDXTaskPipe):
         split="train"
         image_size = 384
         # TO_DELETE
-        max_text_len = 128
+        max_text_len = 512
         draw_false_image = 0
         draw_false_text = 0
         image_only = False
