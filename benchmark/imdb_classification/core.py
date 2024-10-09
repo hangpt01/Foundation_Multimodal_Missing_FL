@@ -56,7 +56,7 @@ class TaskPipe(IDXTaskPipe):
         split="train"
         image_size = 384
         # TO_DELETE
-        max_text_len = 512
+        max_text_len = 128
         draw_false_image = 0
         draw_false_text = 0
         image_only = False
@@ -488,7 +488,7 @@ def iid_partition(generator):
 
 
 class TaskGen(DefaultTaskGen):
-    def __init__(self, dist_id, option, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False, missing_ratio_train=0.7, missing_ratio_test=0.7, missing_type_train='both', missing_type_test='both', both_ratio=0.5):
+    def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False, missing_ratio_train=0.7, missing_ratio_test=0.7, missing_type_train='both', missing_type_test='both', both_ratio=0.5, max_text_len=40):
         super(TaskGen, self).__init__(benchmark='imdb_classification',
                                       dist_id=dist_id, 
                                       num_clients=num_clients,
@@ -552,7 +552,7 @@ class TaskGen(DefaultTaskGen):
             }
         self.transform_keys = ['pixelbert']
         self.image_size = 384
-        self.max_text_len = option['max_text_len']
+        self.max_text_len = max_text_len
         self.draw_false_image = 0
         self.draw_false_text = 0
         self.image_only = False

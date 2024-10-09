@@ -10,4 +10,4 @@ python generate_fedtask.py \
     --missing_type_train text \
     --missing_type_test text \
     --both_ratio 0 \
-    --max_text_len 1024
+    --max_text_len 512

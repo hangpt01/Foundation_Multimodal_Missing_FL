@@ -9,13 +9,13 @@ python main.py \
     --lr_scheduler 0 \
     --seed 1234 \
     --fedmsplit_prox_lambda 0 \
-    --learning_rate 0.05 \
+    --learning_rate 0.01 \
     --num_epochs 1 \
     --num_outer_loops 5 \
     --learning_rate_decay 1.0 \
     --note size_20_topk_5x2 \
-    --batch_size 128 \
-    --test_batch_size 128 \
-    --max_text_len 512 \
+    --batch_size 256 \
+    --test_batch_size 256 \
+    --max_text_len 128 \
     --gpu 0 \
     --wandb

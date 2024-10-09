@@ -37,7 +37,6 @@ if __name__ == '__main__':
     TaskGen = getattr(importlib.import_module('.'.join(['benchmark', option['benchmark'], 'core'])), 'TaskGen')
     generator = TaskGen(
         dist_id = option['dist'],
-        option = option,
         skewness = option['skew'],
         num_clients=option['num_clients'],
         seed = option['seed'],
