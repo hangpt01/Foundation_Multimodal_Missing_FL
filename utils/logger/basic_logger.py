@@ -166,6 +166,14 @@ class Logger(logging.Logger):
             wandb.define_metric("test_miss_image_f1_macro", summary="max")
             wandb.define_metric("test_text_only_f1_macro", summary="max")
 
+            wandb.define_metric("test_f1_weighted", summary="max")
+            wandb.define_metric("test_full_modal_f1_weighted", summary="max")
+            wandb.define_metric("test_miss_both_f1_weighted", summary="max")
+            wandb.define_metric("test_miss_text_f1_weighted", summary="max")
+            wandb.define_metric("test_image_only_f1_weighted", summary="max")
+            wandb.define_metric("test_miss_image_f1_weighted", summary="max")
+            wandb.define_metric("test_text_only_f1_weighted", summary="max")
+
             wandb.log(tmp, step=self.current_round)
 
     def get_output_name(self, suffix='.json', prefix_log_filename=None):

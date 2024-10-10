@@ -199,15 +199,16 @@ class Server(BasicServer):
         #print(temp.shape)
         del agg
         with torch.no_grad():
-            self.client_global_pools.append(copy.deepcopy(new_model.global_pool))
             # print(new_model.global_pool.prompt[new_model.global_pool.top_k_idx])
             new_model.global_pool.prompt = nn.Parameter(temp, requires_grad=True)
+            self.client_global_pools.append(copy.deepcopy(new_model.global_pool))
             for k in range(n_models):
                 self.clients[self.selected_clients[k]].local_model.global_pool.prompt = new_model.global_pool.prompt
         print("Temp", temp.shape[0])
                 
         new_model.reset_trained_prompts_checklist()
         for k in range(n_models):
+            self.client_global_pools.append(copy.deepcopy(self.clients[self.selected_clients[k]].local_model.global_pool))
             self.clients[self.selected_clients[k]].local_model.reset_trained_prompts_checklist()
         return new_model
     

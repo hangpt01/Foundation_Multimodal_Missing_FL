@@ -676,9 +676,11 @@ class TaskCalculator(ClassificationCalculator):
         labels = np.array(labels)
         predicts = np.array(predicts)
         f1_macro = f1_score(labels, predicts, average='macro')
+        f1_weighted = f1_score(labels, predicts, average='weighted')
         return {
             'loss': total_loss / (batch_id+1),
-            'f1_macro': f1_macro
+            'f1_macro': f1_macro,
+            'f1_weighted': f1_weighted
         }
     
 
@@ -713,18 +715,11 @@ class TaskCalculator(ClassificationCalculator):
         labels = np.array(labels)
         predicts = np.array(predicts)
         f1_macro = f1_score(labels, predicts, average='macro')
-        # print("Client {}\n".format(client_id+1), labels, predicts)
-        # if current_round % 1 == 0:
-        #     confusion_matrix_save_path = 'fedtask/' + option['task'] + '/plot_confusion_matrix/' + option['model']
-        #     if not os.path.exists(confusion_matrix_save_path):
-        #         os.makedirs(confusion_matrix_save_path)
-        #     confusion_matrix_save_file = confusion_matrix_save_path + '/client_{}_confusion_matrix_round'.format(client_id+1) + str(current_round)
-        #     list_class = list(range(1,9))
-        #     if option['wandb']:
-        #         plot_confusion_matrix(labels, predicts, 'client_{}'.format(client_id+1), current_round, confusion_matrix_save_file, list_class)
+        f1_weighted = f1_score(labels, predicts, average='weighted')
         return {
             'loss': total_loss / (batch_id+1),
-            'f1_macro': f1_macro
+            'f1_macro': f1_macro,
+            'f1_weighted': f1_weighted
         }
 
     @torch.no_grad()
@@ -800,8 +795,10 @@ class TaskCalculator(ClassificationCalculator):
         labels = np.array(labels)
         predicts = np.array(predicts)
         f1_macro = f1_score(labels, predicts, average='macro')
+        f1_weighted = f1_score(labels, predicts, average='weighted')
         result['loss'] = total_loss / len(dataset)
         result['f1_macro'] = f1_macro
+        result['f1_weighted'] = f1_weighted
         # print("End server test", datetime.now())
         return result
         
@@ -842,10 +839,12 @@ class TaskCalculator(ClassificationCalculator):
             labels = np.array(labels)
             predicts = np.array(predicts)
             f1_macro = f1_score(labels, predicts, average='macro')
+            f1_weighted = f1_score(labels, predicts, average='weighted')
             # for i in range(self.n_leads):
             #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result[names[i]+'_loss'] = total_loss / len(dataset)
             result[names[i]+'_f1_macro'] = f1_macro
+            result[names[i]+'_f1_weighted'] = f1_weighted
         return result
 
 
@@ -899,8 +898,10 @@ class TaskCalculator(ClassificationCalculator):
         labels = np.array(labels)
         predicts = np.array(predicts)
         f1_macro = f1_score(labels, predicts, average='macro')
+        f1_weighted = f1_score(labels, predicts, average='weighted')
         result['loss'] = total_loss / len(dataset)
         result['f1_macro'] = f1_macro
+        result['f1_weighted'] = f1_weighted
         return result
 
 
@@ -960,10 +961,84 @@ class TaskCalculator(ClassificationCalculator):
             labels = np.array(labels)
             predicts = np.array(predicts)
             f1_macro = f1_score(labels, predicts, average='macro')
+            f1_weighted = f1_score(labels, predicts, average='weighted')
             # for i in range(self.n_leads):
             #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result[names[i]+'_loss'] = total_loss / len(dataset)
             result[names[i]+'_f1_macro'] = f1_macro
+            result[names[i]+'_f1_weighted'] = f1_weighted
+        return result
+
+    @torch.no_grad()
+    def server_test_agglo_median_soft_voting(self, model, transformer, text_embeddings, dataset, batch_size=64, num_workers=0):
+        """
+        Metric = [mean_accuracy, mean_loss]
+        :param model:
+        :param dataset:
+        :param batch_size:
+        :return: [mean_accuracy, mean_loss]
+        """
+        # import pdb; pdb.set_trace()
+        # print("-------------------------SERVER_TEST_SOFT_VOTING-----------------------")
+        # print("Starting server test - Soft voting", datetime.now())
+        model.eval()
+        if batch_size==-1:batch_size=len(dataset)
+        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
+        result = dict() 
+        total_loss = 0.0
+        labels = list()
+        predicts = list()   
+
+        # Get representative pools using clustering based on prompt similarity
+        representative_pools = get_representative_pools_agglomerative(model, n_clusters=3)
+
+        # print("     Starting batch test - Soft voting", datetime.now())
+        for batch_id, batch_data in enumerate(data_loader):
+            avg_loss = 0
+            avg_probabilities = list()
+            batch_data = self.data_to_device(batch_data)
+            labels.extend(batch_data['label'])
+            # print("          Starting each ensembled model - Soft voting", datetime.now())
+            
+            for glo_pool in representative_pools:
+                model.global_pool = glo_pool
+                # print("               Starting 1 inference", datetime.now())
+                loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
+                # print("               End 1 inference", datetime.now())
+                probabilities = F.softmax(outputs, dim=1)
+                # if avg_probabilities.device != probabilities.device:
+                #     avg_probabilities = avg_probabilities.to(probabilities.device)
+                # import pdb; pdb.set_trace()
+                avg_probabilities.append(probabilities)
+                avg_loss += loss
+                # print("          End each ensembled model - Soft voting", datetime.now())
+                
+            # print("Average prob", avg_probabilities)
+            # import pdb; pdb.set_trace()
+            median_probabilities, _ = torch.median(torch.stack(avg_probabilities), dim=0)
+            # avg_probabilities /= len(model.client_local_prompts)
+            avg_loss /= len(model.client_global_pools)
+
+            predicted_classes = torch.argmax(median_probabilities, dim=1)
+            total_loss += avg_loss.item() * len(batch_data['label'])
+            # import pdb; pdb.set_trace()
+            predicts.extend(predicted_classes.cpu().tolist())
+            # TO_DELETE
+            # if batch_id==0:
+            #     break
+            # print("     End batch test - Soft voting", datetime.now())
+
+        labels = np.array(labels)
+        predicts = np.array(predicts)
+        f1_macro = f1_score(labels, predicts, average='macro')
+        f1_weighted = f1_score(labels, predicts, average='weighted')
+        result['loss'] = total_loss / len(dataset)
+        result['f1_macro'] = f1_macro
+        result['f1_weighted'] = f1_weighted
+        # print("End server test - Soft voting", datetime.now())
+
+        # print(accuracy)
+        # import pdb; pdb.set_trace()
         return result
 
     @torch.no_grad()
@@ -1034,11 +1109,13 @@ class TaskCalculator(ClassificationCalculator):
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)
-            accuracy = accuracy_score(labels, predicts)
+            f1_macro = f1_score(labels, predicts, average='macro')
+            f1_weighted = f1_score(labels, predicts, average='weighted')
             # for i in range(self.n_leads):
             #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result[names[i]+'_loss'] = total_loss / len(dataset)
-            result[names[i]+'_acc'] = accuracy
+            result[names[i]+'_f1_macro'] = f1_macro
+            result[names[i]+'_f1_weighted'] = f1_weighted
         
         # print("End other server test - Soft voting", datetime.now())
             
@@ -1111,6 +1188,7 @@ def get_representative_pools_agglomerative(model, n_clusters=3):
     
     flattened_prompts = np.array(flattened_prompts)
     # Apply Agglomerative Clustering
+    # import pdb; pdb.set_trace()
     agglomerative = AgglomerativeClustering(n_clusters=n_clusters)
     cluster_labels = agglomerative.fit_predict(flattened_prompts)
     
