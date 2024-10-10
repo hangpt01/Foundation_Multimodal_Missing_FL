@@ -41,6 +41,10 @@ class Server(BasicServer):
                                 'max_image_len': 40,
                                 'load_path': 'benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
+        # the first element is the aggregated global model (new model)
+        self.client_local_pools = list()
+        self.client_global_pools = list()
+
         self.transformer = getattr(vit, self.hparams_config["vit"])(
             pretrained=False, config=self.hparams_config
         )
@@ -159,8 +163,13 @@ class Server(BasicServer):
         # local prompt
         average_prompt = sum(pk * model.pool.prompt for pk, model in zip(p, models))  / sum(p)
         new_model.pool.prompt = nn.Parameter(average_prompt)
+
+        self.client_local_pools.append(copy.deepcopy(new_model.pool))
+        # print(new_model.pool.prompt[new_model.pool.top_k_idx])
         
         for k in range(n_models):
+            self.client_local_pools.append(copy.deepcopy(self.clients[self.selected_clients[k]].local_model.pool))
+            # print(self.clients[self.selected_clients[k]].local_model.pool.prompt[self.clients[self.selected_clients[k]].local_model.pool.top_k_idx])
             self.clients[self.selected_clients[k]].local_model.pooler = new_model.pooler
             self.clients[self.selected_clients[k]].local_model.classifier = new_model.classifier
             self.clients[self.selected_clients[k]].local_model.pool.prompt = new_model.pool.prompt
@@ -190,6 +199,8 @@ class Server(BasicServer):
         #print(temp.shape)
         del agg
         with torch.no_grad():
+            self.client_global_pools.append(copy.deepcopy(new_model.global_pool))
+            # print(new_model.global_pool.prompt[new_model.global_pool.top_k_idx])
             new_model.global_pool.prompt = nn.Parameter(temp, requires_grad=True)
             for k in range(n_models):
                 self.clients[self.selected_clients[k]].local_model.global_pool.prompt = new_model.global_pool.prompt
@@ -225,25 +236,28 @@ class Server(BasicServer):
             metrics: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
         # return dict()
-        if model is None: model=self.model
+        if model is None: model=copy.deepcopy(self.model)
+        model.client_global_pools = self.client_global_pools
+        model.client_local_pools = self.client_local_pools
+
         if self.test_data:
-            result = self.calculator.server_test(
-                model=model,
+            result = self.calculator.server_test_agglo_median_soft_voting(
+                model=copy.deepcopy(model),
                 transformer=self.transformer,
                 text_embeddings=self.text_embeddings,
                 dataset=self.test_data,
-                batch_size=self.option['test_batch_size'],
-                option=self.option,
-                current_round = self.current_round
+                batch_size=self.option['test_batch_size']
             )
             if self.other_test_datas:
-                result.update(self.calculator.server_other_test(
-                    model=model,
+                result.update(self.calculator.server_other_test_agglo_median_soft_voting(
+                    model=copy.deepcopy(model),
                     transformer=self.transformer,
                     text_embeddings=self.text_embeddings,
                     datasets=self.other_test_datas,
-                    batch_size=self.option['test_batch_size']
-                ))
+                    batch_size=self.option['test_batch_size'])
+                    )
+            self.client_global_pools = list()
+            self.client_local_pools = list()
             return result
         
         else:
