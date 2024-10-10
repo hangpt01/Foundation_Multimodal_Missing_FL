@@ -14,6 +14,6 @@ python main.py \
     --learning_rate_decay 1.0 \
     --batch_size 128 \
     --test_batch_size 128 \
-    --max_text_len 512 \
+    --max_text_len 128 \
     --gpu 0 \
     --wandb
