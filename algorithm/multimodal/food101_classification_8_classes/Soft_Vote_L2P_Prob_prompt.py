@@ -34,7 +34,7 @@ class Server(BasicServer):
                         'drop_rate': 0.1,
                         'mlp_ratio': 4,
                         'max_image_len': 40,
-                        'load_path': 'benchmark/food101_classification_arrow/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
+                        'load_path': 'benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
         # the first element is the aggregated global model (new model)
         self.client_local_pools = list()

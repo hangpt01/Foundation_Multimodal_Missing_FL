@@ -13,8 +13,9 @@ python main.py \
     --num_epochs 1 \
     --num_outer_loops 5 \
     --learning_rate_decay 1.0 \
-    --note num_cluster_3 \
+    --note 3clusters_loadvilt \
     --batch_size 512 \
     --test_batch_size 512 \
+    --max_text_len 40 \
     --gpu 0 \
     --wandb

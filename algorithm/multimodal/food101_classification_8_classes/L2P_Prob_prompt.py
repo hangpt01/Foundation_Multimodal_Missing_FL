@@ -14,6 +14,11 @@ from datetime import datetime
 from collections import Counter
 import wandb
 
+# ViLT related functions
+def remove_prefix_from_state_dict(state_dict, prefix):
+    return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix)}
+
+
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
@@ -34,7 +39,7 @@ class Server(BasicServer):
                         'drop_rate': 0.1,
                         'mlp_ratio': 4,
                         'max_image_len': 40,
-                        'load_path': 'benchmark/food101_classification_arrow/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
+                        'load_path': 'benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
         self.transformer = getattr(vit, self.hparams_config["vit"])(
             pretrained=False, config=self.hparams_config
@@ -59,6 +64,26 @@ class Server(BasicServer):
             param.requires_grad=False
 
         # self.get_missing_type()
+
+
+        # Load ViLT Model
+        ckpt = torch.load(self.hparams_config["load_path"], map_location="cpu")
+        state_dict = ckpt["state_dict"]
+        # since the pre-trained max_text_len is 40,
+        # we upsample the weight of position embedding to determined max_text_len
+        if self.hparams_config["max_text_len"] != 40:
+            state_dict['text_embeddings.position_ids'] = torch.Tensor(range(self.hparams_config["max_text_len"])).long().view(1,-1)
+            pos_emb = state_dict['text_embeddings.position_embeddings.weight']
+            pos_emb = torch.nn.functional.interpolate(pos_emb.view(1,1,40,768), size=(self.hparams_config["max_text_len"],768), mode='bilinear').squeeze()
+            state_dict['text_embeddings.position_embeddings.weight'] = pos_emb
+
+        transformer_state_dict = remove_prefix_from_state_dict(state_dict, 'transformer.')
+        text_embeddings_state_dict = remove_prefix_from_state_dict(state_dict, 'text_embeddings.')
+        # Load the state_dicts into transformer and text_embeddings
+        self.transformer.load_state_dict(transformer_state_dict, strict=False)
+        self.text_embeddings.load_state_dict(text_embeddings_state_dict, strict=False)
+
+
 
     def get_missing_type (self):
         dataset = self.test_data

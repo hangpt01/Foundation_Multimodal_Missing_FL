@@ -55,3 +55,9 @@ gdown 1tP11TWnlQK8x3moG2IcC8CwW33deAwLL
 python notebook/make_arrow_hatememe.py
 mkdir benchmark/RAW_DATA/HATEMEME/missing_tables/
 mkdir benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/
+
+
+# pretrained ViLT
+mkdir benchmark/pretrained_model_weight/
+cd benchmark/pretrained_model_weight/
+wget https://github.com/dandelin/ViLT/releases/download/200k/vilt_200k_mlm_itm.ckpt

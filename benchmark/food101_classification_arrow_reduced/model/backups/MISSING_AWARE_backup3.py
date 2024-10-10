@@ -133,7 +133,7 @@ class Model(FModule):
                         'num_layers': 12, 
                         'drop_rate': 0.1,
                         'max_image_len': 40,
-                        'load_path': 'benchmark/food101_classification_arrow/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
+                        'load_path': 'benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
         self.device = None
         self.transformer = getattr(vit, self.hparams_config["vit"])(
