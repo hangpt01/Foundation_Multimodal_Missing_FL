@@ -9,4 +9,5 @@ python generate_fedtask.py \
     --missing_ratio_test 0.7 \
     --missing_type_train text \
     --missing_type_test text \
-    --both_ratio 0
+    --both_ratio 0 \
+    --max_text_len 40

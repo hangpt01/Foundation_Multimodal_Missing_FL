@@ -13,7 +13,7 @@ gdown 15fZdhTr7mLsM6JIKCu74dn6-zwSZbbYF
 gdown 1g-4BOS4vIdjcRLdJEHnhWPRXI0Q2JWNO
 cd ../../..
 pip install -r requirements.txt
-python notebook/make_arrow.py
+python notebook/make_arrow_food101.py
 mkdir benchmark/RAW_DATA/FOOD101/missing_tables_8_classes/
 mkdir benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/
 bash script/food101/8_classes/image_1_text_0.3/iid/20clients.sh
@@ -55,6 +55,12 @@ gdown 1tP11TWnlQK8x3moG2IcC8CwW33deAwLL
 python notebook/make_arrow_hatememe.py
 mkdir benchmark/RAW_DATA/HATEMEME/missing_tables/
 mkdir benchmark/RAW_DATA/HATEMEME/missing_tables_other_tests/
+
+
+# pytorch-lightning
+pip install pytorch-lightning==1.1.4
+# or
+python3 -m pip install pytorch-lightning==1.1.4
 
 
 # pretrained ViLT
