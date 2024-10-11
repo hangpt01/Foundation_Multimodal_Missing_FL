@@ -1087,7 +1087,7 @@ class TaskCalculator(ClassificationCalculator):
                 
             # print("Average prob", avg_probabilities)
             # import pdb; pdb.set_trace()
-            avg_probabilities, _ = torch.mean(torch.stack(avg_probabilities), dim=0)
+            avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
             # avg_probabilities /= len(model.client_local_prompts)
             avg_loss /= len(model.client_global_pools)
 
@@ -1248,7 +1248,7 @@ class TaskCalculator(ClassificationCalculator):
                     # print("          End each ensembled model - Soft voting", datetime.now())
                 
                 
-                avg_probabilities, _ = torch.mean(torch.stack(avg_probabilities), dim=0)
+                avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
                 avg_loss /= len(model.client_global_pools)
 
                 predicted_classes = torch.argmax(avg_probabilities, dim=1)
