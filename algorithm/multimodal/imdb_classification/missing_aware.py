@@ -78,12 +78,6 @@ class Server(BasicServer):
         self.test_data, self.other_test_datas = test_data
         self.text_embeddings = BertEmbeddings(bert_config)
         self.text_embeddings.apply(init_weights)
-        for param in self.transformer.parameters():
-            param.requires_grad=False
-        for param in self.text_embeddings.parameters():
-            param.requires_grad=False
-
-
 
         # Load ViLT Model
         ckpt = torch.load(self.hparams_config["load_path"], map_location="cpu")
@@ -96,95 +90,17 @@ class Server(BasicServer):
             pos_emb = torch.nn.functional.interpolate(pos_emb.view(1,1,40,768), size=(self.hparams_config["max_text_len"],768), mode='bilinear').squeeze()
             state_dict['text_embeddings.position_embeddings.weight'] = pos_emb
 
-        # List all items related to the transformer
-        # print("Transformer-related items:")
-        # for key in state_dict.keys():
-        #     if key.startswith('transformer'):
-        #         print(key)
-
-        # # List all items related to text embeddings
-        # print("\nText embeddings-related items:")
-        # for key in state_dict.keys():
-        #     if key.startswith('text_embeddings'):
-        #         print(key)
-        # import pdb; pdb.set_trace()
-        
-        # transformer_state_dict = {k: v for k, v in state_dict.items() if k.startswith('transformer')}
-        # text_embeddings_state_dict = {k: v for k, v in state_dict.items() if k.startswith('text_embeddings')}
-
-
-        # # Compare transformer before loading state_dict
-        # compare_model_parameters(self.transformer, transformer_state_dict, "Transformer")
-
-        # # Compare text_embeddings before loading state_dict
-        # compare_model_parameters(self.text_embeddings, text_embeddings_state_dict, "Text Embeddings")
-
-        # # Now load the state_dict into transformer and text_embeddings
-        # self.transformer.load_state_dict(transformer_state_dict, strict=False)
-        # self.text_embeddings.load_state_dict(text_embeddings_state_dict, strict=False)
-
-        # # Compare transformer after loading state_dict
-        # compare_model_parameters(self.transformer, transformer_state_dict, "Transformer (After Loading)")
-
-        # # Compare text_embeddings after loading state_dict
-        # compare_model_parameters(self.text_embeddings, text_embeddings_state_dict, "Text Embeddings (After Loading)")
-        # import pdb; pdb.set_trace()
-
-        # Remove the 'transformer.' and 'text_embeddings.' prefixes
         transformer_state_dict = remove_prefix_from_state_dict(state_dict, 'transformer.')
         text_embeddings_state_dict = remove_prefix_from_state_dict(state_dict, 'text_embeddings.')
-
-        # Compare the parameters before loading the state_dicts
-        # print("===== Before Loading State Dict =====")
-        # compare_model_parameters(self.transformer, transformer_state_dict, "Transformer")
-        # compare_model_parameters(self.text_embeddings, text_embeddings_state_dict, "Text Embeddings")
-
         # Load the state_dicts into transformer and text_embeddings
         self.transformer.load_state_dict(transformer_state_dict, strict=False)
         self.text_embeddings.load_state_dict(text_embeddings_state_dict, strict=False)
 
-        # Compare the parameters after loading the state_dicts
-        # print("\n===== After Loading State Dict =====")
-        # compare_model_parameters(self.transformer, transformer_state_dict, "Transformer (After Loading)")
-        # compare_model_parameters(self.text_embeddings, text_embeddings_state_dict, "Text Embeddings (After Loading)")
-        # import pdb; pdb.set_trace()
+        for param in self.transformer.parameters():
+            param.requires_grad=False
+        for param in self.text_embeddings.parameters():
+            param.requires_grad=False
 
-
-        # if self.hparams.config["load_path"] != "" and self.hparams.config["finetune_first"]:
-        #     ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
-        #     state_dict = ckpt["state_dict"]
-        #     self.load_state_dict(state_dict, strict=False)            
-        #     print("use pre-finetune model")
-        
-        # if self.hparams.config["load_path"] != "" and self.hparams.config["test_only"]:
-        #     ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
-        #     state_dict = ckpt["state_dict"]
-        #     self.load_state_dict(state_dict, strict=False)
-        # self.records = {}
-
-
-        # config = {
-        #     "load_path": "benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt",  # Example path to the checkpoint
-        #     "max_text_len": 50,                 # Example max_text_len
-        # }
-
-        # # Load checkpoint using standard PyTorch
-        # ckpt = torch.load(config["load_path"], map_location="cpu")
-        # state_dict = ckpt["state_dict"]
-
-        # # Since the pre-trained max_text_len is 40, upsample the position embeddings
-        # if config["max_text_len"] != 40:
-        #     # Update position_ids
-        #     state_dict['text_embeddings.position_ids'] = torch.Tensor(range(config["max_text_len"])).long().view(1, -1)
-
-        #     # Interpolate position embeddings weight to match the new max_text_len
-        #     pos_emb = state_dict['text_embeddings.position_embeddings.weight']
-        #     pos_emb = torch.nn.functional.interpolate(pos_emb.view(1, 1, 40, 768), size=(config["max_text_len"], 768), mode='bilinear').squeeze()
-        #     state_dict['text_embeddings.position_embeddings.weight'] = pos_emb
-
-        # # Load the state_dict into the model (standard PyTorch)
-        # # model = YourModel()  # Initialize your model here
-        # model.load_state_dict(state_dict, strict=False)
 
     def get_missing_type (self):
         dataset = self.test_data

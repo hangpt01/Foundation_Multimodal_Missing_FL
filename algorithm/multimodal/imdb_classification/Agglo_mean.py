@@ -243,7 +243,7 @@ class Server(BasicServer):
         model.client_local_pools = self.client_local_pools
 
         if self.test_data:
-            result = self.calculator.server_test_agglo_median_soft_voting(
+            result = self.calculator.server_test_agglo_mean_soft_voting(
                 model=copy.deepcopy(model),
                 transformer=self.transformer,
                 text_embeddings=self.text_embeddings,
@@ -251,7 +251,7 @@ class Server(BasicServer):
                 batch_size=self.option['test_batch_size']
             )
             if self.other_test_datas:
-                result.update(self.calculator.server_other_test_agglo_median_soft_voting(
+                result.update(self.calculator.server_other_test_agglo_mean_soft_voting(
                     model=copy.deepcopy(model),
                     transformer=self.transformer,
                     text_embeddings=self.text_embeddings,

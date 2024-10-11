@@ -55,10 +55,6 @@ class Server(BasicServer):
         self.test_data, self.other_test_datas = test_data
         self.text_embeddings = BertEmbeddings(bert_config)
         self.text_embeddings.apply(init_weights)
-        for param in self.transformer.parameters():
-            param.requires_grad=False
-        for param in self.text_embeddings.parameters():
-            param.requires_grad=False
 
         # self.get_missing_type()
 
@@ -80,6 +76,10 @@ class Server(BasicServer):
         self.transformer.load_state_dict(transformer_state_dict, strict=False)
         self.text_embeddings.load_state_dict(text_embeddings_state_dict, strict=False)
 
+        for param in self.transformer.parameters():
+            param.requires_grad=False
+        for param in self.text_embeddings.parameters():
+            param.requires_grad=False
 
     def get_missing_type (self):
         dataset = self.test_data

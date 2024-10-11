@@ -8,31 +8,42 @@ from tqdm import tqdm
 import torch
 from torch import nn
 from transformers.models.bert.modeling_bert import BertConfig, BertEmbeddings
-import algorithm.multimodal.food101_classification_arrow.vision_transformer_prompts as vit
+import algorithm.multimodal.food101_classification_8_classes.vision_transformer_prompts as vit
+from algorithm.multimodal.food101_classification_8_classes.nonparametric_aggregation import *
 from datetime import datetime
 from collections import Counter
-from sklearn.cluster import KMeans
 import wandb
+
+# ViLT related functions
+def remove_prefix_from_state_dict(state_dict, prefix):
+    return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix)}
 
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 2
-        self.hparams_config = {'prompt_type': 'input', 
-                                'prompt_length': 16, 
-                                'learnt_p': True, 
-                                'prompt_layers': [0, 1, 2, 3, 4, 5], 
-                                'multi_layer_prompt': True, 
-                                'max_text_len': option['max_text_len'], 
-                                'vocab_size': 30522, 
-                                'vit': 'vit_base_patch32_384', 
-                                'hidden_size': 768, 
-                                'num_heads': 12, 
-                                'num_layers': 12, 
-                                'drop_rate': 0.1,
-                                'mlp_ratio': 4,
-                                'max_image_len': 40}
+        self.num_outer_loops = option['num_outer_loops']
+        self.hparams_config = {'batch_size': 32, 
+                        'prompt_type': 'input', 
+                        'prompt_length': 16, 
+                        'learnt_p': True, 
+                        'prompt_layers': [0, 1, 2, 3, 4, 5], 
+                        'multi_layer_prompt': True, 
+                        'max_text_len': option['max_text_len'], 
+                        'vocab_size': 30522, 
+                        'vit': 'vit_base_patch32_384', 
+                        'hidden_size': 768, 
+                        'num_heads': 12, 
+                        'num_layers': 12, 
+                        'drop_rate': 0.1,
+                        'mlp_ratio': 4,
+                        'max_image_len': 40,
+                        'load_path': 'benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
+        # the first element is the aggregated global model (new model)
+        self.client_local_pools = list()
+        self.client_global_pools = list()
+
         self.transformer = getattr(vit, self.hparams_config["vit"])(
             pretrained=False, config=self.hparams_config
         )
@@ -46,32 +57,45 @@ class Server(BasicServer):
             hidden_dropout_prob=self.hparams_config["drop_rate"],
             attention_probs_dropout_prob=self.hparams_config["drop_rate"],
         )
-        
+
         self.test_data, self.other_test_datas = test_data
         self.text_embeddings = BertEmbeddings(bert_config)
         self.text_embeddings.apply(init_weights)
+        
+        # self.get_missing_type()
+
+
+        # Load ViLT Model
+        ckpt = torch.load(self.hparams_config["load_path"], map_location="cpu")
+        state_dict = ckpt["state_dict"]
+        # since the pre-trained max_text_len is 40,
+        # we upsample the weight of position embedding to determined max_text_len
+        if self.hparams_config["max_text_len"] != 40:
+            state_dict['text_embeddings.position_ids'] = torch.Tensor(range(self.hparams_config["max_text_len"])).long().view(1,-1)
+            pos_emb = state_dict['text_embeddings.position_embeddings.weight']
+            pos_emb = torch.nn.functional.interpolate(pos_emb.view(1,1,40,768), size=(self.hparams_config["max_text_len"],768), mode='bilinear').squeeze()
+            state_dict['text_embeddings.position_embeddings.weight'] = pos_emb
+
+        transformer_state_dict = remove_prefix_from_state_dict(state_dict, 'transformer.')
+        text_embeddings_state_dict = remove_prefix_from_state_dict(state_dict, 'text_embeddings.')
+        
+        # Load the state_dicts into transformer and text_embeddings
+        self.transformer.load_state_dict(transformer_state_dict, strict=False)
+        self.text_embeddings.load_state_dict(text_embeddings_state_dict, strict=False)
+
         for param in self.transformer.parameters():
             param.requires_grad=False
         for param in self.text_embeddings.parameters():
             param.requires_grad=False
 
-        # self.get_missing_type_label()
-
-    def get_missing_type_label (self):
+    def get_missing_type (self):
         dataset = self.test_data
         missing_types = []
-        labels = []
         for data_sample in dataset:
             missing_type = data_sample["missing_type"]
             missing_types.append(missing_type)
-            label = data_sample["label"]
-            labels.append(label)
 
-        dict_types = Counter(missing_types)
-        dict_labels = Counter(labels)
-        # print("Server")
-        # print({k: dict_types[k] for k in sorted(dict_types)}, '\t\t', {k: dict_labels[k] for k in sorted(dict_labels)})
-
+        print(datetime.now(), "Server testing data", Counter(missing_types))
 
     def run(self):
         """
@@ -112,6 +136,7 @@ class Server(BasicServer):
         :param
             t: the number of current round
         """
+        # sample clients: MD sampling as default
         self.selected_clients = self.sample()
         # training
         conmmunitcation_result = self.communicate(self.selected_clients)
@@ -119,32 +144,13 @@ class Server(BasicServer):
         self.model = self.aggregate(models)
         return
 
-    @torch.no_grad()
+    # @torch.no_grad()
     def aggregate(self, models: list):
-        # metrics_dict = dict()
-        # for client_id in self.selected_clients:
-        #     c = self.clients[client_id]
-        #     # # import pdb; pdb.set_trace()
-        #     # client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
-        #     # for met_name, met_val in client_metrics.items():
-        #     #     all_metrics[met_name].append(met_val)
-        #     client_global_data_metrics = c.test_on_specific_data(models[client_id], self.transformer, self.text_embeddings, self.test_data, client_id, self.option, self.current_round)
-        #     # loss_name = "client_" + str(client_id+1) + "_loss_global_data"
-        #     # acc_name = "client_" + str(client_id+1) + "_acc_global_data"
-        #     metrics_dict["client_" + str(client_id+1) + "_loss_global_data"] = (client_global_data_metrics['loss'])
-        #     metrics_dict["client_" + str(client_id+1) + "_acc_global_data"] = (client_global_data_metrics['acc'])
-        # if self.option['wandb']:
-        #     wandb.log(metrics_dict, step=self.current_round)
-
         new_model = copy.deepcopy(self.model)
-        p = list()
-        chosen_models = list()
-        for k, client_id in enumerate(self.selected_clients):
-            p.append(self.clients[client_id].datavol)
-            chosen_models.append(models[k])
-            
+        n_models = len(models)
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         
+        # Aggregate other parts - not prompts
         # pooler
         new_model.pooler = fmodule._model_sum([
             model.pooler * pk for model, pk in zip(models, p)
@@ -154,6 +160,58 @@ class Server(BasicServer):
         new_model.classifier = fmodule._model_sum([
             model.classifier * pk for model, pk in zip(models, p)
         ]) / sum(p)
+        
+        # local prompt
+        average_prompt = sum(pk * model.pool.prompt for pk, model in zip(p, models))  / sum(p)      # device: cuda
+        # print(average_prompt.device)
+        new_model.pool.prompt = nn.Parameter(average_prompt)
+        self.client_local_pools.append(copy.deepcopy(new_model.pool))
+        # print(new_model.pool.prompt[new_model.pool.top_k_idx])
+        
+        for k in range(n_models):
+            self.client_local_pools.append(copy.deepcopy(self.clients[self.selected_clients[k]].local_model.pool))
+            # print(self.clients[self.selected_clients[k]].local_model.pool.prompt[self.clients[self.selected_clients[k]].local_model.pool.top_k_idx])
+            self.clients[self.selected_clients[k]].local_model.pooler = new_model.pooler
+            self.clients[self.selected_clients[k]].local_model.classifier = new_model.classifier
+            self.clients[self.selected_clients[k]].local_model.pool.prompt = new_model.pool.prompt
+        
+        temp = list()
+        # Prompt aggregation
+        num_prompts = new_model.pool.prompt.shape[0] + new_model.global_pool.prompt.shape[0]
+        union_prompts_checklist = torch.zeros(num_prompts,dtype=torch.int)
+        nonzero_index = torch.nonzero(new_model.trained_prompts_checklist).flatten()
+        union_prompts_checklist[nonzero_index] = 1
+        # import pdb; pdb.set_trace()
+        for client_idx in range(n_models):
+            # import pdb; pdb.set_trace()
+            nonzero_index = torch.nonzero(models[client_idx].trained_prompts_checklist).flatten()
+            # print(client_idx, union_prompts_checklist, nonzero_index)
+            union_prompts_checklist[nonzero_index] = 1
+            # print(client_idx, union_prompts_checklist)
+        for client_idx in range(n_models):
+            # import pdb; pdb.set_trace()
+            temp.append(models[client_idx].combined_prompts[torch.nonzero(union_prompts_checklist).flatten()].clone())
+        
+        temp = torch.stack(temp, dim=0) # temp is n_clients x prompt_length x 768: 20, 5, 768
+        agg = NonparametricAgg(768, n_hidden=128).to(temp.device)
+        # import pdb; pdb.set_trace()
+        temp = agg(temp, outer_loop=self.num_outer_loops)
+        # print("Passed one")
+        #print(temp.shape)
+        del agg
+        with torch.no_grad():
+            new_model.global_pool.prompt = nn.Parameter(temp, requires_grad=True)
+            self.client_global_pools.append(copy.deepcopy(new_model.global_pool))
+            # print(new_model.global_pool.prompt[new_model.global_pool.top_k_idx])
+            for k in range(n_models):
+                self.client_global_pools.append(copy.deepcopy(self.clients[self.selected_clients[k]].local_model.global_pool))
+                # print(self.clients[self.selected_clients[k]].local_model.global_pool.prompt[self.clients[self.selected_clients[k]].local_model.global_pool.top_k_idx])   
+                self.clients[self.selected_clients[k]].local_model.global_pool.prompt = new_model.global_pool.prompt
+        print("Temp", temp.shape[0])
+                
+        new_model.reset_trained_prompts_checklist()
+        for k in range(n_models):
+            self.clients[self.selected_clients[k]].local_model.reset_trained_prompts_checklist()
         return new_model
     
     def pack(self, client_id):
@@ -180,31 +238,59 @@ class Server(BasicServer):
         :return:
             metrics: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
-        # return dict()
-        if model is None: model=self.model
+        if model is None: model=copy.deepcopy(self.model)
+
+        # First, keep the global local pool and voting between global prompts from clients only
+        # But same global prompt in the previous round?
+        model.client_global_pools = self.client_global_pools
+        model.client_local_pools = self.client_local_pools
         if self.test_data:
-            result = self.calculator.server_test(
-                model=model,
+                # state_before = {k: v.clone() for k, v in model.state_dict().items()}
+                result = self.calculator.server_test_agglo_mean_soft_voting(
+                model=copy.deepcopy(model),
                 transformer=self.transformer,
                 text_embeddings=self.text_embeddings,
                 dataset=self.test_data,
-                batch_size=self.option['test_batch_size'],
-                option=self.option,
-                current_round = self.current_round
-            )
-            if self.other_test_datas:
-                result.update(self.calculator.server_other_test(
-                    model=model,
-                    transformer=self.transformer,
-                    text_embeddings=self.text_embeddings,
-                    datasets=self.other_test_datas,
-                    batch_size=self.option['test_batch_size']
-                ))
-            return result
-        
-        else:
-            return None
-    
+                batch_size=self.option['test_batch_size']
+                )
+                # TO_DELETE
+                # state_after = {k: v.clone() for k, v in model.state_dict().items()}
+                # modified = False
+                # for key in state_before:
+                #     if not torch.equal(state_before[key], state_after[key]):
+                #         modified = True
+                #         print(f"Model parameter {key} has been modified after server test.")
+                #         break
+
+                # if not modified:
+                #     print("The model has not been modified after server test.")
+
+                if self.other_test_datas:
+                    result.update(self.calculator.server_other_test_agglo_mean_soft_voting(
+                        model=copy.deepcopy(model),
+                        transformer=self.transformer,
+                        text_embeddings=self.text_embeddings,
+                        datasets=self.other_test_datas,
+                        batch_size=self.option['test_batch_size'])
+                        )
+                # TO_DELETE
+                # state_after_other_test = {k: v.clone() for k, v in model.state_dict().items()}
+                # modified = False
+                # for key in state_before:
+                #     if not torch.equal(state_after_other_test[key], state_after[key]):
+                #         modified = True
+                #         print(f"Model parameter {key} has been modified after server other test.")
+                #         break
+
+                # if not modified:
+                #     print("The model has not been modified after server other test.")
+
+        self.client_global_pools = list()
+        self.client_local_pools = list()
+
+        return result
+
+
     def validate(self, model=None):
         """
         Evaluate the model on the test dataset owned by the server.
@@ -225,7 +311,8 @@ class Server(BasicServer):
             )
         else:
             return None
-
+        
+    
     def test_on_clients(self, dataflag='train'):
         """
         Validate accuracies and losses on clients' local datasets
@@ -234,14 +321,39 @@ class Server(BasicServer):
         :return
             metrics: a dict contains the lists of each metric_value of the clients
         """
+        # This function uses global model after aggregation to tr
+        # TO_DELETE
+        # print("Test on clients but using Global model")
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
             client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
+            # TO_DELETE
+            # print("Client {}".format(client_id+1), client_metrics)
         return all_metrics
-
+    
+    def test_on_clients_using_client_models(self, dataflag='train'):
+        """
+        Validate accuracies and losses on clients' local datasets
+        :param
+            dataflag: choose train data or valid data to evaluate
+        :return
+            metrics: a dict contains the lists of each metric_value of the clients
+        """
+        # This function uses global model after aggregation to tr
+        # TO_DELETE
+        # print("Test on clients using their models")
+        all_metrics = collections.defaultdict(list)
+        for client_id in self.selected_clients:
+            c = self.clients[client_id]
+            client_metrics = c.test(c.local_model, self.transformer, self.text_embeddings, dataflag)
+            for met_name, met_val in client_metrics.items():
+                all_metrics[met_name].append(met_val)
+            # TO_DELETE
+            # print("Client {}".format(client_id+1), client_metrics)
+        return all_metrics
 
 def init_weights(module):
     if isinstance(module, (nn.Linear, nn.Embedding)):
@@ -258,31 +370,21 @@ class Client(BasicClient):
     def __init__(self, option, name='', train_data=None, valid_data=None):
         super(Client, self).__init__(option, name, train_data, valid_data)
         self.n_leads = 2
-        gpus = option['gpu']
-        self.device = torch.device('cpu') if gpus is None else torch.device('cuda:{}'.format(gpus[0]))
-        self.text_mean = None
-        # print(device)
-        # import pdb; pdb.set_trace()
-        # self.get_missing_type_label(dataflag='train')
-        # self.get_missing_type_label(dataflag='valid')
+        self.local_model = None
+        # self.get_missing_type(dataflag='train')
+        # self.get_missing_type(dataflag='valid')
 
-    def get_missing_type_label (self, dataflag='train'):
+    def get_missing_type (self, dataflag='train'):
         if dataflag == "train":
             dataset = self.train_data
         elif dataflag == "valid":
             dataset = self.valid_data
         missing_types = []
-        labels = []
         for data_sample in dataset:
             missing_type = data_sample["missing_type"]
             missing_types.append(missing_type)
-            label = data_sample["label"]
-            labels.append(label)
 
-        dict_types = Counter(missing_types)
-        dict_labels = Counter(labels)
-        print(dataflag)
-        print({k: dict_types[k] for k in sorted(dict_types)}, '\t\t', {k: dict_labels[k] for k in sorted(dict_labels)})
+        print(datetime.now(), dataflag, Counter(missing_types))
 
 
     def reply(self, svr_pkg):
@@ -299,8 +401,11 @@ class Client(BasicClient):
             client_pkg: the package to be send to the server
         """
         model, transformer, text_embeddings, client_id = self.unpack(svr_pkg)
-        self.train(model, transformer, text_embeddings, client_id)
-        cpkg = self.pack(model)
+        # self.client_id = client_id
+        if self.local_model is None:
+            self.local_model = copy.deepcopy(model)
+        self.train(self.local_model, transformer, text_embeddings, client_id)
+        cpkg = self.pack(self.local_model)
         return cpkg
     
     def unpack(self, received_pkg):
@@ -328,10 +433,9 @@ class Client(BasicClient):
             "model" : model
         }
 
-    
     @ss.with_completeness
     @fmodule.with_multi_gpus
-    def train(self, model, transformer, text_embeddings, client_id, meta_lr=1e-3, inner_steps=1, n_clusters=10):
+    def train(self, model, transformer, text_embeddings, client_id):
         """
         Standard local training procedure. Train the transmitted model with local training dataset.
         :param
@@ -348,93 +452,37 @@ class Client(BasicClient):
         # print(self.num_steps)
         # TO_DELETE
         # self.num_steps = 1
+        # print(self.num_steps)
+
+        # print("Training client", client_id+1)
+        
+        # for iter in tqdm(range(self.num_steps)):
         for iter in range(self.num_steps):
+            # get a batch of data
             batch_data = self.get_batch_data()
+            # if batch_data[-1].shape[0] == 1:
+            #     continue
             model.zero_grad()
-            
-            batch = self.data_to_device(batch_data)
-            model.to(self.device)
-            transformer.to(self.device)
-            text_embeddings.to(self.device)
             # calculate the loss of the model on batched dataset through task-specified calculator
-            cloned_model = model
-            # cloned_model.load_state_dict(model.state_dict())
-
-            # Inner loop optimization on cloned model
-            inner_optimizer = torch.optim.Adam(cloned_model.parameters(), lr=meta_lr)
-            # import pdb; pdb.set_trace() 
-            # for idx in range(batch["image"][0].shape[0]):
-            #     for _ in range(inner_steps):
-            #         if batch["missing_type"][idx] == 0:
-            #             loss, _ , _ = cloned_model(transformer, text_embeddings, batch)
-            #         elif batch["missing_type"][idx] == 1:
-            #             loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_text=True)
-            #         elif batch["missing_type"][idx] == 2:
-            #             loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_image=True)
-
-            #         inner_optimizer.zero_grad()
-            #         loss.backward()
-            #         inner_optimizer.step()
             
-            #     if batch["missing_type"][idx] == 0:
-            #         loss, _ , _ = cloned_model(transformer, text_embeddings, batch)
-            #     elif batch["missing_type"][idx] == 1:
-            #         loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_text=True)
-            #     elif batch["missing_type"][idx] == 2:
-            #         loss, _ , _ = cloned_model(transformer, text_embeddings, batch, missing_image=True)
-            
-            #     optimizer.zero_grad()
-            #     loss.backward()
-            #     optimizer.step()
-
-            for i in range(inner_steps):
-                loss, _ , _ = cloned_model(transformer, text_embeddings, batch)
-                inner_optimizer.zero_grad()
-                loss.backward()
-                inner_optimizer.step()
-
-            loss, _ , _ = cloned_model(transformer, text_embeddings, batch)
-            optimizer.zero_grad()
+            # import pdb; pdb.set_trace()
+            _, loss, outputs = self.calculator.train_one_step(
+                model=model,
+                transformer=transformer,
+                text_embeddings=text_embeddings,
+                data=batch_data
+            )['loss']
+            # TO_DELETE
+            # if iter==0:
+            #     print('\t',"Training client {}".format(client_id+1),iter, loss)
             loss.backward()
             optimizer.step()
+            # import pdb; pdb.set_trace()
+            # print('\t',datetime.now(),iter, loss, torch.sum(model.pool.prompt), torch.sum(model.global_pool.prompt), torch.sum(model.combined_prompts))
+            # print(model.global_pool.prompt[model.global_pool.top_k_idx])
+        
+        return
 
-            # KMeans clustering on the reconstructed features
-            if self.text_mean == None: 
-                self.text_mean = torch.rand(768, 768).to(self.device)
-            reconstructed_features = cloned_model.text_reconstruction(self.text_mean)  # Example feature reconstruction
-            centroids = self.kmeans_clustering(reconstructed_features.detach().cpu().numpy(), n_clusters)
-            self.text_mean = torch.from_numpy(centroids).float().to(self.device)
-
-            # print(f'Outer loop loss: {loss.item()}')
-
-            # print('\t',datetime.now(),iter, loss)
-
-    def data_to_device(self, data):
-        # for k, v in data.items():
-        #     print(k,len(v))
-        batch = data
-        # import pdb; pdb.set_trace()
-        batch['image'][0] = batch['image'][0].to(self.device)
-        for key in ['text_ids', 'text_labels', 'text_ids_mlm', 'text_labels_mlm', 'text_masks']:
-            new_ls = []
-            for tensor in data[key]:
-                new_ls.append(tensor.to(self.device)) 
-            batch[key] = torch.stack(new_ls)
-        # batch = {k:v.to(self.device) for k,v in data.items()}
-        # import pdb; pdb.set_trace()
-        return batch
-    
-
-    def kmeans_clustering(self, features, n_clusters=10):
-        """
-        Apply KMeans clustering to the feature space.
-        """
-        kmeans = KMeans(n_clusters=n_clusters, random_state=0)
-        kmeans.fit(features)
-        centroids = kmeans.cluster_centers_
-        return centroids
-            
-            
     @fmodule.with_multi_gpus
     def test(self, model, transformer, text_embeddings, dataflag='train'):
         """
@@ -455,7 +503,7 @@ class Client(BasicClient):
             text_embeddings=text_embeddings,
             dataset=dataset
         )
-
+    
     @fmodule.with_multi_gpus
     def test_on_specific_data(self, model, transformer, text_embeddings, dataset, client_id, option, current_round):
         """
@@ -474,3 +522,5 @@ class Client(BasicClient):
             option=option,
             current_round = current_round
         )
+        
+        
