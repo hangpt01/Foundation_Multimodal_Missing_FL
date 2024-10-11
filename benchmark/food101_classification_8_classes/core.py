@@ -11,7 +11,6 @@ import random
 import torch
 from torch.utils.data import DataLoader
 from transformers import (
-    ViltProcessor,
     DataCollatorForLanguageModeling,
     BertTokenizer,
 )
