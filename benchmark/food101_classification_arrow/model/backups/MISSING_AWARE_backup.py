@@ -151,7 +151,7 @@ class Model(FModule):
                 pos_emb = state_dict['text_embeddings.position_embeddings.weight']
                 pos_emb = torch.nn.functional.interpolate(pos_emb.view(1,1,40,768), size=(config["max_text_len"],768), mode='bilinear').squeeze()
                 state_dict['text_embeddings.position_embeddings.weight'] = pos_emb
-            self.load_state_dict(state_dict, strict=False)
+            self.load_state_dict(state_dict, strict=True)
 
         hs = self.hparams.config["hidden_size"]
 
@@ -188,7 +188,7 @@ class Model(FModule):
         if self.hparams.config["load_path"] != "" and self.hparams.config["finetune_first"]:
             ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
             state_dict = ckpt["state_dict"]
-            self.load_state_dict(state_dict, strict=False)            
+            self.load_state_dict(state_dict, strict=True)            
             print("use pre-finetune model")
   
         self.prompt_type = self.hparams.config["prompt_type"]
@@ -243,7 +243,7 @@ class Model(FModule):
         if self.hparams.config["load_path"] != "" and self.hparams.config["test_only"]:
             ckpt = torch.load(self.hparams.config["load_path"], map_location="cpu")
             state_dict = ckpt["state_dict"]
-            self.load_state_dict(state_dict, strict=False)
+            self.load_state_dict(state_dict, strict=True)
         self.records = {}
         
     def forward(self, batch):

@@ -8,5 +8,5 @@ ujson >= 4.0.2
 wandb
 pyarrow==2.0.0
 pytorch-lightning==1.1.4
-transformers
+transformers==4.2.1
 timm

@@ -154,7 +154,7 @@ class Model(FModule):
             pos_emb = state_dict['text_embeddings.position_embeddings.weight']
             pos_emb = torch.nn.functional.interpolate(pos_emb.view(1,1,40,768), size=(config["max_text_len"],768), mode='bilinear').squeeze()
             state_dict['text_embeddings.position_embeddings.weight'] = pos_emb
-        self.load_state_dict(state_dict, strict=False)
+        self.load_state_dict(state_dict, strict=True)
 
         hs = self.hparams_config["hidden_size"]
 

@@ -79,8 +79,8 @@ class Server(BasicServer):
         transformer_state_dict = remove_prefix_from_state_dict(state_dict, 'transformer.')
         text_embeddings_state_dict = remove_prefix_from_state_dict(state_dict, 'text_embeddings.')
         # Load the state_dicts into transformer and text_embeddings
-        self.transformer.load_state_dict(transformer_state_dict, strict=False)
-        self.text_embeddings.load_state_dict(text_embeddings_state_dict, strict=False)
+        self.transformer.load_state_dict(transformer_state_dict, strict=True)
+        self.text_embeddings.load_state_dict(text_embeddings_state_dict, strict=True)
 
         for param in self.transformer.parameters():
             param.requires_grad=False
