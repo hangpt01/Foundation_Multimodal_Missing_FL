@@ -17,5 +17,5 @@ python main.py \
     --batch_size 256 \
     --test_batch_size 256 \
     --max_text_len 128 \
-    --gpu 0 \
+    --gpu 1 \
     --wandb
