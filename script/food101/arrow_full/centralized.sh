@@ -4,7 +4,7 @@ python main.py \
     --algorithm multimodal.food101_classification_arrow.fedavg_no_prompt \
     --sample full \
     --aggregate other \
-    --num_rounds 500 \
+    --num_rounds 300 \
     --early_stop 20  \
     --proportion 1.0 \
     --lr_scheduler 0 \

@@ -4,7 +4,7 @@ python main.py \
     --algorithm multimodal.imdb_classification.Agglo_median \
     --sample full \
     --aggregate other \
-    --num_rounds 500 \
+    --num_rounds 300 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
