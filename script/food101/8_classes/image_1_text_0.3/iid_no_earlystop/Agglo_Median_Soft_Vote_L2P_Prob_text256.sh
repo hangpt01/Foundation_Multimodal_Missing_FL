@@ -16,6 +16,6 @@ python main.py \
     --note num_cluster_3 \
     --batch_size 512 \
     --test_batch_size 512 \
-    --max_text_len 256 \
+    --max_text_len 40 \
     --gpu 0 \
     --wandb

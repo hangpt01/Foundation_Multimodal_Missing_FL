@@ -16,6 +16,6 @@ python main.py \
     --note loadvilt \
     --batch_size 512 \
     --test_batch_size 512 \
-    --max_text_len 256 \
+    --max_text_len 40 \
     --gpu 0 \
     --wandb

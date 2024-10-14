@@ -16,6 +16,6 @@ python main.py \
     --note size_20_topk_5x2_global_pool_101cls \
     --batch_size 512 \
     --test_batch_size 512 \
-    --max_text_len 256 \
+    --max_text_len 40 \
     --gpu 0 \
     --wandb

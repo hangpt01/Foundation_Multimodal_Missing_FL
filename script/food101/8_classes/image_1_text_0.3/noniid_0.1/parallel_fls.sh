@@ -30,7 +30,7 @@ python main.py \
     --learning_rate_decay 1.0 \
     --batch_size 512 \
     --test_batch_size 512 \
-    --max_text_len 256 \
+    --max_text_len 40 \
     --gpu 0 \
     --wandb &
 
@@ -51,7 +51,7 @@ python main.py \
     --learning_rate_decay 1.0 \
     --batch_size 512 \
     --test_batch_size 512 \
-    --max_text_len 256 \
+    --max_text_len 40 \
     --gpu 0 \
     --wandb &
 
@@ -72,6 +72,6 @@ python main.py \
     --learning_rate_decay 1.0 \
     --batch_size 512 \
     --test_batch_size 512 \
-    --max_text_len 256 \
+    --max_text_len 40 \
     --gpu 0 \
     --wandb
