@@ -4,7 +4,7 @@ python main.py \
     --algorithm multimodal.food101_classification_8_classes.L2P_Prob_prompt_local \
     --sample full \
     --aggregate other \
-    --num_rounds 300 \
+    --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \

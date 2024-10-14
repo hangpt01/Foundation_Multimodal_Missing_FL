@@ -8,7 +8,7 @@ from tqdm import tqdm
 import torch
 from torch import nn
 from transformers.models.bert.modeling_bert import BertConfig, BertEmbeddings
-import algorithm.multimodal.food101_classification_8_classes.vision_transformer_prompts as vit
+import algorithm.multimodal.imdb_classification.vision_transformer_prompts as vit
 from datetime import datetime
 from collections import Counter
 import wandb
@@ -18,24 +18,27 @@ def remove_prefix_from_state_dict(state_dict, prefix):
     return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix)}
 
 
+
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 2
         self.hparams_config = {'prompt_type': 'input', 
-                                'prompt_length': 16, 
-                                'learnt_p': True, 
-                                'prompt_layers': [0, 1, 2, 3, 4, 5], 
-                                'multi_layer_prompt': True, 
-                                'max_text_len': option['max_text_len'], 
-                                'vocab_size': 30522, 
-                                'vit': 'vit_base_patch32_384', 
-                                'hidden_size': 768, 
-                                'num_heads': 12, 
-                                'num_layers': 12, 
-                                'drop_rate': 0.1,
-                                'mlp_ratio': 4,
-                                'max_image_len': 40}
+                                'prompt_type': 'input', 
+                            'prompt_length': 16, 
+                            'learnt_p': True, 
+                            'prompt_layers': [0, 1, 2, 3, 4, 5], 
+                            'multi_layer_prompt': True, 
+                            'max_text_len': option['max_text_len'], 
+                            'vocab_size': 30522, 
+                            'vit': 'vit_base_patch32_384', 
+                            'hidden_size': 768, 
+                            'num_heads': 12, 
+                            'num_layers': 12, 
+                            'drop_rate': 0.1,
+                            'mlp_ratio': 4,
+                            'max_image_len': 40,
+                            'load_path': 'benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
         self.transformer = getattr(vit, self.hparams_config["vit"])(
             pretrained=False, config=self.hparams_config
@@ -167,11 +170,6 @@ class Server(BasicServer):
             chosen_models.append(models[k])
             
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
-        
-        
-        #prompt
-        average_prompt = sum(pk * model.pool.prompt for pk, model in zip(p, models))  / sum(p)
-        new_model.pool.prompt = nn.Parameter(average_prompt)
         
         # pooler
         new_model.pooler = fmodule._model_sum([
@@ -394,10 +392,9 @@ class Client(BasicClient):
                 text_embeddings=text_embeddings,
                 data=batch_data
             )['loss']
+            # print('\t',datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
-            # print('\t',datetime.now(),iter, loss, torch.sum(model.pool.prompt))
-            # print(model.pool.prompt[model.pool.top_k_idx])
         
         return
 
@@ -413,8 +410,8 @@ class Client(BasicClient):
         """
         if dataflag == "train":
             dataset = self.train_data
-        # elif dataflag == "valid":
-        #     dataset = self.valid_data
+        elif dataflag == "valid":
+            dataset = self.valid_data
         return self.calculator.test(
             model=model,
             transformer=transformer,

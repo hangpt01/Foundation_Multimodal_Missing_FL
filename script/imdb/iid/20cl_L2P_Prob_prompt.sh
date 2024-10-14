@@ -4,7 +4,7 @@ python main.py \
     --algorithm multimodal.imdb_classification.L2P_Prob_prompt \
     --sample full \
     --aggregate other \
-    --num_rounds 300 \
+    --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \

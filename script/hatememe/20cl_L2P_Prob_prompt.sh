@@ -4,7 +4,7 @@ python main.py \
     --algorithm multimodal.hatememe_classification.L2P_Prob_prompt \
     --sample full \
     --aggregate other \
-    --num_rounds 300 \
+    --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
@@ -16,5 +16,6 @@ python main.py \
     --note size_20_topk_5x2 \
     --batch_size 512 \
     --test_batch_size 512 \
+    --max_text_len 256 \
     --gpu 0 \
     --wandb

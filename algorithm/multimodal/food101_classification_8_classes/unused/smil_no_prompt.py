@@ -24,19 +24,21 @@ class Server(BasicServer):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 2
         self.hparams_config = {'prompt_type': 'input', 
-                                'prompt_length': 16, 
-                                'learnt_p': True, 
-                                'prompt_layers': [0, 1, 2, 3, 4, 5], 
-                                'multi_layer_prompt': True, 
-                                'max_text_len': option['max_text_len'], 
-                                'vocab_size': 30522, 
-                                'vit': 'vit_base_patch32_384', 
-                                'hidden_size': 768, 
-                                'num_heads': 12, 
-                                'num_layers': 12, 
-                                'drop_rate': 0.1,
-                                'mlp_ratio': 4,
-                                'max_image_len': 40}
+                                'prompt_type': 'input', 
+                            'prompt_length': 16, 
+                            'learnt_p': True, 
+                            'prompt_layers': [0, 1, 2, 3, 4, 5], 
+                            'multi_layer_prompt': True, 
+                            'max_text_len': option['max_text_len'], 
+                            'vocab_size': 30522, 
+                            'vit': 'vit_base_patch32_384', 
+                            'hidden_size': 768, 
+                            'num_heads': 12, 
+                            'num_layers': 12, 
+                            'drop_rate': 0.1,
+                            'mlp_ratio': 4,
+                            'max_image_len': 40,
+                            'load_path': 'benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
         self.transformer = getattr(vit, self.hparams_config["vit"])(
             pretrained=False, config=self.hparams_config

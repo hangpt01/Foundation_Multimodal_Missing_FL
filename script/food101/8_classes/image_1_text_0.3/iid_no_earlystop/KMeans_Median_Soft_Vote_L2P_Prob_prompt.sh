@@ -4,7 +4,7 @@ python main.py \
     --algorithm multimodal.food101_classification_8_classes.KMeans_Median_Soft_Vote_L2P_Prob_prompt \
     --sample full \
     --aggregate other \
-    --num_rounds 300 \
+    --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
@@ -16,5 +16,6 @@ python main.py \
     --note num_cluster_3 \
     --batch_size 512 \
     --test_batch_size 512 \
+    --max_text_len 256 \
     --gpu 0 \
     --wandb

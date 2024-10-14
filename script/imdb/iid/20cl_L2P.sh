@@ -1,7 +1,7 @@
 python main.py \
     --task imdb_classification_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
-    --model missing_aware \
-    --algorithm multimodal.imdb_classification.missing_aware \
+    --model L2P \
+    --algorithm multimodal.imdb_classification.L2P \
     --sample full \
     --aggregate other \
     --num_rounds 250 \
