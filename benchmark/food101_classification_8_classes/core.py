@@ -491,7 +491,7 @@ def by_labels_non_iid_split(dataset, n_classes, n_clients, n_clusters, alpha, fr
 def noniid_partition(generator):
     print(generator)
     labels = np.unique(generator.train_data.labels)
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     clients_indices = by_labels_non_iid_split(generator.train_data, labels.shape[0], generator.num_clients, labels.shape[0], generator.skewness, frac=1, seed=generator.seed)
     # import pdb; pdb.set_trace()
     return clients_indices  

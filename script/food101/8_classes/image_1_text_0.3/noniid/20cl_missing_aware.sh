@@ -4,8 +4,7 @@ python main.py \
     --algorithm multimodal.food101_classification_8_classes.missing_aware \
     --sample full \
     --aggregate other \
-    --num_rounds 1000 \
-    --early_stop 50  \
+    --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
@@ -13,7 +12,9 @@ python main.py \
     --learning_rate 0.05 \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
-    --batch_size 1024 \
-    --test_batch_size 1024 \
+    --note loadvilt \
+    --batch_size 512 \
+    --test_batch_size 512 \
+    --max_text_len 40 \
     --gpu 0 \
     --wandb
