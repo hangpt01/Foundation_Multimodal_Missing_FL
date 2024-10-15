@@ -155,7 +155,7 @@ if __name__=='__main__':
                                 draw_false_text=draw_false_text,
                                 image_only=image_only,
                                 missing_info=missing_info)
-    train_dataset.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+    train_dataset.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
 
     collator = DataCollatorForLanguageModeling
 

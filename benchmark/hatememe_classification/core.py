@@ -77,7 +77,7 @@ class TaskPipe(IDXTaskPipe):
                                 draw_false_text=draw_false_text,
                                 image_only=image_only,
                                 missing_info=missing_info)
-        origin_train_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        origin_train_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
         # origin_train_data.mlm_collator = collator(tokenizer=origin_train_data.tokenizer, mlm=True, mlm_probability=0.15)
         # origin_train_data.collate = functools.partial(origin_train_data.collate, mlm_collator=origin_train_data.mlm_collator)
 
@@ -88,7 +88,7 @@ class TaskPipe(IDXTaskPipe):
                                 draw_false_text=draw_false_text,
                                 image_only=image_only,
                                 missing_info=missing_info)
-        origin_test_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        origin_test_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
         # origin_test_data.mlm_collator = collator(tokenizer=origin_test_data.tokenizer, mlm=True, mlm_probability=0.15)
         # origin_test_data.collate = functools.partial(origin_test_data.collate, mlm_collator=origin_test_data.mlm_collator)
         # import pdb; pdb.set_trace()
@@ -116,7 +116,7 @@ class TaskPipe(IDXTaskPipe):
                                 draw_false_text=draw_false_text,
                                 image_only=image_only,
                                 missing_info=missing_image_config)
-        origin_test_miss_image_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        origin_test_miss_image_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
         test_miss_image_data = cls.TaskDataset(origin_test_miss_image_data, [_ for _ in range(len(origin_test_miss_image_data))])
         other_test_datas.append(test_miss_image_data)
 
@@ -139,7 +139,7 @@ class TaskPipe(IDXTaskPipe):
                                 draw_false_text=draw_false_text,
                                 image_only=image_only,
                                 missing_info=missing_both_config)
-        origin_test_miss_both_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        origin_test_miss_both_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
         test_miss_both_data = cls.TaskDataset(origin_test_miss_both_data, [_ for _ in range(len(origin_test_miss_both_data))])
         other_test_datas.append(test_miss_both_data)
     
@@ -162,7 +162,7 @@ class TaskPipe(IDXTaskPipe):
                                 draw_false_text=draw_false_text,
                                 image_only=image_only,
                                 missing_info=full_modal_config)
-        origin_test_full_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        origin_test_full_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
         test_full_data = cls.TaskDataset(origin_test_full_data, [_ for _ in range(len(origin_test_full_data))])
         other_test_datas.append(test_full_data)
 
@@ -185,7 +185,7 @@ class TaskPipe(IDXTaskPipe):
                                 draw_false_text=draw_false_text,
                                 image_only=image_only,
                                 missing_info=image_only_config)
-        origin_test_image_only_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        origin_test_image_only_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
         test_image_only_data = cls.TaskDataset(origin_test_image_only_data, [_ for _ in range(len(origin_test_image_only_data))])
         other_test_datas.append(test_image_only_data)
 
@@ -208,7 +208,7 @@ class TaskPipe(IDXTaskPipe):
                                 draw_false_text=draw_false_text,
                                 image_only=image_only,
                                 missing_info=text_only_config)
-        origin_test_text_only_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        origin_test_text_only_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
         test_text_only_data = cls.TaskDataset(origin_test_text_only_data, [_ for _ in range(len(origin_test_text_only_data))])
         other_test_datas.append(test_text_only_data)
 
@@ -575,7 +575,7 @@ class TaskGen(DefaultTaskGen):
                                 draw_false_text=self.draw_false_text,
                                 image_only=self.image_only,
                                 missing_info=self.missing_info)
-        self.train_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.train_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
         self.train_data.mlm_collator = collator(tokenizer=self.train_data.tokenizer, mlm=True, mlm_probability=0.15)
         self.train_data.collate = functools.partial(self.train_data.collate, mlm_collator=self.train_data.mlm_collator)
         # import pdb; pdb.set_trace()
@@ -586,7 +586,7 @@ class TaskGen(DefaultTaskGen):
                                 draw_false_text=self.draw_false_text,
                                 image_only=self.image_only,
                                 missing_info=self.missing_info)
-        self.test_data.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.test_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
         self.test_data.mlm_collator = collator(tokenizer=self.test_data.tokenizer, mlm=True, mlm_probability=0.15)
         self.test_data.collate = functools.partial(self.test_data.collate, mlm_collator=self.test_data.mlm_collator)
     
@@ -599,7 +599,7 @@ class TaskCalculator(ClassificationCalculator):
     def get_data_loader(self, dataset, batch_size=40, shuffle=True, num_workers=8, vocab_size=30522):
         # import pdb; pdb.set_trace()
         collator = DataCollatorForLanguageModeling
-        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
         mlm_collator = collator(tokenizer=tokenizer, mlm=True, mlm_probability=0.15)
         return DataLoader(dataset, batch_size=batch_size, num_workers=num_workers, shuffle=shuffle, pin_memory=True, collate_fn=functools.partial(collate, mlm_collator=mlm_collator))
         # return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers)

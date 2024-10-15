@@ -58,7 +58,7 @@ class Food101Dataset(Dataset):
             else self.all_texts
         )
         # import pdb; pdb.set_trace()
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
         self.collator = DataCollatorForLanguageModeling(tokenizer=self.tokenizer, mlm=True, mlm_probability=0.15)
         
         self.transforms = [pixelbert_transform(size=384)]
@@ -330,7 +330,7 @@ def collate(batch):
         encodings = [[d[1] for d in dict_batch[txt_key]] for txt_key in txt_keys]
         draw_text_len = len(encodings)
         flatten_encodings = [e for encoding in encodings for e in encoding]
-        tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
         collator = DataCollatorForLanguageModeling(tokenizer=tokenizer, mlm=True, mlm_probability=0.15)
         flatten_mlms = collator(flatten_encodings)
 

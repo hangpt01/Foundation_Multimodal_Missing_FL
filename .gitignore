@@ -1,4 +1,5 @@
 benchmark/food101_classification/model/pretrained_model_weight/
+benchmark/pretrained_model_weight
 vilt_200k_mlm_itm.ckpt
 mmimdb.tar.gz
 

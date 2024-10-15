@@ -67,3 +67,8 @@ python3 -m pip install pytorch-lightning==1.1.4
 mkdir benchmark/pretrained_model_weight/
 cd benchmark/pretrained_model_weight/
 wget https://github.com/dandelin/ViLT/releases/download/200k/vilt_200k_mlm_itm.ckpt
+
+
+# BERT
+cd benchmark/pretrained_model_weight/
+git clone https://huggingface.co/bert-base-uncased

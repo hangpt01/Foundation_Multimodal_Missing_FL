@@ -73,7 +73,7 @@ class Model(FModule):
         self.text_embeddings = None
         # import pdb; pdb.set_trace()  
 
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
 
         self.token_type_embeddings = nn.Embedding(2, self.hparams_config["hidden_size"])
         self.token_type_embeddings.apply(init_weights)

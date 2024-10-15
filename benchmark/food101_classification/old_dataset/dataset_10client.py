@@ -55,7 +55,7 @@ class Food101Dataset(Dataset):
             else self.all_texts
         )
         # import pdb; pdb.set_trace()
-        self.tokenizer = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
         self.collator = DataCollatorForLanguageModeling(tokenizer=self.tokenizer, mlm=True, mlm_probability=0.15)
         
         self.transforms = [pixelbert_transform(size=384)]

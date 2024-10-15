@@ -100,7 +100,7 @@ class Model(FModule):
         self.n_leads = 2
         self.hidden_size = 768
         # self.processor = ViltProcessor.from_pretrained("dandelin/vilt-b32-mlm")
-        self.processor = BertTokenizer.from_pretrained('bert-base-uncased')
+        self.processor = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
 
         # self.backbone = ViltModel.from_pretrained("dandelin/vilt-b32-mlm")
         # for param in self.processor.parameters():
