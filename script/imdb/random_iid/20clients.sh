@@ -1,7 +1,7 @@
 python generate_fedtask.py \
-    --benchmark imdb_classification \
-    --dist 1 \
-    --skew 0.1 \
+    --benchmark imdb_classification_random \
+    --dist 0 \
+    --skew 0 \
     --num_clients 20 \
     --seed 0 \
     --missing \

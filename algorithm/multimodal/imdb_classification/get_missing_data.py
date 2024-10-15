@@ -8,7 +8,7 @@ from tqdm import tqdm
 import torch
 from torch import nn
 from transformers.models.bert.modeling_bert import BertConfig, BertEmbeddings
-import algorithm.multimodal.food101_classification_8_classes.vision_transformer_prompts as vit
+import algorithm.multimodal.imdb_classification.vision_transformer_prompts as vit
 from datetime import datetime
 from collections import Counter
 
