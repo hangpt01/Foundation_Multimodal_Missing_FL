@@ -1,10 +1,10 @@
 python main.py \
     --task food101_classification_8_classes_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
-    --model missing_aware \
-    --algorithm multimodal.food101_classification_8_classes.missing_aware \
+    --model smil_no_prompt \
+    --algorithm multimodal.food101_classification_8_classes.smil_no_prompt \
     --sample full \
     --aggregate other \
-    --num_rounds 250 \
+    --num_rounds 200 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
