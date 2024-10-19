@@ -1,7 +1,7 @@
 python main.py \
-    --task food101_classification_8_classes_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
-    --model L2P_Prob_prompt \
-    --algorithm multimodal.food101_classification_8_classes.L2P_Prob_prompt \
+    --task food101_classification_8_classes_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_both_both_both_ratio_0.5 \
+    --model Agglo_mean \
+    --algorithm multimodal.food101_classification_8_classes.Agglo_mean \
     --sample full \
     --aggregate other \
     --num_rounds 250 \
@@ -13,7 +13,7 @@ python main.py \
     --num_epochs 1 \
     --num_outer_loops 5 \
     --learning_rate_decay 1.0 \
-    --note size_20_topk_5x2_back_to_101cls \
+    --note 3clusters_loadvilt \
     --batch_size 512 \
     --test_batch_size 512 \
     --max_text_len 40 \
