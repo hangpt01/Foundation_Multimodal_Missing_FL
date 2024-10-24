@@ -16,7 +16,7 @@ python main.py \
     --model Agglo_mean \
     --algorithm multimodal.food101_classification_8_classes.Agglo_mean \
     --sample full \
-    --aggregate other \
+    --aggregate     other \
     --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
