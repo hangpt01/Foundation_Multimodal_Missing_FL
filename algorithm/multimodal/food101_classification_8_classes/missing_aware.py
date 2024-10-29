@@ -88,7 +88,7 @@ class Server(BasicServer):
             missing_type = data_sample["missing_type"]
             missing_types.append(missing_type)
 
-        print(datetime.now(), "Server testing data", Counter(missing_types))
+        # print(datetime.now(), "Server testing data", Counter(missing_types))
 
     def run(self):
         """
@@ -388,8 +388,8 @@ class Client(BasicClient):
                 text_embeddings=text_embeddings,
                 data=batch_data
             )['loss']
-            if iter==0:
-                print('\t',datetime.now(),iter, loss)
+            # if iter==0:
+            #     print('\t',datetime.now(),iter, loss)
             # print('\t',datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
