@@ -13,8 +13,8 @@ python generate_fedtask.py \
     --max_text_len 128
 python main.py \
     --task imdb_classification_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_both_both_both_ratio_0.5 \
-    --model L2P_Prob_prompt \
-    --algorithm multimodal.imdb_classification.L2P_Prob_prompt \
+    --model Agglo_mean \
+    --algorithm multimodal.imdb_classification.Agglo_mean \
     --sample full \
     --aggregate other \
     --num_rounds 250 \
