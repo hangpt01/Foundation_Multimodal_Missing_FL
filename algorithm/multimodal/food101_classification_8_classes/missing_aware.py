@@ -13,7 +13,29 @@ from datetime import datetime
 from collections import Counter
 import wandb
 
-# ViLT related functions
+def compare_model_parameters(model, state_dict, model_name):
+    print(f"\nComparing parameters for {model_name}:")
+
+    model_dict = model.state_dict()  # Get the model's current parameters
+    matched_any = False  # Flag to check if any parameter is compared
+    
+    # Loop through the state_dict and compare with model's parameters
+    for key in state_dict:
+        if key in model_dict:
+            pre_param = model_dict[key].detach().clone()  # Save the model's current parameter
+            post_param = state_dict[key]  # Corresponding parameter from the loaded state_dict
+            
+            # Compare the parameters
+            if torch.equal(pre_param, post_param):
+                print(f"Parameter '{key}' is unchanged.")
+            else:
+                print(f"Parameter '{key}' has been updated.")
+            
+            matched_any = True  # At least one parameter matched
+    
+    if not matched_any:
+        print(f"No matching parameters found for {model_name}.")
+
 def remove_prefix_from_state_dict(state_dict, prefix):
     return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix)}
 
@@ -22,21 +44,21 @@ class Server(BasicServer):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 2
         self.hparams_config = {'batch_size': 32, 
-                        'prompt_type': 'input', 
-                        'prompt_length': 16, 
-                        'learnt_p': True, 
-                        'prompt_layers': [0, 1, 2, 3, 4, 5], 
-                        'multi_layer_prompt': True, 
-                        'max_text_len': option['max_text_len'], 
-                        'vocab_size': 30522, 
-                        'vit': 'vit_base_patch32_384', 
-                        'hidden_size': 768, 
-                        'num_heads': 12, 
-                        'num_layers': 12, 
-                        'drop_rate': 0.1,
-                        'mlp_ratio': 4,
-                        'max_image_len': 40,
-                        'load_path': 'benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
+                                'prompt_type': 'input', 
+                                'prompt_length': 16, 
+                                'learnt_p': True, 
+                                'prompt_layers': [0, 1, 2, 3, 4, 5], 
+                                'multi_layer_prompt': True, 
+                                'max_text_len': option['max_text_len'], 
+                                'vocab_size': 30522, 
+                                'vit': 'vit_base_patch32_384', 
+                                'hidden_size': 768, 
+                                'num_heads': 12, 
+                                'num_layers': 12, 
+                                'drop_rate': 0.1,
+                                'mlp_ratio': 4,
+                                'max_image_len': 40, 
+                                'load_path': 'benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
         self.transformer = getattr(vit, self.hparams_config["vit"])(
             pretrained=False, config=self.hparams_config
@@ -55,9 +77,6 @@ class Server(BasicServer):
         self.test_data, self.other_test_datas = test_data
         self.text_embeddings = BertEmbeddings(bert_config)
         self.text_embeddings.apply(init_weights)
-
-        # self.get_missing_type()
-
 
         # Load ViLT Model
         ckpt = torch.load(self.hparams_config["load_path"], map_location="cpu")
@@ -81,6 +100,7 @@ class Server(BasicServer):
         for param in self.text_embeddings.parameters():
             param.requires_grad=False
 
+
     def get_missing_type (self):
         dataset = self.test_data
         missing_types = []
@@ -88,7 +108,7 @@ class Server(BasicServer):
             missing_type = data_sample["missing_type"]
             missing_types.append(missing_type)
 
-        # print(datetime.now(), "Server testing data", Counter(missing_types))
+        print(datetime.now(), "Server testing data", Counter(missing_types))
 
     def run(self):
         """
@@ -139,22 +159,6 @@ class Server(BasicServer):
 
     @torch.no_grad()
     def aggregate(self, models: list):
-        # metrics_dict = dict()
-        # for client_id in self.selected_clients:
-        #     c = self.clients[client_id]
-        #     # # import pdb; pdb.set_trace()
-        #     # client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
-        #     # for met_name, met_val in client_metrics.items():
-        #     #     all_metrics[met_name].append(met_val)
-        #     client_global_data_metrics = c.test_on_specific_data(models[client_id], self.transformer, self.text_embeddings, self.test_data, client_id, self.option, self.current_round)
-        #     # loss_name = "client_" + str(client_id+1) + "_loss_global_data"
-        #     # acc_name = "client_" + str(client_id+1) + "_acc_global_data"
-        #     metrics_dict["client_" + str(client_id+1) + "_loss_global_data"] = (client_global_data_metrics['loss'])
-        #     metrics_dict["client_" + str(client_id+1) + "_acc_global_data"] = (client_global_data_metrics['acc'])
-        # if self.option['wandb']:
-        #     wandb.log(metrics_dict, step=self.current_round)
-
-
         new_model = copy.deepcopy(self.model)
         p = list()
         chosen_models = list()
@@ -199,7 +203,8 @@ class Server(BasicServer):
             "model" : copy.deepcopy(self.model), 
             "transformer": self.transformer,
             "text_embeddings": self.text_embeddings,
-            "client_id": client_id
+            "client_id": client_id,
+            "current_round": self.current_round
         }
 
     def test(self, model=None):
@@ -222,6 +227,7 @@ class Server(BasicServer):
                 option=self.option,
                 current_round = self.current_round
             )
+            # TO_DELETE
             if self.other_test_datas:
                 result.update(self.calculator.server_other_test(
                     model=model,
@@ -318,9 +324,9 @@ class Client(BasicClient):
         :return:
             client_pkg: the package to be send to the server
         """
-        model, transformer, text_embeddings, client_id = self.unpack(svr_pkg)
+        model, transformer, text_embeddings, client_id, current_round = self.unpack(svr_pkg)
         # self.client_id = client_id
-        self.train(model, transformer, text_embeddings, client_id)
+        self.train(model, transformer, text_embeddings, client_id, current_round)
         cpkg = self.pack(model)
         return cpkg
     
@@ -333,7 +339,7 @@ class Client(BasicClient):
             the unpacked information that can be rewritten
         """
         # unpack the received package
-        return received_pkg['model'], received_pkg['transformer'], received_pkg['text_embeddings'], received_pkg['client_id']
+        return received_pkg['model'], received_pkg['transformer'], received_pkg['text_embeddings'], received_pkg['client_id'], received_pkg['current_round']
 
 
     def pack(self, model):
@@ -351,7 +357,7 @@ class Client(BasicClient):
 
     @ss.with_completeness
     @fmodule.with_multi_gpus
-    def train(self, model, transformer, text_embeddings, client_id):
+    def train(self, model, transformer, text_embeddings, client_id, current_round):
         """
         Standard local training procedure. Train the transmitted model with local training dataset.
         :param
@@ -386,11 +392,12 @@ class Client(BasicClient):
                 model=model,
                 transformer=transformer,
                 text_embeddings=text_embeddings,
-                data=batch_data
+                data=batch_data, 
+                client_id=client_id,
+                current_round=current_round
             )['loss']
             # if iter==0:
             #     print('\t',datetime.now(),iter, loss)
-            # print('\t',datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
         

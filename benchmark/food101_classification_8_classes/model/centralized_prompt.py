@@ -3,6 +3,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import numpy as np
+import os
 from utils.fmodule import FModule
 
 
@@ -15,6 +16,7 @@ class Pooler(FModule):
         self.activation = nn.Tanh()
 
     def forward(self, hidden_states):
+        # import pdb; pdb.set_trace()
         first_token_tensor = hidden_states[:, 0]
         pooled_output = self.dense(first_token_tensor)
         pooled_output = self.activation(pooled_output)
@@ -106,6 +108,12 @@ class Model(FModule):
         missing_img_prompt[:,1:2,:].fill_(1)            
         self.missing_img_prompt = nn.Parameter(missing_img_prompt)              # [6, 16, 768])
 
+        self.ls_idx_complete = []
+        self.ls_idx_missing_text = []
+        self.ls_idx_missing_img = []
+
+        self.criterion = nn.CrossEntropyLoss()
+
         
     def infer(
             self,
@@ -121,7 +129,7 @@ class Model(FModule):
         self.transformer = transformer
         self.text_embeddings = text_embeddings
         # import pdb; pdb.set_trace()
-        if f"image_{image_token_type_idx - 1}" in batch:
+        if f"image_{image_token_type_idx - 1}" in batch:       #False
             imgkey = f"image_{image_token_type_idx - 1}"
         else:
             imgkey = "image"
@@ -166,15 +174,21 @@ class Model(FModule):
         )
         
         # instance wise missing aware prompts
+        self.ls_idx_complete = []
+        self.ls_idx_missing_img = []
+        self.ls_idx_missing_text = []
         prompts = None
         for idx in range(len(img)):
             if batch["missing_type"][idx] == 0:
                 prompt = self.complete_prompt        
+                self.ls_idx_complete.append(idx)
             elif batch["missing_type"][idx] == 1:
                 # import pdb; pdb.set_trace()
                 prompt = self.missing_text_prompt
+                self.ls_idx_missing_text.append(idx)
             elif batch["missing_type"][idx] == 2:
                 prompt = self.missing_img_prompt
+                self.ls_idx_missing_img.append(idx)
                 # 3 prompt: ([6, 16, 768])
             if prompt.size(0) != 1:
                 prompt = prompt.unsqueeze(0)
@@ -197,10 +211,10 @@ class Model(FModule):
         co_embeds = torch.cat([text_embeds, image_embeds], dim=1)       # torch.Size([1, 233, 768])             batch, 257, 768
         # import pdb; pdb.set_trace()
         x = co_embeds.detach()      # torch.Size([1, 233, 768])     batch, 257, 768=text+img
-
+        # import pdb; pdb.set_trace()
         for i, blk in enumerate(self.transformer.blocks):
             if i in self.prompt_layers:
-                if self.multi_layer_prompt:
+                if self.multi_layer_prompt:     # true
                     x, _attn = blk(x, mask=co_masks, 
                                    prompts=prompts[:,self.prompt_layers.index(i)],      # batch, 16, 768
                                    learnt_p=self.learnt_p,
@@ -242,21 +256,67 @@ class Model(FModule):
             "patch_index": patch_index,
         }
 
-        return ret
+        return ret["cls_feats"], prompts
 
 
-    def forward(self, transformer, text_embeddings, batch):
-        infer = self.infer(batch, transformer, text_embeddings, mask_text=False, mask_image=False)
-        imgcls_logits = self.classifier(infer["cls_feats"])
+    def forward(self, transformer, text_embeddings, batch, flag="", client_id=None, current_round=None):
+        
+        cls_feats, prompts = self.infer(batch, transformer, text_embeddings)
+
+        # Capture embeddings before the classifier
+        embedding_before_classifier = cls_feats.detach().cpu()
+
+        # Classify and get embeddings after the classifier
+        imgcls_logits = self.classifier(cls_feats)
+        embedding_after_classifier = imgcls_logits.detach().cpu()
+
+        # Save to a dictionary
+        sample_data = {
+            "prompts": prompts.detach().cpu(),
+            "missing_type": batch["missing_type"],
+            "embedding_before_classifier": embedding_before_classifier,
+            "embedding_after_classifier": embedding_after_classifier,
+        }
+        save_file = True
+        if save_file:
+            if flag != "":
+                if flag=="train" and current_round % 10 == 0:
+                    os.makedirs(f"output/food101/L2P_Prob/train/client_{client_id+1}/", exist_ok=True)
+                    file_path = f"output/food101/L2P_Prob/train/client_{client_id+1}/sample_data_round_{current_round}.pt"
+                    if os.path.exists(file_path):
+                    # Load existing data
+                        existing_data = torch.load(file_path)
+                        if isinstance(existing_data, list):
+                            existing_data.append(sample_data)
+                        else:
+                            existing_data = [existing_data, sample_data]
+                        # Save the updated list
+                        torch.save(existing_data, file_path)
+                    else:
+                        # Save a new list with the current sample data
+                        torch.save([sample_data], file_path)
+                        # Append to file if it exists, else create new
+                elif flag=="test" and current_round % 10 == 0:
+                    os.makedirs("output/food101/L2P_Prob/test/", exist_ok=True)
+                    file_path = f"output/food101/L2P_Prob/test/sample_data_round_{current_round}.pt"
+                    if os.path.exists(file_path):
+                        # Load existing data
+                        existing_data = torch.load(file_path)
+                        if isinstance(existing_data, list):
+                            existing_data.append(sample_data)
+                        else:
+                            existing_data = [existing_data, sample_data]
+                        # Save the updated list
+                        torch.save(existing_data, file_path)
+                    else:
+                        # Save a new list with the current sample data
+                        torch.save([sample_data], file_path)
+            
 
         imgcls_labels = batch["label"]
+
         imgcls_labels = torch.tensor(imgcls_labels).to(self.device).long()
+
         imgcls_loss = F.cross_entropy(imgcls_logits, imgcls_labels)
-        # import pdb; pdb.set_trace()
 
         return imgcls_loss, imgcls_loss, imgcls_logits
-
-
-if __name__ == '__main__':
-    model = Model()
-    import pdb; pdb.set_trace()

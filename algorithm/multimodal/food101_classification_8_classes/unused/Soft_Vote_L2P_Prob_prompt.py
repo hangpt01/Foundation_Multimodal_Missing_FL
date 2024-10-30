@@ -1,4 +1,4 @@
-from ...fedbase import BasicServer, BasicClient
+from ....fedbase import BasicServer, BasicClient
 import utils.system_simulator as ss
 from utils import fmodule
 import copy
@@ -17,6 +17,7 @@ import wandb
 # ViLT related functions
 def remove_prefix_from_state_dict(state_dict, prefix):
     return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix)}
+
 
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
@@ -64,7 +65,6 @@ class Server(BasicServer):
         
         # self.get_missing_type()
 
-
         # Load ViLT Model
         ckpt = torch.load(self.hparams_config["load_path"], map_location="cpu")
         state_dict = ckpt["state_dict"]
@@ -88,6 +88,7 @@ class Server(BasicServer):
         for param in self.text_embeddings.parameters():
             param.requires_grad=False
 
+            
     def get_missing_type (self):
         dataset = self.test_data
         missing_types = []
@@ -245,8 +246,8 @@ class Server(BasicServer):
         model.client_global_pools = self.client_global_pools
         model.client_local_pools = self.client_local_pools
         if self.test_data:
-                # state_before = {k: v.clone() for k, v in model.state_dict().items()}
-                result = self.calculator.server_test_agglo_median_soft_voting(
+                state_before = {k: v.clone() for k, v in model.state_dict().items()}
+                result = self.calculator.server_test_soft_voting(
                 model=copy.deepcopy(model),
                 transformer=self.transformer,
                 text_embeddings=self.text_embeddings,
@@ -266,7 +267,7 @@ class Server(BasicServer):
                 #     print("The model has not been modified after server test.")
 
                 if self.other_test_datas:
-                    result.update(self.calculator.server_other_test_agglo_median_soft_voting(
+                    result.update(self.calculator.server_other_test_soft_voting(
                         model=copy.deepcopy(model),
                         transformer=self.transformer,
                         text_embeddings=self.text_embeddings,

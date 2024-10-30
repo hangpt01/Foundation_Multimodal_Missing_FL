@@ -6,6 +6,7 @@ from functools import reduce
 from operator import mul
 from torch.nn.modules.utils import _pair
 import torch.nn.functional as F
+import os
 from utils.fmodule import FModule
 
 def init_weights(module):
@@ -213,7 +214,7 @@ class Model(FModule):
             
         x = self.transformer.norm(x)
         cls_feats = self.pooler(x)
-        return cls_feats
+        return cls_feats, batched_prompt, batched_global_prompt
 
 
     def checking_trained_prompt(self):
@@ -235,21 +236,68 @@ class Model(FModule):
         self.trained_prompts_checklist = torch.zeros(num_prompts, dtype=torch.torch.float32)
         
 
-    def forward(self, transformer, text_embeddings, batch):
+    def forward(self, transformer, text_embeddings, batch, flag="", client_id=None, current_round=None):
         
-        cls_feats = self.infer(batch, transformer, text_embeddings)
-        # print("Done infer")
+        cls_feats, batched_prompt, batched_global_prompt = self.infer(batch, transformer, text_embeddings)
+
+        # Capture embeddings before the classifier
+        embedding_before_classifier = cls_feats.detach().cpu()
+
+        # Classify and get embeddings after the classifier
         imgcls_logits = self.classifier(cls_feats)
-        # print("Done classify")
-        
+        embedding_after_classifier = imgcls_logits.detach().cpu()
+
+        # Save to a dictionary
+        sample_data = {
+            "local_prompts": batched_prompt.detach().cpu(),
+            "summarizing_prompts": batched_global_prompt.detach().cpu(),
+            "missing_type": batch["missing_type"],
+            "embedding_before_classifier": embedding_before_classifier,
+            "embedding_after_classifier": embedding_after_classifier,
+        }
+        save_file = True
+        if save_file:
+            if flag != "":
+                if flag=="train" and current_round % 10 == 0:
+                    os.makedirs(f"output/food101/L2P_Prob/train/client_{client_id+1}/", exist_ok=True)
+                    file_path = f"output/food101/L2P_Prob/train/client_{client_id+1}/sample_data_round_{current_round}.pt"
+                    if os.path.exists(file_path):
+                    # Load existing data
+                        existing_data = torch.load(file_path)
+                        if isinstance(existing_data, list):
+                            existing_data.append(sample_data)
+                        else:
+                            existing_data = [existing_data, sample_data]
+                        # Save the updated list
+                        torch.save(existing_data, file_path)
+                    else:
+                        # Save a new list with the current sample data
+                        torch.save([sample_data], file_path)
+                        # Append to file if it exists, else create new
+                elif flag=="test" and current_round % 10 == 0:
+                    os.makedirs("output/food101/L2P_Prob/test/", exist_ok=True)
+                    file_path = f"output/food101/L2P_Prob/test/sample_data_round_{current_round}.pt"
+                    if os.path.exists(file_path):
+                        # Load existing data
+                        existing_data = torch.load(file_path)
+                        if isinstance(existing_data, list):
+                            existing_data.append(sample_data)
+                        else:
+                            existing_data = [existing_data, sample_data]
+                        # Save the updated list
+                        torch.save(existing_data, file_path)
+                    else:
+                        # Save a new list with the current sample data
+                        torch.save([sample_data], file_path)
+            
+
         imgcls_labels = batch["label"]
-        # print("Label in model", imgcls_labels)
+
         imgcls_labels = torch.tensor(imgcls_labels).to(self.device).long()
 
         imgcls_loss = F.cross_entropy(imgcls_logits, imgcls_labels)
-        # print("Loss", imgcls_loss)
+
         self.checking_trained_prompt()
-        # print("Done self checking train prompts")
-        # import pdb; pdb.set_trace()
+
 
         return imgcls_loss, imgcls_loss, imgcls_logits

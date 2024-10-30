@@ -708,7 +708,7 @@ class TaskCalculator(ClassificationCalculator):
         predicts = np.array(predicts)
         roc_auc = roc_auc_score(labels, predicts)
         # print("Client {}\n".format(client_id+1), labels, predicts)
-        # if current_round % 1 == 0:
+        # if current_round % 10 == 0:
         #     confusion_matrix_save_path = 'fedtask/' + option['task'] + '/plot_confusion_matrix/' + option['model']
         #     if not os.path.exists(confusion_matrix_save_path):
         #         os.makedirs(confusion_matrix_save_path)

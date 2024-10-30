@@ -23,9 +23,6 @@ import wandb
 from tqdm import tqdm
 import warnings
 import collections
-import torch
-import torch.nn.functional as F
-from datetime import datetime
 warnings.filterwarnings('ignore')
     
 class TaskPipe(IDXTaskPipe):
@@ -122,52 +119,28 @@ class TaskPipe(IDXTaskPipe):
         other_test_datas.append(test_miss_image_data)
 
         # import pdb; pdb.set_trace()
-        
-        # TO_CHANGE
-        # missing_text_config = {
-        # 'ratio':
-        #     {'test': 0.7,
-        #     'train': 0.7},
-        # 'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
-        # 'type':
-        #     {'test': 'text',
-        #     'train': 'both'},
-        # 'both_ratio': 0,
-        # 'simulate_missing': False
-        # }
-        # origin_test_miss_text_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
-        #                         image_size=image_size,
-        #                         max_text_len=max_text_len,
-        #                         draw_false_image=draw_false_image,
-        #                         draw_false_text=draw_false_text,
-        #                         image_only=image_only,
-        #                         missing_info=missing_text_config)
-        # origin_test_miss_text_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
-        # test_miss_text_data = cls.TaskDataset(origin_test_miss_text_data, [_ for _ in range(len(origin_test_miss_text_data))])
-        # other_test_datas.append(test_miss_text_data)
 
-
-        missing_both_config = {
+        missing_text_config = {
         'ratio':
             {'test': 0.7,
             'train': 0.7},
         'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
         'type':
-            {'test': 'both',
+            {'test': 'text',
             'train': 'both'},
-        'both_ratio': 0.5,
+        'both_ratio': 0,
         'simulate_missing': False
         }
-        origin_test_miss_both_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_miss_text_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
                                 draw_false_text=draw_false_text,
                                 image_only=image_only,
-                                missing_info=missing_both_config)
-        origin_test_miss_both_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
-        test_miss_both_data = cls.TaskDataset(origin_test_miss_both_data, [_ for _ in range(len(origin_test_miss_both_data))])
-        other_test_datas.append(test_miss_both_data)
+                                missing_info=missing_text_config)
+        origin_test_miss_text_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
+        test_miss_text_data = cls.TaskDataset(origin_test_miss_text_data, [_ for _ in range(len(origin_test_miss_text_data))])
+        other_test_datas.append(test_miss_text_data)
     
 
         full_modal_config = {
@@ -240,14 +213,27 @@ class TaskPipe(IDXTaskPipe):
 
 
         train_datas = []
-        # valid_datas = []
+        valid_datas = []
         # modalities_list = []
         for name in feddata['client_names']:
             train_data = feddata[name]['dtrain']    # sample idx
+            valid_data = feddata[name]['dvalid']
+            if cls._cross_validation:
+                k = len(train_data)
+                train_data.extend(valid_data)
+                random.shuffle(train_data)
+                all_data = train_data
+                train_data = all_data[:k]
+                valid_data = all_data[k:]
+            if cls._train_on_all:
+                train_data.extend(valid_data)
             train_datas.append(cls.TaskDataset(origin_train_data, train_data))
+            valid_datas.append(cls.TaskDataset(origin_train_data, valid_data))
+            # modalities_list.append(feddata[name]['modalities'])
+            # modalities_list.append(list(range(12)))
         
         test_data = (test_data, other_test_datas)
-        return train_datas, test_data, feddata['client_names']
+        return train_datas, valid_datas, test_data, feddata['client_names']
 
 def collate(batch, mlm_collator):
     batch_size = len(batch)
@@ -368,7 +354,8 @@ def save_task(generator):
         #     }
         # else:
         feddata[generator.cnames[cid]] = {
-            'dtrain': generator.train_cidxs[cid]
+            'dtrain': generator.train_cidxs[cid],
+            'dvalid': generator.valid_cidxs[cid]
         }
     # with open(os.path.join(generator.taskpath, 'data.json'), 'w') as outf:
     #     ujson.dump(feddata, outf)
@@ -490,7 +477,7 @@ def by_labels_non_iid_split(dataset, n_classes, n_clients, n_clusters, alpha, fr
 def noniid_partition(generator):
     print(generator)
     labels = np.unique(generator.train_data.labels)
-    import pdb; pdb.set_trace()
+    # import pdb; pdb.set_trace()
     clients_indices = by_labels_non_iid_split(generator.train_data, labels.shape[0], generator.num_clients, labels.shape[0], generator.skewness, frac=1, seed=generator.seed)
     # import pdb; pdb.set_trace()
     return clients_indices  
@@ -595,40 +582,204 @@ class TaskGen(DefaultTaskGen):
         self.image_only = False
 
         self.missing=missing
-        # self.local_holdout_rate = 0.2
+        self.local_holdout_rate = 0.2
         # self.specific_training_leads = None
         
         if self.missing:
             self.taskname = self.taskname + '_' + 'missing_ratio_' + str(missing_ratio_train) + '_' + str(missing_ratio_test)  \
                                           + '_' + 'missing_type_' + str(missing_type_train) + '_' + str(missing_type_test) \
                                           + '_' + 'both_ratio_' + str(both_ratio)
+        # if self.missing and self.num_clients==10:
+        #     self.specific_training_leads = [[0, 1]]*6 + [[0]]*2 + [[1]]*2 
+        #     self.taskname = self.taskname + '_missing_each_0.2'  
+        # if self.missing and self.num_clients==1:
+        #     self.specific_training_leads = [[0,1]]
+        #     self.taskname = self.taskname + '_centralized_no_missing'
+        
+        # self.taskname = self.taskname + '_' + str(self.num_classes) + '_classes'    
         
         self.taskpath = os.path.join(self.task_rootpath, self.taskname)
-
+        # if self.missing and self.num_clients==20:
+        #     self.specific_training_leads = [[0, 1]]*10, [[0]]*5 + [[1]]*5 
+        #     self.taskname = self.taskname + '_clip_local_missing'
+        #     self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        # if self.missing and self.num_clients==10:
+        #     self.specific_training_leads = [[0, 1]]*6 + [[0]]*2 + [[1]]*2
+        #     self.taskname = self.taskname + '_clip_local_missing'
+        #     self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        # if self.subset and self.num_clients==10:
+        #     self.specific_training_leads = [[0, 1]]*10
+        #     self.taskname = self.taskname + '_clip_local_full_modal_subset'
+        #     self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+        # if self.subset and self.num_clients>1 and not self.missing:
+        #     self.specific_training_leads = [[0, 1]]*self.num_clients
+        #     self.taskname = self.taskname + '_clip_local_full_modal_subset'
+        #     self.taskpath = os.path.join(self.task_rootpath, self.taskname)            
+        # else:
+        #     self.specific_training_leads = [[0, 1]]*self.num_clients
+        #     self.taskname = self.taskname + '_clip_local_full_modal'
+        #     self.taskpath = os.path.join(self.task_rootpath, self.taskname)
+            
+            
     def load_data(self):
-            collator = DataCollatorForLanguageModeling
+        collator = DataCollatorForLanguageModeling
 
-            self.train_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='train', 
-                                    image_size=self.image_size,
-                                    max_text_len=self.max_text_len,
-                                    draw_false_image=self.draw_false_image,
-                                    draw_false_text=self.draw_false_text,
-                                    image_only=self.image_only,
-                                    missing_info=self.missing_info)
-            self.train_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
-            self.train_data.mlm_collator = collator(tokenizer=self.train_data.tokenizer, mlm=True, mlm_probability=0.15)
-            self.train_data.collate = functools.partial(self.train_data.collate, mlm_collator=self.train_data.mlm_collator)
-            # import pdb; pdb.set_trace()
-            self.test_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
-                                    image_size=self.image_size,
-                                    max_text_len=self.max_text_len,
-                                    draw_false_image=self.draw_false_image,
-                                    draw_false_text=self.draw_false_text,
-                                    image_only=self.image_only,
-                                    missing_info=self.missing_info)
-            self.test_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
-            self.test_data.mlm_collator = collator(tokenizer=self.test_data.tokenizer, mlm=True, mlm_probability=0.15)
-            self.test_data.collate = functools.partial(self.test_data.collate, mlm_collator=self.test_data.mlm_collator)
+        self.train_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='train', 
+                                image_size=self.image_size,
+                                max_text_len=self.max_text_len,
+                                draw_false_image=self.draw_false_image,
+                                draw_false_text=self.draw_false_text,
+                                image_only=self.image_only,
+                                missing_info=self.missing_info)
+        self.train_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
+        self.train_data.mlm_collator = collator(tokenizer=self.train_data.tokenizer, mlm=True, mlm_probability=0.15)
+        self.train_data.collate = functools.partial(self.train_data.collate, mlm_collator=self.train_data.mlm_collator)
+        # import pdb; pdb.set_trace()
+        self.test_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
+                                image_size=self.image_size,
+                                max_text_len=self.max_text_len,
+                                draw_false_image=self.draw_false_image,
+                                draw_false_text=self.draw_false_text,
+                                image_only=self.image_only,
+                                missing_info=self.missing_info)
+        self.test_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
+        self.test_data.mlm_collator = collator(tokenizer=self.test_data.tokenizer, mlm=True, mlm_probability=0.15)
+        self.test_data.collate = functools.partial(self.test_data.collate, mlm_collator=self.test_data.mlm_collator)
+
+        # # other test data
+        # self.other_test_datas = []
+        # missing_image_config = {
+        # 'missing_ratio':
+        #     {'test': 0.7,
+        #     'train': 0.7},
+        # 'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        # 'missing_type':
+        #     {'test': 'image',
+        #     'train': 'both'},
+        # 'both_ratio': 0,
+        # 'simulate_missing': False
+        # }
+        # test_miss_image_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
+        #                         image_size=self.image_size,
+        #                         max_text_len=self.max_text_len,
+        #                         draw_false_image=self.draw_false_image,
+        #                         draw_false_text=self.draw_false_text,
+        #                         image_only=self.image_only,
+        #                         missing_info=missing_image_config)
+        # test_miss_image_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
+        # test_miss_image_data.mlm_collator = collator(tokenizer=test_miss_image_data.tokenizer, mlm=True, mlm_probability=0.15)
+        # test_miss_image_data.collate = functools.partial(test_miss_image_data.collate, mlm_collator=test_miss_image_data.mlm_collator)
+        # self.other_test_datas.append(test_miss_image_data)
+
+
+        # missing_text_config = {
+        # 'missing_ratio':
+        #     {'test': 0.7,
+        #     'train': 0.7},
+        # 'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        # 'missing_type':
+        #     {'test': 'text',
+        #     'train': 'both'},
+        # 'both_ratio': 0,
+        # 'simulate_missing': False
+        # }
+        # test_miss_text_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
+        #                         image_size=self.image_size,
+        #                         max_text_len=self.max_text_len,
+        #                         draw_false_image=self.draw_false_image,
+        #                         draw_false_text=self.draw_false_text,
+        #                         image_only=self.image_only,
+        #                         missing_info=missing_text_config)
+        # test_miss_text_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
+        # test_miss_text_data.mlm_collator = collator(tokenizer=test_miss_text_data.tokenizer, mlm=True, mlm_probability=0.15)
+        # test_miss_text_data.collate = functools.partial(test_miss_text_data.collate, mlm_collator=test_miss_text_data.mlm_collator)
+        # self.other_test_datas.append(test_miss_text_data)
+    
+
+        # full_modal_config = {
+        # 'missing_ratio':
+        #     {'test': 0,
+        #     'train': 0.7},
+        # 'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        # 'missing_type':
+        #     {'test': 'both',
+        #     'train': 'both'},
+        # 'both_ratio': 0,
+        # 'simulate_missing': False
+        # }
+        # full_modal = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
+        #                         image_size=self.image_size,
+        #                         max_text_len=self.max_text_len,
+        #                         draw_false_image=self.draw_false_image,
+        #                         draw_false_text=self.draw_false_text,
+        #                         image_only=self.image_only,
+        #                         missing_info=full_modal_config)
+        # full_modal.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
+        # full_modal.mlm_collator = collator(tokenizer=full_modal.tokenizer, mlm=True, mlm_probability=0.15)
+        # full_modal.collate = functools.partial(full_modal.collate, mlm_collator=full_modal.mlm_collator)
+        # self.other_test_datas.append(full_modal)
+        
+
+        # image_only_config = {
+        # 'missing_ratio':
+        #     {'test': 1,
+        #     'train': 0.7},
+        # 'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        # 'missing_type':
+        #     {'test': 'text',
+        #     'train': 'both'},
+        # 'both_ratio': 0,
+        # 'simulate_missing': False
+        # }
+        # test_image_only = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
+        #                         image_size=self.image_size,
+        #                         max_text_len=self.max_text_len,
+        #                         draw_false_image=self.draw_false_image,
+        #                         draw_false_text=self.draw_false_text,
+        #                         image_only=self.image_only,
+        #                         missing_info=image_only_config)
+        # test_image_only.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
+        # test_image_only.mlm_collator = collator(tokenizer=test_image_only.tokenizer, mlm=True, mlm_probability=0.15)
+        # test_image_only.collate = functools.partial(test_image_only.collate, mlm_collator=test_image_only.mlm_collator)
+        # self.other_test_datas.append(test_image_only)
+
+
+        # text_only_config = {
+        # 'missing_ratio':
+        #     {'test': 1,
+        #     'train': 0.7},
+        # 'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        # 'missing_type':
+        #     {'test': 'image',
+        #     'train': 'both'},
+        # 'both_ratio': 0,
+        # 'simulate_missing': False
+        # }
+        # test_text_only = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
+        #                         image_size=self.image_size,
+        #                         max_text_len=self.max_text_len,
+        #                         draw_false_image=self.draw_false_image,
+        #                         draw_false_text=self.draw_false_text,
+        #                         image_only=self.image_only,
+        #                         missing_info=text_only_config)
+        # test_text_only.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
+        # test_text_only.mlm_collator = collator(tokenizer=test_text_only.tokenizer, mlm=True, mlm_probability=0.15)
+        # test_text_only.collate = functools.partial(test_text_only.collate, mlm_collator=test_text_only.mlm_collator)
+        # self.other_test_datas.append(test_text_only)
+
+
+    # def local_holdout(self, local_datas, shuffle=False):
+    #     """split each local dataset into train data and valid data according the rate."""
+    #     train_cidxs = []
+    #     valid_cidxs = []
+    #     for local_data in local_datas:
+    #         if shuffle:
+    #             np.random.shuffle(local_data)
+    #         k = int(len(local_data) * (1-self.local_holdout_rate))
+    #         train_cidxs.append(local_data[:k])
+    #         valid_cidxs.append(local_data[k:])
+        
+    #     return train_cidxs, valid_cidxs
     
 class TaskCalculator(ClassificationCalculator):
     def __init__(self, device, optimizer_name='sgd'):
@@ -678,7 +829,6 @@ class TaskCalculator(ClassificationCalculator):
         # print(loss)
         return {'loss': loss}
     
-    
     @torch.no_grad()
     def test(self, model, transformer, text_embeddings, dataset, batch_size=64, num_workers=0):
         """
@@ -705,8 +855,8 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            # if batch_id==0:
-            #     break
+            if batch_id==1:
+                break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
@@ -742,20 +892,20 @@ class TaskCalculator(ClassificationCalculator):
             total_loss += loss.item()
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
             # TO_DELETE
-            # if batch_id==0:
-            #     break
+            if batch_id==1:
+                break
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
         # print("Client {}\n".format(client_id+1), labels, predicts)
-        # if current_round % 1 == 0:
-        #     confusion_matrix_save_path = 'fedtask/' + option['task'] + '/plot_confusion_matrix/' + option['model']
-        #     if not os.path.exists(confusion_matrix_save_path):
-        #         os.makedirs(confusion_matrix_save_path)
-        #     confusion_matrix_save_file = confusion_matrix_save_path + '/client_{}_confusion_matrix_round'.format(client_id+1) + str(current_round)
-        #     list_class = list(range(1,9))
-        #     if option['wandb']:
-        #         plot_confusion_matrix(labels, predicts, 'client_{}'.format(client_id+1), current_round, confusion_matrix_save_file, list_class)
+        if current_round % 10 == 0:
+            confusion_matrix_save_path = 'fedtask/' + option['task'] + '/plot_confusion_matrix/' + option['model']
+            if not os.path.exists(confusion_matrix_save_path):
+                os.makedirs(confusion_matrix_save_path)
+            confusion_matrix_save_file = confusion_matrix_save_path + '/client_{}_confusion_matrix_round'.format(client_id+1) + str(current_round)
+            list_class = list(range(1,9))
+            if option['wandb']:
+                plot_confusion_matrix(labels, predicts, 'client_{}'.format(client_id+1), current_round, confusion_matrix_save_file, list_class)
         return {
             'loss': total_loss / (batch_id+1),
             'acc': accuracy
@@ -789,8 +939,8 @@ class TaskCalculator(ClassificationCalculator):
             else:
                 total_loss = loss + total_loss
             # TO_DELETE
-            # if batch_id==0:
-            #     break
+            if batch_id==1:
+                break
         loss_eval = loss / (batch_id + 1) 
         # import pdb; pdb.set_trace()
         loss_eval = [loss for loss in loss_eval]
@@ -808,8 +958,6 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
-        # print("-------------------------SERVER_TEST-----------------------")
-        # print("Starting server test", datetime.now())
         model.eval()
         if batch_size==-1:batch_size=len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
@@ -818,23 +966,50 @@ class TaskCalculator(ClassificationCalculator):
         total_loss = 0.0
         labels = list()
         predicts = list()   
-        # print("     Starting batch test", datetime.now())
+        loss_each_modal = [[] for i in range(3)]
+        loss_each_modal = [0]*3
         for batch_id, batch_data in enumerate(data_loader):
             batch_data = self.data_to_device(batch_data)
             labels.extend(batch_data['label'])
-            # print("          Starting 1 inference", datetime.now())
             loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
-            # print("          End 1 inference", datetime.now())
             total_loss += loss.item() * len(batch_data['label'])
             predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
-            # print("     End each batch test", datetime.now())
+            # import pdb; pdb.set_trace()
+            # if loss_leads.dim() != 0:
+            if isinstance(loss_leads, list) and len(loss_leads) == 3:
+                for i in range(3):
+                    loss_each_modal[i] += loss_leads[i].item() * len(batch_data['label'])
 
+            # TO_DELETE
+            if batch_id==1:
+                break
+        # import pdb; pdb.set_trace()
         labels = np.array(labels)
         predicts = np.array(predicts)
         accuracy = accuracy_score(labels, predicts)
+        # print("Server\n", labels, predicts)
+        if current_round % 10 == 0:
+            confusion_matrix_save_path = 'fedtask/' + option['task'] + '/plot_confusion_matrix/' + option['model']
+            if not os.path.exists(confusion_matrix_save_path):
+                os.makedirs(confusion_matrix_save_path)
+            confusion_matrix_save_file = confusion_matrix_save_path + '/server_confusion_matrix_round' + str(current_round)
+            list_class = list(range(1,9))
+            if option['wandb']:
+                plot_confusion_matrix(labels, predicts, 'server', current_round, confusion_matrix_save_file, list_class)
+        if isinstance(loss_leads, list) and len(loss_leads) == 3:
+        # import pdb; pdb.set_trace()
+            result['loss_text_only'] = loss_each_modal[0] / len(dataset)
+            result['loss_image_only'] = loss_each_modal[1] / len(dataset)
+            result['loss_complete'] = loss_each_modal[-1] / len(dataset)
+        # for i in range(3):
+        #     result['loss_modal_combi''_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
         result['loss'] = total_loss / len(dataset)
         result['acc'] = accuracy
-        # print("End server test", datetime.now())
+        # return {
+        #     'loss': total_loss / len(dataset),
+        #     'acc': accuracy
+        # }
+        # import pdb;pdb.set_trace()
         return result
         
     
@@ -848,12 +1023,8 @@ class TaskCalculator(ClassificationCalculator):
         :return: [mean_accuracy, mean_loss]
         """
         # import pdb; pdb.set_trace()
-        # print("-------------------------SERVER_OTHER_TEST-----------------------")
-        # print("Starting server_other_test", datetime.now())
         model.eval()
-        # TO_CHANGE
-        # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
-        names = ['miss_image', 'miss_both', 'full_modal', 'image_only', 'text_only']
+        names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
         result = dict() 
         for i in range(len(datasets)):
             dataset = datasets[i]
@@ -863,19 +1034,15 @@ class TaskCalculator(ClassificationCalculator):
             total_loss = 0.0
             labels = list()
             predicts = list()   
-            # print("     Starting batch test", datetime.now())
             for batch_id, batch_data in enumerate(data_loader):
                 batch_data = self.data_to_device(batch_data)
                 labels.extend(batch_data['label'])
-                # print("          Starting 1 inference", datetime.now())
                 loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
-                # print("          End 1 inference", datetime.now())
                 total_loss += loss.item() * len(batch_data['label'])
                 predicts.extend(torch.argmax(torch.softmax(outputs, dim=1), dim=1).cpu().tolist())
-                # print("     End each batch test", datetime.now()) 
                 # TO_DELETE
-                # if batch_id==0:
-                #     break
+                if batch_id==1:
+                    break
             # import pdb; pdb.set_trace()
             labels = np.array(labels)
             predicts = np.array(predicts)
@@ -884,153 +1051,8 @@ class TaskCalculator(ClassificationCalculator):
             #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result[names[i]+'_loss'] = total_loss / len(dataset)
             result[names[i]+'_acc'] = accuracy
-        
-        # print("End server_other_test", datetime.now())
         return result
 
-
-    @torch.no_grad()
-    def server_test_soft_voting(self, model, transformer, text_embeddings, dataset, batch_size=64, num_workers=0):
-        """
-        Metric = [mean_accuracy, mean_loss]
-        :param model:
-        :param dataset:
-        :param batch_size:
-        :return: [mean_accuracy, mean_loss]
-        """
-        # import pdb; pdb.set_trace()
-        # print("-------------------------SERVER_TEST_SOFT_VOTING-----------------------")
-        # print("Starting server test - Soft voting", datetime.now())
-        model.eval()
-        if batch_size==-1:batch_size=len(dataset)
-        data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
-        result = dict() 
-        total_loss = 0.0
-        labels = list()
-        predicts = list()   
-
-        # print("     Starting batch test - Soft voting", datetime.now())
-        for batch_id, batch_data in enumerate(data_loader):
-            avg_loss = 0
-            avg_probabilities = list()
-            batch_data = self.data_to_device(batch_data)
-            labels.extend(batch_data['label'])
-            # print("          Starting each ensembled model - Soft voting", datetime.now())
-            
-            for local_pool in model.client_local_pools:
-                model.pool = local_pool
-                # print("               Starting 1 inference", datetime.now())
-                loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
-                # print("               End 1 inference", datetime.now())
-                probabilities = F.softmax(outputs, dim=1)
-                # if avg_probabilities.device != probabilities.device:
-                #     avg_probabilities = avg_probabilities.to(probabilities.device)
-                # import pdb; pdb.set_trace()
-                avg_probabilities.append(probabilities)
-                avg_loss += loss
-                # print("          End each ensembled model - Soft voting", datetime.now())
-                
-            # print("Average prob", avg_probabilities)
-            # import pdb; pdb.set_trace()
-            avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
-            # avg_probabilities /= len(model.client_local_prompts)
-            avg_loss /= len(model.client_local_pools)
-
-            predicted_classes = torch.argmax(avg_probabilities, dim=1)
-            total_loss += avg_loss.item() * len(batch_data['label'])
-            # import pdb; pdb.set_trace()
-            predicts.extend(predicted_classes.cpu().tolist())
-            # TO_DELETE
-            # if batch_id==0:
-            #     break
-            # print("     End batch test - Soft voting", datetime.now())
-
-        labels = np.array(labels)
-        predicts = np.array(predicts)
-        accuracy = accuracy_score(labels, predicts)
-        result['loss'] = total_loss / len(dataset)
-        result['acc'] = accuracy
-        # print("End server test - Soft voting", datetime.now())
-
-        # print(accuracy)
-        # import pdb; pdb.set_trace()
-        return result
-
-
-    @torch.no_grad()
-    def server_other_test_soft_voting(self, model, transformer, text_embeddings, datasets, batch_size=64, num_workers=0):
-        """
-        Metric = [mean_accuracy, mean_loss]
-        :param model:
-        :param dataset:
-        :param batch_size:
-        :return: [mean_accuracy, mean_loss]
-        """
-        # import pdb; pdb.set_trace()
-        # print("-------------------------SERVER_OTHER_TEST_SOFT_VOTING-----------------------")
-        # print("Starting other server test - Soft voting", datetime.now())
-        model.eval()
-        # TO_CHANGE
-        # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
-        names = ['miss_image', 'miss_both', 'full_modal', 'image_only', 'text_only']
-        result = dict() 
-        for i in range(len(datasets)):
-            dataset = datasets[i]
-            if batch_size==-1:batch_size=len(dataset)
-            data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
-            # for test_combi_index in range(len(2)):
-            total_loss = 0.0
-            labels = list()
-            predicts = list()
-            # print("     Starting batch test - Soft voting", datetime.now())
-            
-            for batch_id, batch_data in enumerate(data_loader):
-                avg_loss = 0
-                avg_probabilities = list()
-                batch_data = self.data_to_device(batch_data)
-                labels.extend(batch_data['label'])
-                # ls_prompt = [torch.sum(i) for i in model.client_local_prompts]
-                # print("Sum prompts in testing", ls_prompt)
-                # print("          Starting each ensembled model - Soft voting", datetime.now())
-                for local_pool in model.client_local_pools:
-                    model.pool = local_pool
-                    # print(model.pool.prompt[model.pool.top_k_idx])
-                    # print(torch.sum(local_prompt))
-                    # import pdb; pdb.set_trace()
-                    # print("               Starting 1 inference", datetime.now())
-                    loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data)
-                    # print("               End 1 inference", datetime.now())
-                    probabilities = F.softmax(outputs, dim=1)
-                    # if avg_probabilities.device != probabilities.device:
-                    #     avg_probabilities = avg_probabilities.to(probabilities.device)
-                    avg_probabilities.append(probabilities)
-                    avg_loss += loss
-                    # print("          End each ensembled model - Soft voting", datetime.now())
-                
-                
-                avg_probabilities = torch.mean(torch.stack(avg_probabilities), dim=0)
-                avg_loss /= len(model.client_local_pools)
-
-                predicted_classes = torch.argmax(avg_probabilities, dim=1)
-                total_loss += avg_loss.item() * len(batch_data['label'])
-                # import pdb; pdb.set_trace()
-                predicts.extend(predicted_classes.cpu().tolist())
-                # print("\tEnd batch test - Soft voting", datetime.now())
-                # TO_DELETE
-                # if batch_id==0:
-                #     break
-            # import pdb; pdb.set_trace()
-            labels = np.array(labels)
-            predicts = np.array(predicts)
-            accuracy = accuracy_score(labels, predicts)
-            # for i in range(self.n_leads):
-            #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
-            result[names[i]+'_loss'] = total_loss / len(dataset)
-            result[names[i]+'_acc'] = accuracy
-        
-        # print("End other server test - Soft voting", datetime.now())
-            
-        return result
 
 def plot_confusion_matrix(y_true, y_pred, model='server', current_round=-1, output_file=None, classes=None, normalize=True):
     """

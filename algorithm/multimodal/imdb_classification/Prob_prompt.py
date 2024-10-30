@@ -209,7 +209,8 @@ class Server(BasicServer):
             "model" : copy.deepcopy(self.model), 
             "transformer": self.transformer,
             "text_embeddings": self.text_embeddings,
-            "client_id": client_id
+            "client_id": client_id,
+            "current_round": self.current_round
         }
 
     def test(self, model=None):
@@ -329,11 +330,11 @@ class Client(BasicClient):
         :return:
             client_pkg: the package to be send to the server
         """
-        model, transformer, text_embeddings, client_id = self.unpack(svr_pkg)
+        model, transformer, text_embeddings, client_id, current_round = self.unpack(svr_pkg)
         # self.client_id = client_id
         if self.local_model is None:
             self.local_model = copy.deepcopy(model)
-        self.train(self.local_model, transformer, text_embeddings, client_id)
+        self.train(self.local_model, transformer, text_embeddings, client_id, current_round)
         cpkg = self.pack(self.local_model)
         return cpkg
     
@@ -346,7 +347,7 @@ class Client(BasicClient):
             the unpacked information that can be rewritten
         """
         # unpack the received package
-        return received_pkg['model'], received_pkg['transformer'], received_pkg['text_embeddings'], received_pkg['client_id']
+        return received_pkg['model'], received_pkg['transformer'], received_pkg['text_embeddings'], received_pkg['client_id'], received_pkg['current_round']
 
 
     def pack(self, model):
@@ -364,7 +365,7 @@ class Client(BasicClient):
 
     @ss.with_completeness
     @fmodule.with_multi_gpus
-    def train(self, model, transformer, text_embeddings, client_id):
+    def train(self, model, transformer, text_embeddings, client_id, current_round):
         """
         Standard local training procedure. Train the transmitted model with local training dataset.
         :param
@@ -399,7 +400,9 @@ class Client(BasicClient):
                 model=model,
                 transformer=transformer,
                 text_embeddings=text_embeddings,
-                data=batch_data
+                data=batch_data, 
+                client_id=client_id,
+                current_round=current_round
             )['loss']
             # print('\t',datetime.now(),iter, loss)
             loss.backward()

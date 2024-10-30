@@ -3,6 +3,7 @@ import torch
 from torch import nn
 import torch.nn.functional as F
 import numpy as np
+import os
 from utils.fmodule import FModule
 
 
@@ -242,17 +243,68 @@ class Model(FModule):
             "patch_index": patch_index,
         }
 
-        return ret
+        return ret["cls_feats"], prompts
 
 
-    def forward(self, transformer, text_embeddings, batch):
-        infer = self.infer(batch, transformer, text_embeddings, mask_text=False, mask_image=False)
-        imgcls_logits = self.classifier(infer["cls_feats"])
+    def forward(self, transformer, text_embeddings, batch, flag="", client_id=None, current_round=None):
+        
+        cls_feats, prompts = self.infer(batch, transformer, text_embeddings)
+
+        # Capture embeddings before the classifier
+        embedding_before_classifier = cls_feats.detach().cpu()
+
+        # Classify and get embeddings after the classifier
+        imgcls_logits = self.classifier(cls_feats)
+        embedding_after_classifier = imgcls_logits.detach().cpu()
+
+        # Save to a dictionary
+        sample_data = {
+            "prompts": prompts.detach().cpu(),
+            "missing_type": batch["missing_type"],
+            "embedding_before_classifier": embedding_before_classifier,
+            "embedding_after_classifier": embedding_after_classifier,
+        }
+        save_file = False
+        if save_file:
+            if flag != "":
+                if flag=="train" and current_round % 10 == 0:
+                    os.makedirs(f"output/imdb/L2P_Prob/train/client_{client_id+1}/", exist_ok=True)
+                    file_path = f"output/imdb/L2P_Prob/train/client_{client_id+1}/sample_data_round_{current_round}.pt"
+                    if os.path.exists(file_path):
+                    # Load existing data
+                        existing_data = torch.load(file_path)
+                        if isinstance(existing_data, list):
+                            existing_data.append(sample_data)
+                        else:
+                            existing_data = [existing_data, sample_data]
+                        # Save the updated list
+                        torch.save(existing_data, file_path)
+                    else:
+                        # Save a new list with the current sample data
+                        torch.save([sample_data], file_path)
+                        # Append to file if it exists, else create new
+                elif flag=="test" and current_round % 10 == 0:
+                    os.makedirs("output/imdb/L2P_Prob/test/", exist_ok=True)
+                    file_path = f"output/imdb/L2P_Prob/test/sample_data_round_{current_round}.pt"
+                    if os.path.exists(file_path):
+                        # Load existing data
+                        existing_data = torch.load(file_path)
+                        if isinstance(existing_data, list):
+                            existing_data.append(sample_data)
+                        else:
+                            existing_data = [existing_data, sample_data]
+                        # Save the updated list
+                        torch.save(existing_data, file_path)
+                    else:
+                        # Save a new list with the current sample data
+                        torch.save([sample_data], file_path)
+            
 
         imgcls_labels = batch["label"]
+
         imgcls_labels = torch.tensor(imgcls_labels).to(self.device).long()
+
         imgcls_loss = F.cross_entropy(imgcls_logits, imgcls_labels)
-        # import pdb; pdb.set_trace()
 
         return imgcls_loss, imgcls_loss, imgcls_logits
 

@@ -1,4 +1,4 @@
-from ...fedbase import BasicServer, BasicClient
+from ....fedbase import BasicServer, BasicClient
 import utils.system_simulator as ss
 from utils import fmodule
 import copy
@@ -14,7 +14,7 @@ from datetime import datetime
 from collections import Counter
 import wandb
 
-# ViLT related functions
+
 def remove_prefix_from_state_dict(state_dict, prefix):
     return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix)}
 
@@ -25,21 +25,21 @@ class Server(BasicServer):
         self.n_leads = 2
         self.num_outer_loops = option['num_outer_loops']
         self.hparams_config = {'batch_size': 32, 
-                        'prompt_type': 'input', 
-                        'prompt_length': 16, 
-                        'learnt_p': True, 
-                        'prompt_layers': [0, 1, 2, 3, 4, 5], 
-                        'multi_layer_prompt': True, 
-                        'max_text_len': option['max_text_len'], 
-                        'vocab_size': 30522, 
-                        'vit': 'vit_base_patch32_384', 
-                        'hidden_size': 768, 
-                        'num_heads': 12, 
-                        'num_layers': 12, 
-                        'drop_rate': 0.1,
-                        'mlp_ratio': 4,
-                        'max_image_len': 40,
-                        'load_path': 'benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
+                                'prompt_type': 'input', 
+                                'prompt_length': 16, 
+                                'learnt_p': True, 
+                                'prompt_layers': [0, 1, 2, 3, 4, 5], 
+                                'multi_layer_prompt': True, 
+                                'max_text_len': option['max_text_len'], 
+                                'vocab_size': 30522, 
+                                'vit': 'vit_base_patch32_384', 
+                                'hidden_size': 768, 
+                                'num_heads': 12, 
+                                'num_layers': 12, 
+                                'drop_rate': 0.1,
+                                'mlp_ratio': 4,
+                                'max_image_len': 40,
+                                'load_path': 'benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
         # the first element is the aggregated global model (new model)
         self.client_local_pools = list()
@@ -62,7 +62,7 @@ class Server(BasicServer):
         self.test_data, self.other_test_datas = test_data
         self.text_embeddings = BertEmbeddings(bert_config)
         self.text_embeddings.apply(init_weights)
-        
+
         # self.get_missing_type()
 
         # Load ViLT Model
@@ -78,7 +78,6 @@ class Server(BasicServer):
 
         transformer_state_dict = remove_prefix_from_state_dict(state_dict, 'transformer.')
         text_embeddings_state_dict = remove_prefix_from_state_dict(state_dict, 'text_embeddings.')
-        
         # Load the state_dicts into transformer and text_embeddings
         self.transformer.load_state_dict(transformer_state_dict, strict=True)
         self.text_embeddings.load_state_dict(text_embeddings_state_dict, strict=True)
@@ -87,8 +86,8 @@ class Server(BasicServer):
             param.requires_grad=False
         for param in self.text_embeddings.parameters():
             param.requires_grad=False
-
             
+
     def get_missing_type (self):
         dataset = self.test_data
         missing_types = []
@@ -163,9 +162,9 @@ class Server(BasicServer):
         ]) / sum(p)
         
         # local prompt
-        average_prompt = sum(pk * model.pool.prompt for pk, model in zip(p, models))  / sum(p)      # device: cuda
-        # print(average_prompt.device)
+        average_prompt = sum(pk * model.pool.prompt for pk, model in zip(p, models))  / sum(p)
         new_model.pool.prompt = nn.Parameter(average_prompt)
+
         self.client_local_pools.append(copy.deepcopy(new_model.pool))
         # print(new_model.pool.prompt[new_model.pool.top_k_idx])
         
@@ -201,17 +200,16 @@ class Server(BasicServer):
         #print(temp.shape)
         del agg
         with torch.no_grad():
+            # print(new_model.global_pool.prompt[new_model.global_pool.top_k_idx])
             new_model.global_pool.prompt = nn.Parameter(temp, requires_grad=True)
             self.client_global_pools.append(copy.deepcopy(new_model.global_pool))
-            # print(new_model.global_pool.prompt[new_model.global_pool.top_k_idx])
             for k in range(n_models):
-                self.client_global_pools.append(copy.deepcopy(self.clients[self.selected_clients[k]].local_model.global_pool))
-                # print(self.clients[self.selected_clients[k]].local_model.global_pool.prompt[self.clients[self.selected_clients[k]].local_model.global_pool.top_k_idx])   
                 self.clients[self.selected_clients[k]].local_model.global_pool.prompt = new_model.global_pool.prompt
         print("Temp", temp.shape[0])
                 
         new_model.reset_trained_prompts_checklist()
         for k in range(n_models):
+            self.client_global_pools.append(copy.deepcopy(self.clients[self.selected_clients[k]].local_model.global_pool))
             self.clients[self.selected_clients[k]].local_model.reset_trained_prompts_checklist()
         return new_model
     
@@ -239,35 +237,33 @@ class Server(BasicServer):
         :return:
             metrics: specified by the task during running time (e.g. metric = [mean_accuracy, mean_loss] when the task is classification)
         """
+        # return dict()
         if model is None: model=copy.deepcopy(self.model)
-
-        # First, keep the global local pool and voting between global prompts from clients only
-        # But same global prompt in the previous round?
         model.client_global_pools = self.client_global_pools
         model.client_local_pools = self.client_local_pools
+
         if self.test_data:
-                state_before = {k: v.clone() for k, v in model.state_dict().items()}
-                result = self.calculator.server_test_soft_voting(
+            result = self.calculator.server_test_agglo_median_soft_voting(
                 model=copy.deepcopy(model),
                 transformer=self.transformer,
                 text_embeddings=self.text_embeddings,
                 dataset=self.test_data,
                 batch_size=self.option['test_batch_size']
-                )
-                if self.other_test_datas:
-                    result.update(self.calculator.server_other_test_soft_voting(
-                        model=copy.deepcopy(model),
-                        transformer=self.transformer,
-                        text_embeddings=self.text_embeddings,
-                        datasets=self.other_test_datas,
-                        batch_size=self.option['test_batch_size'])
-                        )
-
-        self.client_global_pools = list()
-        self.client_local_pools = list()
-
-        return result
-
+            )
+            if self.other_test_datas:
+                result.update(self.calculator.server_other_test_agglo_median_soft_voting(
+                    model=copy.deepcopy(model),
+                    transformer=self.transformer,
+                    text_embeddings=self.text_embeddings,
+                    datasets=self.other_test_datas,
+                    batch_size=self.option['test_batch_size'])
+                    )
+            self.client_global_pools = list()
+            self.client_local_pools = list()
+            return result
+        
+        else:
+            return None
 
     def validate(self, model=None):
         """
@@ -300,37 +296,12 @@ class Server(BasicServer):
             metrics: a dict contains the lists of each metric_value of the clients
         """
         # This function uses global model after aggregation to tr
-        # TO_DELETE
-        # print("Test on clients but using Global model")
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
             client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
-            # TO_DELETE
-            # print("Client {}".format(client_id+1), client_metrics)
-        return all_metrics
-    
-    def test_on_clients_using_client_models(self, dataflag='train'):
-        """
-        Validate accuracies and losses on clients' local datasets
-        :param
-            dataflag: choose train data or valid data to evaluate
-        :return
-            metrics: a dict contains the lists of each metric_value of the clients
-        """
-        # This function uses global model after aggregation to tr
-        # TO_DELETE
-        # print("Test on clients using their models")
-        all_metrics = collections.defaultdict(list)
-        for client_id in self.selected_clients:
-            c = self.clients[client_id]
-            client_metrics = c.test(c.local_model, self.transformer, self.text_embeddings, dataflag)
-            for met_name, met_val in client_metrics.items():
-                all_metrics[met_name].append(met_val)
-            # TO_DELETE
-            # print("Client {}".format(client_id+1), client_metrics)
         return all_metrics
 
 def init_weights(module):
@@ -450,14 +421,9 @@ class Client(BasicClient):
                 text_embeddings=text_embeddings,
                 data=batch_data
             )['loss']
-            # TO_DELETE
-            # if iter==0:
-            #     print('\t',"Training client {}".format(client_id+1),iter, loss)
+            # print('\t',datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
-            # import pdb; pdb.set_trace()
-            # print('\t',datetime.now(),iter, loss, torch.sum(model.pool.prompt), torch.sum(model.global_pool.prompt), torch.sum(model.combined_prompts))
-            # print(model.global_pool.prompt[model.global_pool.top_k_idx])
         
         return
 

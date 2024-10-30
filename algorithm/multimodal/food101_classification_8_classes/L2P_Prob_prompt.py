@@ -14,7 +14,6 @@ from datetime import datetime
 from collections import Counter
 import wandb
 
-# ViLT related functions
 def remove_prefix_from_state_dict(state_dict, prefix):
     return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix)}
 
@@ -25,21 +24,21 @@ class Server(BasicServer):
         self.n_leads = 2
         self.num_outer_loops = option['num_outer_loops']
         self.hparams_config = {'batch_size': 32, 
-                            'prompt_type': 'input', 
-                            'prompt_length': 16, 
-                            'learnt_p': True, 
-                            'prompt_layers': [0, 1, 2, 3, 4, 5], 
-                            'multi_layer_prompt': True, 
-                            'max_text_len': option['max_text_len'], 
-                            'vocab_size': 30522, 
-                            'vit': 'vit_base_patch32_384', 
-                            'hidden_size': 768, 
-                            'num_heads': 12, 
-                            'num_layers': 12, 
-                            'drop_rate': 0.1,
-                            'mlp_ratio': 4,
-                            'max_image_len': 40,
-                            'load_path': 'benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
+                                'prompt_type': 'input', 
+                                'prompt_length': 16, 
+                                'learnt_p': True, 
+                                'prompt_layers': [0, 1, 2, 3, 4, 5], 
+                                'multi_layer_prompt': True, 
+                                'max_text_len': option['max_text_len'], 
+                                'vocab_size': 30522, 
+                                'vit': 'vit_base_patch32_384', 
+                                'hidden_size': 768, 
+                                'num_heads': 12, 
+                                'num_layers': 12, 
+                                'drop_rate': 0.1,
+                                'mlp_ratio': 4,
+                                'max_image_len': 40,
+                                'load_path': 'benchmark/pretrained_model_weight/vilt_200k_mlm_itm.ckpt'}
         
         self.transformer = getattr(vit, self.hparams_config["vit"])(
             pretrained=False, config=self.hparams_config
@@ -74,7 +73,6 @@ class Server(BasicServer):
 
         transformer_state_dict = remove_prefix_from_state_dict(state_dict, 'transformer.')
         text_embeddings_state_dict = remove_prefix_from_state_dict(state_dict, 'text_embeddings.')
-        
         # Load the state_dicts into transformer and text_embeddings
         self.transformer.load_state_dict(transformer_state_dict, strict=True)
         self.text_embeddings.load_state_dict(text_embeddings_state_dict, strict=True)
@@ -215,7 +213,8 @@ class Server(BasicServer):
             "model" : copy.deepcopy(self.model), 
             "transformer": self.transformer,
             "text_embeddings": self.text_embeddings,
-            "client_id": client_id
+            "client_id": client_id,
+            "current_round": self.current_round
         }
 
     def test(self, model=None):
@@ -282,62 +281,13 @@ class Server(BasicServer):
             metrics: a dict contains the lists of each metric_value of the clients
         """
         # This function uses global model after aggregation to tr
-        # TO_DELETE
-        # print("Test on clients but using Global model")
         all_metrics = collections.defaultdict(list)
         for client_id in self.selected_clients:
             c = self.clients[client_id]
             client_metrics = c.test(self.model, self.transformer, self.text_embeddings, dataflag)
             for met_name, met_val in client_metrics.items():
                 all_metrics[met_name].append(met_val)
-            # TO_DELETE
-            # print("Client {}".format(client_id+1), client_metrics)
-        
-        # TO_DELETE
-        # batch_data = c.get_batch_data()
-        # print(batch_data["label"])
-        # import pdb; pdb.set_trace()
         return all_metrics
-    
-    # def test_on_clients_using_client_models(self, dataflag='train'):
-    #     """
-    #     Validate accuracies and losses on clients' local datasets
-    #     :param
-    #         dataflag: choose train data or valid data to evaluate
-    #     :return
-    #         metrics: a dict contains the lists of each metric_value of the clients
-    #     """
-        # This function uses global model after aggregation to tr
-        # TO_DELETE
-        # print("Test on clients using their models")
-        # all_metrics = collections.defaultdict(list)
-        # for client_id in self.selected_clients:
-        #     c = self.clients[client_id]
-        #     # import pdb; pdb.set_trace()
-
-        #     # state_before = {k: v.clone() for k, v in c.local_model.state_dict().items()}
-        #     client_metrics = c.test(c.local_model, self.transformer, self.text_embeddings, dataflag)
-        #     # TO_DELETE
-        #     # state_after = {k: v.clone() for k, v in c.local_model.state_dict().items()}
-        #     # modified = False
-        #     # for key in state_before:
-        #     #     if not torch.equal(state_before[key], state_after[key]):
-        #     #         modified = True
-        #     #         print(f"Model parameter {key} has been modified.")
-        #     #         break
-
-        #     # if not modified:
-        #     #     print("The model has not been modified.")
-        #     for met_name, met_val in client_metrics.items():
-        #         all_metrics[met_name].append(met_val)
-        #     # TO_DELETE
-        #     print("Client {}".format(client_id+1), client_metrics)
-        # # import pdb; pdb.set_trace()
-        # batch_data = c.get_batch_data()
-        # print(batch_data["label"])
-        # all_metric = collections.defaultdict(list)
-
-        # return all_metrics
 
 def init_weights(module):
     if isinstance(module, (nn.Linear, nn.Embedding)):
@@ -384,11 +334,11 @@ class Client(BasicClient):
         :return:
             client_pkg: the package to be send to the server
         """
-        model, transformer, text_embeddings, client_id = self.unpack(svr_pkg)
+        model, transformer, text_embeddings, client_id, current_round = self.unpack(svr_pkg)
         # self.client_id = client_id
         if self.local_model is None:
             self.local_model = copy.deepcopy(model)
-        self.train(self.local_model, transformer, text_embeddings, client_id)
+        self.train(self.local_model, transformer, text_embeddings, client_id, current_round)
         cpkg = self.pack(self.local_model)
         return cpkg
     
@@ -401,7 +351,7 @@ class Client(BasicClient):
             the unpacked information that can be rewritten
         """
         # unpack the received package
-        return received_pkg['model'], received_pkg['transformer'], received_pkg['text_embeddings'], received_pkg['client_id']
+        return received_pkg['model'], received_pkg['transformer'], received_pkg['text_embeddings'], received_pkg['client_id'], received_pkg['current_round']
 
 
     def pack(self, model):
@@ -419,7 +369,7 @@ class Client(BasicClient):
 
     @ss.with_completeness
     @fmodule.with_multi_gpus
-    def train(self, model, transformer, text_embeddings, client_id):
+    def train(self, model, transformer, text_embeddings, client_id, current_round):
         """
         Standard local training procedure. Train the transmitted model with local training dataset.
         :param
@@ -444,8 +394,6 @@ class Client(BasicClient):
         for iter in range(self.num_steps):
             # get a batch of data
             batch_data = self.get_batch_data()
-            # if client_id==19:
-            #     print("In client 20 training", batch_data["label"])
             # if batch_data[-1].shape[0] == 1:
             #     continue
             model.zero_grad()
@@ -456,11 +404,11 @@ class Client(BasicClient):
                 model=model,
                 transformer=transformer,
                 text_embeddings=text_embeddings,
-                data=batch_data
+                data=batch_data, 
+                client_id=client_id,
+                current_round=current_round # set this to True when training the model locally, otherwise, it's False when the model is received from the server
             )['loss']
-            # TO_DELETE
-            # if iter==0:
-            #     print('\t',"Training client {}".format(client_id+1),iter, loss)
+            # print('\t',datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
         
