@@ -263,8 +263,8 @@ class Model(FModule):
         if save_file:
             if flag != "":
                 if flag=="train" and current_round % 10 == 0:
-                    os.makedirs(f"output/food101/L2P_Prob/train/client_{client_id+1}/", exist_ok=True)
-                    file_path = f"output/food101/L2P_Prob/train/client_{client_id+1}/sample_data_round_{current_round}.pt"
+                    os.makedirs(f"output/food101/Agglo_mean/train/client_{client_id+1}/", exist_ok=True)
+                    file_path = f"output/food101/Agglo_mean/train/client_{client_id+1}/sample_data_round_{current_round}.pt"
                     if os.path.exists(file_path):
                     # Load existing data
                         existing_data = torch.load(file_path)
@@ -279,8 +279,8 @@ class Model(FModule):
                         torch.save([sample_data], file_path)
                         # Append to file if it exists, else create new
                 elif flag=="test" and current_round % 10 == 0:
-                    os.makedirs("output/food101/L2P_Prob/test/", exist_ok=True)
-                    file_path = f"output/food101/L2P_Prob/test/sample_data_round_{current_round}.pt"
+                    os.makedirs("output/food101/Agglo_mean/test/", exist_ok=True)
+                    file_path = f"output/food101/Agglo_mean/test/sample_data_round_{current_round}.pt"
                     if os.path.exists(file_path):
                         # Load existing data
                         existing_data = torch.load(file_path)
