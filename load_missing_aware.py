@@ -4,7 +4,7 @@ import os
 # or imdb
 dataset = "food101"
 # or missing_aware
-model = "L2P_Prob"
+model = "missing_aware"
 flag = "test"
 
 def load_all_saved_data(flag, client_id=None, current_round=None):
