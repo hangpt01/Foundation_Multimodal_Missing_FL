@@ -13,6 +13,7 @@ from algorithm.multimodal.food101_classification_8_classes.nonparametric_aggrega
 from datetime import datetime
 from collections import Counter
 import wandb
+import os
 
 def remove_prefix_from_state_dict(state_dict, prefix):
     return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix)}
@@ -188,6 +189,16 @@ class Server(BasicServer):
         temp = agg(temp, outer_loop=self.num_outer_loops)
         # print("Passed one")
         #print(temp.shape)
+        dataset = "food101"
+        model = "L2P_Prob"
+        save_file = True
+        if save_file:
+            if self.current_round % 25 == 0 or self.current_round == 1:
+                output_dir = f"output/{dataset}/{model}/server/"
+                os.makedirs(output_dir, exist_ok=True)
+                file_path = f"{output_dir}summarizing_prompts_round_{self.current_round}.pt"
+                torch.save(temp.detach().cpu(), file_path)
+
         del agg
         with torch.no_grad():
             new_model.global_pool.prompt = nn.Parameter(temp, requires_grad=True)

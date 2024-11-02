@@ -247,49 +247,41 @@ class Model(FModule):
         imgcls_logits = self.classifier(cls_feats)
         embedding_after_classifier = imgcls_logits.detach().cpu()
 
+        dataset = "imdb"
+        model = "L2P_Prob"
         # Save to a dictionary
         sample_data = {
             "local_prompts": batched_prompt.detach().cpu(),
             "summarizing_prompts": batched_global_prompt.detach().cpu(),
             "missing_type": batch["missing_type"],
+            "label": batch["label"],
             "embedding_before_classifier": embedding_before_classifier,
             "embedding_after_classifier": embedding_after_classifier,
         }
         save_file = True
         if save_file:
             if flag != "":
-                if flag=="train" and current_round % 10 == 0:
-                    os.makedirs(f"output/imdb/L2P_Prob/train/client_{client_id+1}/", exist_ok=True)
-                    file_path = f"output/imdb/L2P_Prob/train/client_{client_id+1}/sample_data_round_{current_round}.pt"
-                    if os.path.exists(file_path):
-                    # Load existing data
-                        existing_data = torch.load(file_path)
-                        if isinstance(existing_data, list):
-                            existing_data.append(sample_data)
-                        else:
-                            existing_data = [existing_data, sample_data]
-                        # Save the updated list
-                        torch.save(existing_data, file_path)
-                    else:
-                        # Save a new list with the current sample data
-                        torch.save([sample_data], file_path)
-                        # Append to file if it exists, else create new
-                elif flag=="test" and current_round % 10 == 0:
-                    os.makedirs("output/imdb/L2P_Prob/test/", exist_ok=True)
-                    file_path = f"output/imdb/L2P_Prob/test/sample_data_round_{current_round}.pt"
-                    if os.path.exists(file_path):
-                        # Load existing data
-                        existing_data = torch.load(file_path)
-                        if isinstance(existing_data, list):
-                            existing_data.append(sample_data)
-                        else:
-                            existing_data = [existing_data, sample_data]
-                        # Save the updated list
-                        torch.save(existing_data, file_path)
-                    else:
-                        # Save a new list with the current sample data
-                        torch.save([sample_data], file_path)
-            
+                if flag == "train":
+                    if current_round == 1 or current_round % 25 == 0:
+                        # Create the folder for saving client-specific files
+                        output_dir = f"output/{dataset}/{model}/train/client_{client_id+1}/"
+                        os.makedirs(output_dir, exist_ok=True)
+                        
+                        # Loop over each key in sample_data and save individually
+                        for key, value in sample_data.items():
+                            file_path = f"{output_dir}{key}_round_{current_round}.pt"
+                            torch.save(value, file_path)
+                
+                elif flag == "test":
+                    if current_round == 1 or current_round % 25 == 0:
+                        # Create the folder for test files
+                        output_dir = f"output/{dataset}/{model}/test/"
+                        os.makedirs(output_dir, exist_ok=True)
+                        
+                        # Save each key individually in the test directory
+                        for key, value in sample_data.items():
+                            file_path = f"{output_dir}{key}_round_{current_round}.pt"
+                            torch.save(value, file_path)
 
         imgcls_labels = batch["label"]
 

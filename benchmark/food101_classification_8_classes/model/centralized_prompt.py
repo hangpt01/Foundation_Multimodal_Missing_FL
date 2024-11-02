@@ -280,37 +280,39 @@ class Model(FModule):
         save_file = True
         if save_file:
             if flag != "":
-                if flag=="train" and current_round % 10 == 0:
-                    os.makedirs(f"output/food101/centralized_prompt/train/client_{client_id+1}/", exist_ok=True)
-                    file_path = f"output/food101/centralized_prompt/train/client_{client_id+1}/sample_data_round_{current_round}.pt"
-                    if os.path.exists(file_path):
-                    # Load existing data
-                        existing_data = torch.load(file_path)
-                        if isinstance(existing_data, list):
-                            existing_data.append(sample_data)
-                        else:
-                            existing_data = [existing_data, sample_data]
-                        # Save the updated list
-                        torch.save(existing_data, file_path)
-                    else:
-                        # Save a new list with the current sample data
-                        torch.save([sample_data], file_path)
-                        # Append to file if it exists, else create new
-                elif flag=="test" and current_round % 10 == 0:
-                    os.makedirs("output/food101/centralized_prompt/test/", exist_ok=True)
-                    file_path = f"output/food101/centralized_prompt/test/sample_data_round_{current_round}.pt"
-                    if os.path.exists(file_path):
+                if flag=="train":
+                    if current_round == 1 or current_round % 25 == 0:
+                        os.makedirs(f"output/food101/centralized_prompt/train/client_{client_id+1}/", exist_ok=True)
+                        file_path = f"output/food101/centralized_prompt/train/client_{client_id+1}/sample_data_round_{current_round}.pt"
+                        if os.path.exists(file_path):
                         # Load existing data
-                        existing_data = torch.load(file_path)
-                        if isinstance(existing_data, list):
-                            existing_data.append(sample_data)
+                            existing_data = torch.load(file_path)
+                            if isinstance(existing_data, list):
+                                existing_data.append(sample_data)
+                            else:
+                                existing_data = [existing_data, sample_data]
+                            # Save the updated list
+                            torch.save(existing_data, file_path)
                         else:
-                            existing_data = [existing_data, sample_data]
-                        # Save the updated list
-                        torch.save(existing_data, file_path)
-                    else:
-                        # Save a new list with the current sample data
-                        torch.save([sample_data], file_path)
+                            # Save a new list with the current sample data
+                            torch.save([sample_data], file_path)
+                            # Append to file if it exists, else create new
+                elif flag=="test":
+                    if current_round == 1 or current_round % 25 == 0:
+                        os.makedirs("output/food101/centralized_prompt/test/", exist_ok=True)
+                        file_path = f"output/food101/centralized_prompt/test/sample_data_round_{current_round}.pt"
+                        if os.path.exists(file_path):
+                            # Load existing data
+                            existing_data = torch.load(file_path)
+                            if isinstance(existing_data, list):
+                                existing_data.append(sample_data)
+                            else:
+                                existing_data = [existing_data, sample_data]
+                            # Save the updated list
+                            torch.save(existing_data, file_path)
+                        else:
+                            # Save a new list with the current sample data
+                            torch.save([sample_data], file_path)
             
 
         imgcls_labels = batch["label"]

@@ -227,7 +227,7 @@ class Model(FModule):
         save_file = False
         if save_file:
             if flag != "":
-                if flag=="train" and current_round % 10 == 0:
+                if flag=="train" and current_round % 25 == 0:
                     os.makedirs(f"output/food101/L2P/train/client_{client_id+1}/", exist_ok=True)
                     file_path = f"output/food101/L2P/train/client_{client_id+1}/sample_data_round_{current_round}.pt"
                     if os.path.exists(file_path):
@@ -243,7 +243,7 @@ class Model(FModule):
                         # Save a new list with the current sample data
                         torch.save([sample_data], file_path)
                         # Append to file if it exists, else create new
-                elif flag=="test" and current_round % 10 == 0:
+                elif flag=="test" and current_round % 25 == 0:
                     os.makedirs("output/food101/L2P/test/", exist_ok=True)
                     file_path = f"output/food101/L2P/test/sample_data_round_{current_round}.pt"
                     if os.path.exists(file_path):
