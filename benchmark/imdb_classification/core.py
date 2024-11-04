@@ -102,27 +102,27 @@ class TaskPipe(IDXTaskPipe):
         # other test data
         other_test_datas = []
 
-        missing_image_config = {
-        'ratio':
-            {'test': 0.7,
-            'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
-        'type':
-            {'test': 'image',
-            'train': 'both'},
-        'both_ratio': 0,
-        'simulate_missing': False
-        }
-        origin_test_miss_image_data = IMDBDataset(data_dir, transform_keys, split='test', 
-                                image_size=image_size,
-                                max_text_len=max_text_len,
-                                draw_false_image=draw_false_image,
-                                draw_false_text=draw_false_text,
-                                image_only=image_only,
-                                missing_info=missing_image_config)
-        origin_test_miss_image_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
-        test_miss_image_data = cls.TaskDataset(origin_test_miss_image_data, [_ for _ in range(len(origin_test_miss_image_data))])
-        other_test_datas.append(test_miss_image_data)
+        # missing_image_config = {
+        # 'ratio':
+        #     {'test': 0.7,
+        #     'train': 0.7},
+        # 'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
+        # 'type':
+        #     {'test': 'image',
+        #     'train': 'both'},
+        # 'both_ratio': 0,
+        # 'simulate_missing': False
+        # }
+        # origin_test_miss_image_data = IMDBDataset(data_dir, transform_keys, split='test', 
+        #                         image_size=image_size,
+        #                         max_text_len=max_text_len,
+        #                         draw_false_image=draw_false_image,
+        #                         draw_false_text=draw_false_text,
+        #                         image_only=image_only,
+        #                         missing_info=missing_image_config)
+        # origin_test_miss_image_data.tokenizer = BertTokenizer.from_pretrained('benchmark/pretrained_model_weight/bert-base-uncased')
+        # test_miss_image_data = cls.TaskDataset(origin_test_miss_image_data, [_ for _ in range(len(origin_test_miss_image_data))])
+        # other_test_datas.append(test_miss_image_data)
 
 
         missing_both_config = {
@@ -815,7 +815,7 @@ class TaskCalculator(ClassificationCalculator):
         model.eval()
         # TO_CHANGE
         # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
-        names = ['miss_image', 'miss_both', 'full_modal', 'image_only', 'text_only']
+        names = ['miss_both', 'full_modal', 'image_only', 'text_only']
         result = dict() 
         for i in range(len(datasets)):
             dataset = datasets[i]
@@ -917,7 +917,7 @@ class TaskCalculator(ClassificationCalculator):
         model.eval()
         # TO_CHANGE
         # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
-        names = ['miss_image', 'miss_both', 'full_modal', 'image_only', 'text_only']
+        names = ['miss_both', 'full_modal', 'image_only', 'text_only']
         result = dict() 
         for i in range(len(datasets)):
             dataset = datasets[i]
@@ -1128,7 +1128,7 @@ class TaskCalculator(ClassificationCalculator):
         model.eval()
         # TO_CHANGE
         # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
-        names = ['miss_image', 'miss_both', 'full_modal', 'image_only', 'text_only']
+        names = ['miss_both', 'full_modal', 'image_only', 'text_only']
         result = dict() 
         for i in range(len(datasets)):
             dataset = datasets[i]
@@ -1208,7 +1208,7 @@ class TaskCalculator(ClassificationCalculator):
         model.eval()
         # TO_CHANGE
         # names = ['miss_image', 'miss_text', 'full_modal', 'image_only', 'text_only']
-        names = ['miss_image', 'miss_both', 'full_modal', 'image_only', 'text_only']
+        names = ['miss_both', 'full_modal', 'image_only', 'text_only']
         result = dict() 
         for i in range(len(datasets)):
             dataset = datasets[i]
