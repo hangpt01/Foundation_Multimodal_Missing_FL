@@ -828,7 +828,7 @@ class TaskCalculator(ClassificationCalculator):
             labels.extend(batch_data['label'])
             # if batch_id==0:
             #     print("          Starting 1 inference", datetime.now())
-            loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data, "test", current_round=current_round)
+            loss_leads, loss, outputs = model(transformer, text_embeddings, batch_data, flag="test", current_round=current_round)
             # if batch_id==0:
             #     print("          End 1 inference", datetime.now())
             total_loss += loss.item() * len(batch_data['label'])

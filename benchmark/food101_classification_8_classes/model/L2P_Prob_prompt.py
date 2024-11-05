@@ -274,7 +274,7 @@ class Model(FModule):
                             torch.save(value, file_path)
                 
                 elif flag == "test":
-                    if current_round == 1 or current_round % 25 == 0:
+                    if current_round == 2 or current_round % 25 == 0:
                         # Create the folder for test files
                         output_dir = f"output/{dataset}/{model}/test/"
                         os.makedirs(output_dir, exist_ok=True)
