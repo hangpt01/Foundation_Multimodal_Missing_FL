@@ -1,7 +1,7 @@
 python main.py \
-    --task food101_classification_8_classes_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_image_image_both_ratio_0.0 \
-    --model get_missing_data \
-    --algorithm multimodal.food101_classification_8_classes.get_missing_data \
+    --task imdb_classification_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_both_both_both_ratio_0.5 \
+    --model fedprox \
+    --algorithm multimodal.imdb_classification.fedprox \
     --sample full \
     --aggregate other \
     --num_rounds 250 \
@@ -15,7 +15,6 @@ python main.py \
     --note loadvilt \
     --batch_size 256 \
     --test_batch_size 256 \
-    --max_text_len 40 \
-    --gpu 0 
-    # \
-    # --wandb
+    --max_text_len 128 \
+    --gpu 0 \
+    --wandb
