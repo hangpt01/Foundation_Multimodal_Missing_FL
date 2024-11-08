@@ -168,7 +168,7 @@ class Server(BasicServer):
         
         temp = list()
         # Prompt aggregation
-        num_prompts = new_model.pool.prompt.shape[0] + new_model.global_pool.prompt.shape[0]
+        num_prompts = new_model.global_pool.prompt.shape[0]
         union_prompts_checklist = torch.zeros(num_prompts,dtype=torch.int)
         nonzero_index = torch.nonzero(new_model.trained_prompts_checklist).flatten()
         union_prompts_checklist[nonzero_index] = 1
