@@ -8,8 +8,8 @@ from tqdm import tqdm
 import torch
 from torch import nn
 from transformers.models.bert.modeling_bert import BertConfig, BertEmbeddings
-import algorithm.multimodal.food101_classification_8_classes.vision_transformer_prompts as vit
-from algorithm.multimodal.food101_classification_8_classes.nonparametric_aggregation import *
+import algorithm.multimodal.imdb_classification.vision_transformer_prompts as vit
+from algorithm.multimodal.imdb_classification.nonparametric_aggregation import *
 from datetime import datetime
 from collections import Counter
 import wandb
@@ -189,7 +189,7 @@ class Server(BasicServer):
         temp = agg(temp, outer_loop=self.num_outer_loops)
         # print("Passed one")
         #print(temp.shape)
-        dataset = "food101"
+        dataset = "imdb"
         model = "L2P_Prob_only_global"
         save_file = True
         if save_file:

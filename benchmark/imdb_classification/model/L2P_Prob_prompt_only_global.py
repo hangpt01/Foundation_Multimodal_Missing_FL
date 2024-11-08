@@ -218,22 +218,21 @@ class Model(FModule):
 
 
     def checking_trained_prompt(self):
-        num_prompts = self.pool.prompt.shape[0] + self.global_pool.prompt.shape[0]
+        num_prompts = self.global_pool.prompt.shape[0]
         self.trained_prompts_checklist = torch.zeros(num_prompts, dtype=torch.float32)
         # print("Total num prompts", num_prompts)
         if self.pool.top_k_idx.device != self.trained_prompts_checklist.device:
             self.trained_prompts_checklist = self.trained_prompts_checklist.to(self.pool.top_k_idx.device)
-        self.trained_prompts_checklist[self.pool.top_k_idx] += 1.0
-        top_k_global = self.pool.prompt.shape[0] + self.global_pool.top_k_idx
-        # import pdb; pdb.set_trace()
+        self.trained_prompts_checklist[self.global_pool.top_k_idx] += 1.0
+        # top_k_global = self.pool.prompt.shape[0] + self.global_pool.top_k_idx
         # print("Top k", top_k_global, self.pool.top_k_idx, self.global_pool.prompt.shape[0])
         # print("In checking prompts",self.trained_prompts_checklist, top_k_global)
-        self.trained_prompts_checklist[top_k_global] += 1.0
+        # self.trained_prompts_checklist[top_k_global] += 1.0
         # print(self.pool.top_k_idx, top_k_global, self.trained_prompts_checklist)
         
         
     def reset_trained_prompts_checklist(self):
-        num_prompts = self.pool.prompt.shape[0] + self.global_pool.prompt.shape[0]
+        num_prompts = self.global_pool.prompt.shape[0]
         self.trained_prompts_checklist = torch.zeros(num_prompts, dtype=torch.torch.float32)
         
 
@@ -249,7 +248,8 @@ class Model(FModule):
         embedding_after_classifier = imgcls_logits.detach().cpu()
 
         dataset = "imdb"
-        model = "L2P_Prob"
+        model = "L2P_Prob_only_global"  
+
         # Save to a dictionary
         sample_data = {
             "local_prompts": batched_prompt.detach().cpu(),
@@ -283,6 +283,7 @@ class Model(FModule):
                         for key, value in sample_data.items():
                             file_path = f"{output_dir}{key}_round_{current_round}.pt"
                             torch.save(value, file_path)
+            
 
         imgcls_labels = batch["label"]
 
@@ -294,3 +295,4 @@ class Model(FModule):
 
 
         return imgcls_loss, imgcls_loss, imgcls_logits
+    

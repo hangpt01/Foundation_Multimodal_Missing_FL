@@ -248,7 +248,7 @@ class Model(FModule):
         embedding_after_classifier = imgcls_logits.detach().cpu()
 
         dataset = "food101"
-        model = "L2P_Prob"  
+        model = "L2P_Prob_only_global"  
 
         # Save to a dictionary
         sample_data = {
@@ -265,7 +265,7 @@ class Model(FModule):
                 if flag == "train":
                     if current_round == 1 or current_round % 25 == 0:
                         # Create the folder for saving client-specific files
-                        output_dir = f"output_only_global/{dataset}/{model}/train/client_{client_id+1}/"
+                        output_dir = f"output/{dataset}/{model}/train/client_{client_id+1}/"
                         os.makedirs(output_dir, exist_ok=True)
                         
                         # Loop over each key in sample_data and save individually
@@ -276,7 +276,7 @@ class Model(FModule):
                 elif flag == "test":
                     if current_round == 2 or current_round % 25 == 0:
                         # Create the folder for test files
-                        output_dir = f"output_only_global/{dataset}/{model}/test/"
+                        output_dir = f"output/{dataset}/{model}/test/"
                         os.makedirs(output_dir, exist_ok=True)
                         
                         # Save each key individually in the test directory
