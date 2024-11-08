@@ -6,6 +6,7 @@ from functools import reduce
 from operator import mul
 from torch.nn.modules.utils import _pair
 import torch.nn.functional as F
+import os
 from utils.fmodule import FModule
 
 def init_weights(module):
@@ -102,7 +103,7 @@ class Classifier(FModule):
     def __init__(self):
         super().__init__()
         self.hidden_size = 768
-        cls_num = 8
+        cls_num = 101
         self.classifier = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size * 2),
             nn.LayerNorm(self.hidden_size * 2),
@@ -213,43 +214,138 @@ class Model(FModule):
             
         x = self.transformer.norm(x)
         cls_feats = self.pooler(x)
-        return cls_feats
+        return cls_feats, batched_prompt, batched_global_prompt
 
 
     def checking_trained_prompt(self):
-        num_prompts = self.pool.prompt.shape[0] + self.global_pool.prompt.shape[0]
+        num_prompts = self.global_pool.prompt.shape[0]
         self.trained_prompts_checklist = torch.zeros(num_prompts, dtype=torch.float32)
         # print("Total num prompts", num_prompts)
         if self.pool.top_k_idx.device != self.trained_prompts_checklist.device:
             self.trained_prompts_checklist = self.trained_prompts_checklist.to(self.pool.top_k_idx.device)
-        self.trained_prompts_checklist[self.pool.top_k_idx] += 1.0
-        top_k_global = self.pool.prompt.shape[0] + self.global_pool.top_k_idx
+        self.trained_prompts_checklist[self.global_pool.top_k_idx] += 1.0
+        # top_k_global = self.pool.prompt.shape[0] + self.global_pool.top_k_idx
         # print("Top k", top_k_global, self.pool.top_k_idx, self.global_pool.prompt.shape[0])
         # print("In checking prompts",self.trained_prompts_checklist, top_k_global)
-        self.trained_prompts_checklist[top_k_global] += 1.0
+        # self.trained_prompts_checklist[top_k_global] += 1.0
         # print(self.pool.top_k_idx, top_k_global, self.trained_prompts_checklist)
         
         
     def reset_trained_prompts_checklist(self):
-        num_prompts = self.pool.prompt.shape[0] + self.global_pool.prompt.shape[0]
+        num_prompts = self.global_pool.prompt.shape[0]
         self.trained_prompts_checklist = torch.zeros(num_prompts, dtype=torch.torch.float32)
         
 
-    def forward(self, transformer, text_embeddings, batch):
+    def forward(self, transformer, text_embeddings, batch, flag="", client_id=None, current_round=None):
         
-        cls_feats = self.infer(batch, transformer, text_embeddings)
-        # print("Done infer")
+        cls_feats, batched_prompt, batched_global_prompt = self.infer(batch, transformer, text_embeddings)
+
+        # Capture embeddings before the classifier
+        embedding_before_classifier = cls_feats.detach().cpu()
+
+        # Classify and get embeddings after the classifier
         imgcls_logits = self.classifier(cls_feats)
-        # print("Done classify")
-        
+        embedding_after_classifier = imgcls_logits.detach().cpu()
+
+        dataset = "food101"
+        model = "L2P_Prob"  
+
+        # Save to a dictionary
+        sample_data = {
+            "local_prompts": batched_prompt.detach().cpu(),
+            "summarizing_prompts": batched_global_prompt.detach().cpu(),
+            "missing_type": batch["missing_type"],
+            "label": batch["label"],
+            "embedding_before_classifier": embedding_before_classifier,
+            "embedding_after_classifier": embedding_after_classifier,
+        }
+        save_file = True
+        if save_file:
+            if flag != "":
+                if flag == "train":
+                    if current_round == 1 or current_round % 25 == 0:
+                        # Create the folder for saving client-specific files
+                        output_dir = f"output/{dataset}/{model}/train/client_{client_id+1}/"
+                        os.makedirs(output_dir, exist_ok=True)
+                        
+                        # Loop over each key in sample_data and save individually
+                        for key, value in sample_data.items():
+                            file_path = f"{output_dir}{key}_round_{current_round}.pt"
+                            torch.save(value, file_path)
+                
+                elif flag == "test":
+                    if current_round == 2 or current_round % 25 == 0:
+                        # Create the folder for test files
+                        output_dir = f"output/{dataset}/{model}/test/"
+                        os.makedirs(output_dir, exist_ok=True)
+                        
+                        # Save each key individually in the test directory
+                        for key, value in sample_data.items():
+                            file_path = f"{output_dir}{key}_round_{current_round}.pt"
+                            torch.save(value, file_path)
+            
+
         imgcls_labels = batch["label"]
-        # print("Label in model", imgcls_labels)
+
         imgcls_labels = torch.tensor(imgcls_labels).to(self.device).long()
 
         imgcls_loss = F.cross_entropy(imgcls_logits, imgcls_labels)
-        # print("Loss", imgcls_loss)
+
         self.checking_trained_prompt()
-        # print("Done self checking train prompts")
-        # import pdb; pdb.set_trace()
+
 
         return imgcls_loss, imgcls_loss, imgcls_logits
+    
+    def forward(self, transformer, text_embeddings, batch, flag="", client_id=None, current_round=None):
+        cls_feats, batched_prompt, batched_global_prompt = self.infer(batch, transformer, text_embeddings)
+
+        # Capture embeddings before the classifier
+        embedding_before_classifier = cls_feats.detach().cpu()
+
+        # Classify and get embeddings after the classifier
+        imgcls_logits = self.classifier(cls_feats)
+        embedding_after_classifier = imgcls_logits.detach().cpu()
+
+        dataset = "food101"
+        model = "L2P_Prob"
+        # Save to a dictionary
+        sample_data = {
+            "local_prompts": batched_prompt.detach().cpu(),
+            "summarizing_prompts": batched_global_prompt.detach().cpu(),
+            "missing_type": batch["missing_type"],
+            "label": batch["label"],
+            "embedding_before_classifier": embedding_before_classifier,
+            "embedding_after_classifier": embedding_after_classifier,
+        }
+        
+        save_file = True
+        if save_file:
+            if flag != "":
+                if flag == "train" and current_round % 25 == 0:
+                    # Create the folder for saving client-specific files
+                    output_dir = f"output/{dataset}/{model}/train/client_{client_id+1}/"
+                    os.makedirs(output_dir, exist_ok=True)
+                    
+                    # Loop over each key in sample_data and save individually
+                    for key, value in sample_data.items():
+                        file_path = f"{output_dir}{key}_round_{current_round}.pt"
+                        torch.save(value, file_path)
+                
+                elif flag == "test" and current_round % 25 == 0:
+                    # Create the folder for test files
+                    output_dir = f"output/{dataset}/{model}/test/"
+                    os.makedirs(output_dir, exist_ok=True)
+                    
+                    # Save each key individually in the test directory
+                    for key, value in sample_data.items():
+                        file_path = f"{output_dir}{key}_round_{current_round}.pt"
+                        torch.save(value, file_path)
+
+        imgcls_labels = batch["label"]
+        imgcls_labels = torch.tensor(imgcls_labels).to(self.device).long()
+        imgcls_loss = F.cross_entropy(imgcls_logits, imgcls_labels)
+
+        self.checking_trained_prompt()
+        
+        return imgcls_loss, imgcls_loss, imgcls_logits
+

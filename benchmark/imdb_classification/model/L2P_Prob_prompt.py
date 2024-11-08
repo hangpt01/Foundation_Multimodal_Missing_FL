@@ -224,7 +224,7 @@ class Model(FModule):
         if self.pool.top_k_idx.device != self.trained_prompts_checklist.device:
             self.trained_prompts_checklist = self.trained_prompts_checklist.to(self.pool.top_k_idx.device)
         self.trained_prompts_checklist[self.pool.top_k_idx] += 1.0
-        top_k_global = self.pool.top_k_idx + self.global_pool.prompt.shape[0]
+        top_k_global = self.pool.prompt.shape[0] + self.global_pool.top_k_idx
         import pdb; pdb.set_trace()
         # print("Top k", top_k_global, self.pool.top_k_idx, self.global_pool.prompt.shape[0])
         # print("In checking prompts",self.trained_prompts_checklist, top_k_global)
