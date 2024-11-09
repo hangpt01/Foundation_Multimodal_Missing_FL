@@ -1,6 +1,6 @@
 python main.py \
     --task imdb_classification_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_both_both_both_ratio_0.5 \
-    --model fedprox \
+    --model fedprox_no_print \
     --algorithm multimodal.imdb_classification.fedprox \
     --sample full \
     --aggregate other \

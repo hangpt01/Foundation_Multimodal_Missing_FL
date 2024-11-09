@@ -271,7 +271,7 @@ class Model(FModule):
         embedding_after_classifier = imgcls_logits.detach().cpu()
 
         dataset = "food101"
-        model = "missing_aware"
+        model = "fedprox"
 
         # Save to a dictionary
         sample_data = {

@@ -268,7 +268,7 @@ class Model(FModule):
             "embedding_before_classifier": embedding_before_classifier,
             "embedding_after_classifier": embedding_after_classifier,
         }
-        save_file = True
+        save_file = False
         if save_file:
             if flag != "":
                 if flag == "train":
