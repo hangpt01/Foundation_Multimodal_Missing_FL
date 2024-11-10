@@ -7,13 +7,13 @@ python generate_fedtask.py \
     --missing \
     --missing_ratio_train 0.7 \
     --missing_ratio_test 0.7 \
-    --missing_type_train text \
-    --missing_type_test text \
+    --missing_type_train image \
+    --missing_type_test image \
     --both_ratio 0 \
-    --max_text_len 40
+    --max_text_len 64
 python main.py \
-    --task food101_classification_8_classes_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
-    --model L2P_Prob_prompt_only_global_no_print \
+    --task food101_classification_8_classes_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_image_image_both_ratio_0.0 \
+    --model L2P_Prob_prompt_only_global \
     --algorithm multimodal.food101_classification_8_classes.L2P_Prob_prompt_only_global \
     --sample full \
     --aggregate other \
@@ -41,13 +41,13 @@ python generate_fedtask.py \
     --missing \
     --missing_ratio_train 0.7 \
     --missing_ratio_test 0.7 \
-    --missing_type_train image \
-    --missing_type_test image \
+    --missing_type_train text \
+    --missing_type_test text \
     --both_ratio 0 \
-    --max_text_len 64
+    --max_text_len 40
 python main.py \
-    --task food101_classification_8_classes_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_image_image_both_ratio_0.0 \
-    --model L2P_Prob_prompt_only_global \
+    --task food101_classification_8_classes_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
+    --model L2P_Prob_prompt_only_global_no_print \
     --algorithm multimodal.food101_classification_8_classes.L2P_Prob_prompt_only_global \
     --sample full \
     --aggregate other \
