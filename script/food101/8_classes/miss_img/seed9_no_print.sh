@@ -26,7 +26,7 @@ python main.py \
     --num_epochs 1 \
     --num_outer_loops 5 \
     --learning_rate_decay 1.0 \
-    --note 3clusters_loadvilt \
+    --note load_vilt \
     --batch_size 512 \
     --test_batch_size 512 \
     --max_text_len 40 \
@@ -46,7 +46,7 @@ python main.py \
     --learning_rate 0.05 \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
-    --note 3clusters_loadvilt \
+    --note load_vilt \
     --batch_size 512 \
     --test_batch_size 512 \
     --max_text_len 40 \

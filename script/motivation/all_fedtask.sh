@@ -31,8 +31,8 @@ python generate_fedtask.py \
     --num_clients 20 \
     --seed 0 \
     --missing \
-    --missing_ratio_train 0.25 \
-    --missing_ratio_test 0.25 \
+    --missing_ratio_train 0.5 \
+    --missing_ratio_test 0.5 \
     --missing_type_train both \
     --missing_type_test both \
     --both_ratio 0.5 \
@@ -44,8 +44,8 @@ python generate_fedtask.py \
     --num_clients 20 \
     --seed 0 \
     --missing \
-    --missing_ratio_train 0.25 \
-    --missing_ratio_test 0.25 \
+    --missing_ratio_train 0.75 \
+    --missing_ratio_test 0.75 \
     --missing_type_train both \
     --missing_type_test both \
     --both_ratio 0.5 \
@@ -57,8 +57,8 @@ python generate_fedtask.py \
     --num_clients 20 \
     --seed 0 \
     --missing \
-    --missing_ratio_train 0.25 \
-    --missing_ratio_test 0.25 \
+    --missing_ratio_train 1.0 \
+    --missing_ratio_test 1.0 \
     --missing_type_train both \
     --missing_type_test both \
     --both_ratio 0.5 \
