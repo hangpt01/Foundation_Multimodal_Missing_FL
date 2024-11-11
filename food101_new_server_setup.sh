@@ -1,3 +1,9 @@
+conda create -n fmfl python=3.8 -y
+conda activate fmfl
+pip install kaggle
+kaggle datasets download -d gianmarco96/upmcfood101
+pip install torch==2.3.1+cu118 torchvision==0.18.1+cu118 torchaudio==2.3.1+cu118 -f https://download.pytorch.org/whl/cu118/torch_stable.html
+
 # move to the folder outside code repo
 conda activate fmfl
 pip install protobuf fonttools imgaug opencv-python pyyaml regex scipy
