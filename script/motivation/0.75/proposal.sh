@@ -4,7 +4,7 @@ python main.py \
     --algorithm multimodal.food101_motivation.L2P_Prob_prompt_only_global \
     --sample full \
     --aggregate other \
-    --num_rounds 250 \
+    --num_rounds 150 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \

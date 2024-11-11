@@ -4,7 +4,7 @@ python main.py \
     --algorithm multimodal.food101_motivation.missing_aware \
     --sample full \
     --aggregate other \
-    --num_rounds 250 \
+    --num_rounds 150 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
@@ -13,8 +13,8 @@ python main.py \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
     --note loadvilt \
-    --batch_size 512 \
-    --test_batch_size 512 \
+    --batch_size 128 \
+    --test_batch_size 128 \
     --max_text_len 40 \
     --gpu 2 \
     --wandb
