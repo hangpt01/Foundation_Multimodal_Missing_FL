@@ -4,7 +4,7 @@ vilt_200k_mlm_itm.ckpt
 mmimdb.tar.gz
 output.zip
 other_outputs/
-
+output*/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

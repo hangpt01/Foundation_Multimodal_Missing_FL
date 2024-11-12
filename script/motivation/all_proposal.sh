@@ -11,6 +11,7 @@ python main.py \
     --fedmsplit_prox_lambda 0 \
     --learning_rate 0.05 \
     --num_epochs 1 \
+    --num_outer_loops 5 \
     --learning_rate_decay 1.0 \
     --note fixbug \
     --batch_size 128 \
@@ -31,6 +32,7 @@ python main.py \
     --fedmsplit_prox_lambda 0 \
     --learning_rate 0.05 \
     --num_epochs 1 \
+    --num_outer_loops 5 \
     --learning_rate_decay 1.0 \
     --note fixbug \
     --batch_size 128 \
@@ -51,6 +53,7 @@ python main.py \
     --fedmsplit_prox_lambda 0 \
     --learning_rate 0.05 \
     --num_epochs 1 \
+    --num_outer_loops 5 \
     --learning_rate_decay 1.0 \
     --note fixbug \
     --batch_size 128 \
@@ -71,6 +74,7 @@ python main.py \
     --fedmsplit_prox_lambda 0 \
     --learning_rate 0.05 \
     --num_epochs 1 \
+    --num_outer_loops 5 \
     --learning_rate_decay 1.0 \
     --note fixbug \
     --batch_size 128 \
@@ -91,6 +95,7 @@ python main.py \
     --fedmsplit_prox_lambda 0 \
     --learning_rate 0.05 \
     --num_epochs 1 \
+    --num_outer_loops 5 \
     --learning_rate_decay 1.0 \
     --note fixbug \
     --batch_size 128 \
