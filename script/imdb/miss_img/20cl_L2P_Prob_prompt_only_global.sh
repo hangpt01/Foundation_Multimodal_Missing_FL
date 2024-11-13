@@ -13,7 +13,7 @@ python generate_fedtask.py \
     --max_text_len 128
 python main.py \
     --task imdb_classification_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_image_image_both_ratio_0.0 \
-    --model L2P_Prob_prompt_only_global \
+    --model L2P_Prob_prompt_only_global_no_print \
     --algorithm multimodal.imdb_classification.L2P_Prob_prompt_only_global \
     --sample full \
     --aggregate other \
