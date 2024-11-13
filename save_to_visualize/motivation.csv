@@ -1,0 +1,11 @@
+﻿Name,missing rate,Maximum test accuracy
+Proposal,1.00,0.80307186
+Proposal,0.75,0.826110806
+Proposal,0.50,0.864509051
+Proposal,0.25,0.873285793
+Proposal,0.00,0.931980252
+FedAvg_Prompt,1.00,0.22709819
+FedAvg_Prompt,0.75,0.200767965
+FedAvg_Prompt,0.50,0.227646736
+FedAvg_Prompt,0.25,0.132748217
+FedAvg_Prompt,0.00,0.196379594
