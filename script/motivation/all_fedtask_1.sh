@@ -1,0 +1,65 @@
+python generate_fedtask.py \
+    --benchmark food101_motivation \
+    --dist 0 \
+    --skew 0 \
+    --num_clients 1 \
+    --seed 0 \
+    --missing \
+    --missing_ratio_train 0 \
+    --missing_ratio_test 0 \
+    --missing_type_train both \
+    --missing_type_test both \
+    --both_ratio 0.5 \
+    --max_text_len 40
+python generate_fedtask.py \
+    --benchmark food101_motivation \
+    --dist 0 \
+    --skew 0 \
+    --num_clients 1 \
+    --seed 0 \
+    --missing \
+    --missing_ratio_train 0.25 \
+    --missing_ratio_test 0.25 \
+    --missing_type_train both \
+    --missing_type_test both \
+    --both_ratio 0.5 \
+    --max_text_len 40
+python generate_fedtask.py \
+    --benchmark food101_motivation \
+    --dist 0 \
+    --skew 0 \
+    --num_clients 1 \
+    --seed 0 \
+    --missing \
+    --missing_ratio_train 0.5 \
+    --missing_ratio_test 0.5 \
+    --missing_type_train both \
+    --missing_type_test both \
+    --both_ratio 0.5 \
+    --max_text_len 40
+python generate_fedtask.py \
+    --benchmark food101_motivation \
+    --dist 0 \
+    --skew 0 \
+    --num_clients 1 \
+    --seed 0 \
+    --missing \
+    --missing_ratio_train 0.75 \
+    --missing_ratio_test 0.75 \
+    --missing_type_train both \
+    --missing_type_test both \
+    --both_ratio 0.5 \
+    --max_text_len 40
+python generate_fedtask.py \
+    --benchmark food101_motivation \
+    --dist 0 \
+    --skew 0 \
+    --num_clients 1 \
+    --seed 0 \
+    --missing \
+    --missing_ratio_train 1.0 \
+    --missing_ratio_test 1.0 \
+    --missing_type_train both \
+    --missing_type_test both \
+    --both_ratio 0.5 \
+    --max_text_len 40
