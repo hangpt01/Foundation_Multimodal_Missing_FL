@@ -1,0 +1,2 @@
+bash script/motivation_imdb/all_baselines_20.sh
+bash script/motivation_imdb/all_baselines_1.sh

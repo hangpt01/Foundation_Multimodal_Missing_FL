@@ -12,9 +12,9 @@ python generate_fedtask.py \
     --both_ratio 0.5 \
     --max_text_len 128
 python main.py \
-    --task imdb_motivation_cnum20_dist0_skew0_seed0_missing_ratio_0.0_0.0_missing_type_both_both_both_ratio_0.5 \
-    --model L2P_Prob_prompt_only_global_no_print \
-    --algorithm multimodal.imdb_motivation.L2P_Prob_prompt_only_global \
+    --task imdb_motivation_cnum1_dist0_skew0_seed0_missing_ratio_0.0_0.0_missing_type_both_both_both_ratio_0.5 \
+    --model missing_aware \
+    --algorithm multimodal.imdb_motivation.missing_aware \
     --sample full \
     --aggregate other \
     --num_rounds 150 \
@@ -24,11 +24,10 @@ python main.py \
     --fedmsplit_prox_lambda 0 \
     --learning_rate 0.05 \
     --num_epochs 1 \
-    --num_outer_loops 5 \
     --learning_rate_decay 1.0 \
     --note fixbug \
-    --batch_size 256 \
-    --test_batch_size 256 \
+    --batch_size 64 \
+    --test_batch_size 64 \
     --max_text_len 128 \
     --gpu 0 
     # \
