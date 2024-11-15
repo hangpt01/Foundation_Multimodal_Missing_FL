@@ -20,7 +20,7 @@ python main.py \
     --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
-    --seed 1234 \
+    --seed 91011 \
     --fedmsplit_prox_lambda 0 \
     --learning_rate 0.01 \
     --num_epochs 1 \
