@@ -4,7 +4,7 @@ python main.py \
     --algorithm multimodal.imdb_motivation.L2P_Prob_prompt_only_global \
     --sample full \
     --aggregate other \
-    --num_rounds 150 \
+    --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
@@ -25,7 +25,7 @@ python main.py \
     --algorithm multimodal.imdb_motivation.L2P_Prob_prompt_only_global \
     --sample full \
     --aggregate other \
-    --num_rounds 150 \
+    --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
@@ -46,7 +46,7 @@ python main.py \
     --algorithm multimodal.imdb_motivation.L2P_Prob_prompt_only_global \
     --sample full \
     --aggregate other \
-    --num_rounds 150 \
+    --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
@@ -67,7 +67,7 @@ python main.py \
     --algorithm multimodal.imdb_motivation.L2P_Prob_prompt_only_global \
     --sample full \
     --aggregate other \
-    --num_rounds 150 \
+    --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
@@ -88,7 +88,7 @@ python main.py \
     --algorithm multimodal.imdb_motivation.L2P_Prob_prompt_only_global \
     --sample full \
     --aggregate other \
-    --num_rounds 150 \
+    --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
