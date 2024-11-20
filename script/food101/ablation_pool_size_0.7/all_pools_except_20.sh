@@ -1,5 +1,5 @@
 python main.py \
-    --task food101_motivation_cnum20_dist0_skew0_seed0_missing_ratio_0.5_0.5_missing_type_both_both_both_ratio_0.5 \
+    --task food101_motivation_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_both_both_both_ratio_0.5 \
     --model proposal_pool_10 \
     --algorithm multimodal.food101_motivation.L2P_Prob_prompt_only_global \
     --sample full \
@@ -20,7 +20,7 @@ python main.py \
     --gpu 0 \
     --wandb
 python main.py \
-    --task food101_motivation_cnum20_dist0_skew0_seed0_missing_ratio_0.5_0.5_missing_type_both_both_both_ratio_0.5 \
+    --task food101_motivation_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_both_both_both_ratio_0.5 \
     --model proposal_pool_15 \
     --algorithm multimodal.food101_motivation.L2P_Prob_prompt_only_global \
     --sample full \
@@ -41,7 +41,7 @@ python main.py \
     --gpu 0 \
     --wandb
 python main.py \
-    --task food101_motivation_cnum20_dist0_skew0_seed0_missing_ratio_0.5_0.5_missing_type_both_both_both_ratio_0.5 \
+    --task food101_motivation_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_both_both_both_ratio_0.5 \
     --model proposal_pool_25 \
     --algorithm multimodal.food101_motivation.L2P_Prob_prompt_only_global \
     --sample full \
@@ -62,7 +62,7 @@ python main.py \
     --gpu 0 \
     --wandb
 python main.py \
-    --task food101_motivation_cnum20_dist0_skew0_seed0_missing_ratio_0.5_0.5_missing_type_both_both_both_ratio_0.5 \
+    --task food101_motivation_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_both_both_both_ratio_0.5 \
     --model proposal_pool_30 \
     --algorithm multimodal.food101_motivation.L2P_Prob_prompt_only_global \
     --sample full \
@@ -82,4 +82,3 @@ python main.py \
     --max_text_len 40 \
     --gpu 0 \
     --wandb
-
