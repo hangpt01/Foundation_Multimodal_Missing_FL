@@ -5,7 +5,7 @@ mmimdb.tar.gz
 output.zip
 other_outputs/
 output*/
-pool_size/
+*pool_size/
 save_to_visualize/
 # Byte-compiled / optimized / DLL files
 __pycache__/
