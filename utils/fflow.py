@@ -77,7 +77,11 @@ def read_option():
     parser.add_argument('--num_outer_loops', help='Number of outer loop in Probabilistic prompts;', type=int, default=0.0)
     parser.add_argument('--max_text_len', help='Max text len (the larger the more informative)', type=int, default=40)
     parser.add_argument('--note', help='Note for some special params;', type=str, default="")
-    
+    # L2P-related 
+    parser.add_argument('--reduce_sim_scalar', help='Similarity scalar for L2P', type=float, default=0.01)
+    # FedProx
+    parser.add_argument('--fedprox_lambda', help='FedProx lambda;', type=float, default=0.0)
+
 
     try: option = vars(parser.parse_args())
     except IOError as msg: parser.error(str(msg))
