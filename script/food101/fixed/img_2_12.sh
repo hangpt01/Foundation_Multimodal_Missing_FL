@@ -12,7 +12,7 @@ python generate_fedtask.py \
     --both_ratio 0 \
     --max_text_len 40
 python main.py \
-    --task food101_8_classes_fixed_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_image_image_both_ratio_0.5 \
+    --task food101_8_classes_fixed_cnum20_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_image_image_both_ratio_0.0 \
     --model fedprox \
     --algorithm multimodal.food101_8_classes_fixed.fedprox \
     --sample full \
