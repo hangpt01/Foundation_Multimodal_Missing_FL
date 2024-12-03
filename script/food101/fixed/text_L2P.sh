@@ -14,8 +14,8 @@ python main.py \
     --num_epochs 1 \
     --learning_rate_decay 1.0 \
     --note loadvilt \
-    --batch_size 512 \
-    --test_batch_size 512 \
+    --batch_size 128 \
+    --test_batch_size 128 \
     --max_text_len 40 \
     --gpu 0 \
     --wandb
