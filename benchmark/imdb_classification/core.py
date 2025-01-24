@@ -675,11 +675,11 @@ class TaskCalculator(ClassificationCalculator):
         labels = np.array(labels)
         predicts = np.array(predicts)
         f1_macro = f1_score(labels, predicts, average='macro')
-        f1_weighted = f1_score(labels, predicts, average='weighted')
+        # f1_weighted = f1_score(labels, predicts, average='weighted')
         return {
             'loss': total_loss / (batch_id+1),
             'f1_macro': f1_macro,
-            'f1_weighted': f1_weighted
+            # 'f1_weighted': f1_weighted
         }
     
 
@@ -714,11 +714,11 @@ class TaskCalculator(ClassificationCalculator):
         labels = np.array(labels)
         predicts = np.array(predicts)
         f1_macro = f1_score(labels, predicts, average='macro')
-        f1_weighted = f1_score(labels, predicts, average='weighted')
+        # f1_weighted = f1_score(labels, predicts, average='weighted')
         return {
             'loss': total_loss / (batch_id+1),
             'f1_macro': f1_macro,
-            'f1_weighted': f1_weighted
+            # 'f1_weighted': f1_weighted
         }
 
     @torch.no_grad()
@@ -794,10 +794,10 @@ class TaskCalculator(ClassificationCalculator):
         labels = np.array(labels)
         predicts = np.array(predicts)
         f1_macro = f1_score(labels, predicts, average='macro')
-        f1_weighted = f1_score(labels, predicts, average='weighted')
+        # f1_weighted = f1_score(labels, predicts, average='weighted')
         result['loss'] = total_loss / len(dataset)
         result['f1_macro'] = f1_macro
-        result['f1_weighted'] = f1_weighted
+        # result['f1_weighted'] = f1_weighted
         # print("End server test", datetime.now())
         return result
         
@@ -838,12 +838,12 @@ class TaskCalculator(ClassificationCalculator):
             labels = np.array(labels)
             predicts = np.array(predicts)
             f1_macro = f1_score(labels, predicts, average='macro')
-            f1_weighted = f1_score(labels, predicts, average='weighted')
+            # f1_weighted = f1_score(labels, predicts, average='weighted')
             # for i in range(self.n_leads):
             #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result[names[i]+'_loss'] = total_loss / len(dataset)
             result[names[i]+'_f1_macro'] = f1_macro
-            result[names[i]+'_f1_weighted'] = f1_weighted
+            # result[names[i]+'_f1_weighted'] = f1_weighted
         return result
 
 
@@ -897,10 +897,10 @@ class TaskCalculator(ClassificationCalculator):
         labels = np.array(labels)
         predicts = np.array(predicts)
         f1_macro = f1_score(labels, predicts, average='macro')
-        f1_weighted = f1_score(labels, predicts, average='weighted')
+        # f1_weighted = f1_score(labels, predicts, average='weighted')
         result['loss'] = total_loss / len(dataset)
         result['f1_macro'] = f1_macro
-        result['f1_weighted'] = f1_weighted
+        # result['f1_weighted'] = f1_weighted
         return result
 
 
@@ -960,12 +960,12 @@ class TaskCalculator(ClassificationCalculator):
             labels = np.array(labels)
             predicts = np.array(predicts)
             f1_macro = f1_score(labels, predicts, average='macro')
-            f1_weighted = f1_score(labels, predicts, average='weighted')
+            # f1_weighted = f1_score(labels, predicts, average='weighted')
             # for i in range(self.n_leads):
             #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result[names[i]+'_loss'] = total_loss / len(dataset)
             result[names[i]+'_f1_macro'] = f1_macro
-            result[names[i]+'_f1_weighted'] = f1_weighted
+            # result[names[i]+'_f1_weighted'] = f1_weighted
         return result
 
     @torch.no_grad()
@@ -1030,10 +1030,10 @@ class TaskCalculator(ClassificationCalculator):
         labels = np.array(labels)
         predicts = np.array(predicts)
         f1_macro = f1_score(labels, predicts, average='macro')
-        f1_weighted = f1_score(labels, predicts, average='weighted')
+        # f1_weighted = f1_score(labels, predicts, average='weighted')
         result['loss'] = total_loss / len(dataset)
         result['f1_macro'] = f1_macro
-        result['f1_weighted'] = f1_weighted
+        # result['f1_weighted'] = f1_weighted
         # print("End server test - Soft voting", datetime.now())
 
         # print(accuracy)
@@ -1102,10 +1102,10 @@ class TaskCalculator(ClassificationCalculator):
         labels = np.array(labels)
         predicts = np.array(predicts)
         f1_macro = f1_score(labels, predicts, average='macro')
-        f1_weighted = f1_score(labels, predicts, average='weighted')
+        # f1_weighted = f1_score(labels, predicts, average='weighted')
         result['loss'] = total_loss / len(dataset)
         result['f1_macro'] = f1_macro
-        result['f1_weighted'] = f1_weighted
+        # result['f1_weighted'] = f1_weighted
         # print("End server test - Soft voting", datetime.now())
 
         # print(accuracy)
@@ -1182,12 +1182,12 @@ class TaskCalculator(ClassificationCalculator):
             labels = np.array(labels)
             predicts = np.array(predicts)
             f1_macro = f1_score(labels, predicts, average='macro')
-            f1_weighted = f1_score(labels, predicts, average='weighted')
+            # f1_weighted = f1_score(labels, predicts, average='weighted')
             # for i in range(self.n_leads):
             #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result[names[i]+'_loss'] = total_loss / len(dataset)
             result[names[i]+'_f1_macro'] = f1_macro
-            result[names[i]+'_f1_weighted'] = f1_weighted
+            # result[names[i]+'_f1_weighted'] = f1_weighted
         
         # print("End other server test - Soft voting", datetime.now())
             
@@ -1262,12 +1262,12 @@ class TaskCalculator(ClassificationCalculator):
             labels = np.array(labels)
             predicts = np.array(predicts)
             f1_macro = f1_score(labels, predicts, average='macro')
-            f1_weighted = f1_score(labels, predicts, average='weighted')
+            # f1_weighted = f1_score(labels, predicts, average='weighted')
             # for i in range(self.n_leads):
             #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result[names[i]+'_loss'] = total_loss / len(dataset)
             result[names[i]+'_f1_macro'] = f1_macro
-            result[names[i]+'_f1_weighted'] = f1_weighted
+            # result[names[i]+'_f1_weighted'] = f1_weighted
         
         # print("End other server test - Soft voting", datetime.now())
             

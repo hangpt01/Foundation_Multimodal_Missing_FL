@@ -1,16 +1,16 @@
 python main.py \
     --task food101_8_classes_fixed_cnum20_dist1_skew0.5_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
-    --model proposal_fedprox \
-    --algorithm multimodal.food101_8_classes_fixed.proposal_fedprox \
+    --model proposal \
+    --algorithm multimodal.food101_8_classes_fixed.proposal \
     --sample full \
     --aggregate other \
-    --num_rounds 250 \
+    --num_rounds 500 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
-    --fedprox_lambda 0.01 \
+    --fedmsplit_prox_lambda 0 \
     --learning_rate 0.05 \
-    --reduce_sim_scalar 0.005 \
+    --reduce_sim_scalar 0.05 \
     --num_epochs 1 \
     --num_outer_loops 5 \
     --learning_rate_decay 1.0 \

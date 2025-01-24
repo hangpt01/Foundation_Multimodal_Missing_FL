@@ -4,7 +4,7 @@ python main.py \
     --algorithm multimodal.food101_8_classes_fixed.fedprox \
     --sample full \
     --aggregate other \
-    --num_rounds 250 \
+    --num_rounds 500 \
     --proportion 1.0 \
     --lr_scheduler 0 \
     --seed 1234 \
