@@ -38,7 +38,8 @@ def compare_model_parameters(model, state_dict, model_name):
         print(f"No matching parameters found for {model_name}.")
 
 def remove_prefix_from_state_dict(state_dict, prefix):
-    return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix) and not k.endswith('position_ids')}
+    # return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix) and not k.endswith('position_ids')}
+    return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix)}
 
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):

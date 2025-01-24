@@ -38,7 +38,8 @@ def compare_model_parameters(model, state_dict, model_name):
         print(f"No matching parameters found for {model_name}.")
 
 def remove_prefix_from_state_dict(state_dict, prefix):
-    return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix) and not k.endswith('position_ids')}
+    # return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix) and not k.endswith('position_ids')}
+    return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix)}
 
 class Server(BasicServer):
     def __init__(self, option, model, clients, test_data = None):
@@ -94,6 +95,7 @@ class Server(BasicServer):
         text_embeddings_state_dict = remove_prefix_from_state_dict(state_dict, 'text_embeddings.')
         # Load the state_dicts into transformer and text_embeddings
         self.transformer.load_state_dict(transformer_state_dict, strict=True)
+        import pdb; pdb.set_trace()
         self.text_embeddings.load_state_dict(text_embeddings_state_dict, strict=True)
 
         for param in self.transformer.parameters():
