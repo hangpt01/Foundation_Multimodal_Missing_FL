@@ -16,6 +16,7 @@ import wandb
 import os
 
 def remove_prefix_from_state_dict(state_dict, prefix):
+    # return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix) and not k.endswith('position_ids')}
     return {k[len(prefix):]: v for k, v in state_dict.items() if k.startswith(prefix)}
 
 
@@ -144,8 +145,9 @@ class Server(BasicServer):
     def aggregate(self, models: list):
         new_model = copy.deepcopy(self.model)
         n_models = len(models)
+        print(self.selected_clients)
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
-        
+        # import pdb; pdb.set_trace()
         # Aggregate other parts - not prompts
         # pooler
         new_model.pooler = fmodule._model_sum([
@@ -191,7 +193,7 @@ class Server(BasicServer):
         #print(temp.shape)
         dataset = "food101"
         model = "L2P_Prob_only_global"
-        save_file = True
+        save_file = False
         if save_file:
             if self.current_round % 25 == 0 or self.current_round == 1:
                 output_dir = f"output/{dataset}/{model}/server/"
@@ -209,6 +211,7 @@ class Server(BasicServer):
         new_model.reset_trained_prompts_checklist()
         for k in range(n_models):
             self.clients[self.selected_clients[k]].local_model.reset_trained_prompts_checklist()
+        # import pdb; pdb.set_trace()
         return new_model
     
     def pack(self, client_id):
