@@ -183,6 +183,9 @@ class Server(BasicServer):
             # print(client_idx, union_prompts_checklist)
         for client_idx in range(n_models):
             # import pdb; pdb.set_trace()
+            # print(models[client_idx].global_pool.prompt[torch.nonzero(union_prompts_checklist).flatten()])
+            # print(models[client_idx].global_pool.prompt[torch.nonzero(union_prompts_checklist).flatten()].shape, union_prompts_checklist, client_idx )
+            # print(num_prompts)
             temp.append(models[client_idx].global_pool.prompt[torch.nonzero(union_prompts_checklist).flatten()].clone())
         
         temp = torch.stack(temp, dim=0) # temp is n_clients x prompt_length x 768: 20, 5, 768
@@ -344,6 +347,7 @@ class Client(BasicClient):
         # self.client_id = client_id
         if self.local_model is None:
             self.local_model = copy.deepcopy(model)
+        self.local_model.global_pool.prompt = model.global_pool.prompt
         self.train(self.local_model, transformer, text_embeddings, client_id, current_round)
         cpkg = self.pack(self.local_model)
         return cpkg
