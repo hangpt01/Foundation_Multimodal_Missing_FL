@@ -11,22 +11,22 @@ from torchvision.models import mobilenet_v2, MobileNet_V2_Weights
 from collections import Counter
 import sys
 
-class FOOD101Dataset(BaseDataset):
+class IMDBDataset(BaseDataset):
     def __init__(self, *args, split="", missing_info={}, feature_dir="./precomputed_features", **kwargs):
         # assert split in ["train", "test"]
         self.split = split
         self.feature_dir = feature_dir
 
         if split == "train":
-            names = ["food101_train"]
+            names = ["mmimdb_train"]
         else:
-            names = ["food101_test"] 
+            names = ["mmimdb_test"] 
         # import pdb; pdb.set_trace()
         super().__init__(
             *args,
             **kwargs,
             names=names,
-            text_column_name="text",
+            text_column_name="plots",
             split=self.split,
             remove_duplicate=False
         )
@@ -48,6 +48,7 @@ class FOOD101Dataset(BaseDataset):
         # import pdb; pdb.set_trace()
         
         if os.path.exists(missing_table_path):
+            # import pdb; pdb.set_trace()
             missing_table = torch.load(missing_table_path)
             if len(missing_table) != total_num:
                 print('missing table mismatched!')
@@ -186,7 +187,7 @@ class FOOD101Dataset(BaseDataset):
 
 if __name__=='__main__':
     print(datetime.now(), "Start creating Datasets")
-    data_dir = "../../benchmark/RAW_DATA/FOOD101/generate_arrows"
+    data_dir = "../../benchmark/RAW_DATA/IMDB/generate_arrows"
     feature_dir = "./precomputed_features"
     transform_keys = ['pixelbert']
     image_size = 224
@@ -194,46 +195,11 @@ if __name__=='__main__':
     draw_false_image = 0
     draw_false_text = 0
     image_only = False
-    # _config = {
-    #     'missing_ratio':
-    #         {'test': 0.7,
-    #         'train': 0.7},
-    #     'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
-    #     'missing_type':
-    #         {'test': 'image',
-    #         'train': 'both'},
-    #     'both_ratio': 0,
-    #     'simulate_missing': False
-    # }
-    # missing_info = {
-    #         'ratio' : _config["missing_ratio"],
-    #         'type' : _config["missing_type"],
-    #         'both_ratio' : _config["both_ratio"],
-    #         'missing_table_root': _config["missing_table_root"],
-    #         'simulate_missing' : _config["simulate_missing"]
-    #     }
-            
-    # train_dataset = FOOD101Dataset(data_dir, transform_keys, split='train', 
-    #                             image_size=image_size,
-    #                             max_text_len=max_text_len,
-    #                             draw_false_image=draw_false_image,
-    #                             draw_false_text=draw_false_text,
-    #                             image_only=image_only,
-    #                             missing_info=missing_info,
-    #                             feature_dir=feature_dir)
-    # test_dataset = FOOD101Dataset(data_dir, transform_keys, split='test', 
-    #                             image_size=image_size,
-    #                             max_text_len=max_text_len,
-    #                             draw_false_image=draw_false_image,
-    #                             draw_false_text=draw_false_text,
-    #                             image_only=image_only,
-    #                             missing_info=missing_info,
-    #                             feature_dir=feature_dir)
     _config = {
         'missing_ratio':
             {'test': 0.7,
             'train': 0.7},
-        'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'missing_table_root': '../../benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
         'missing_type':
             {'test': 'text',
             'train': 'text'},
@@ -247,7 +213,8 @@ if __name__=='__main__':
             'missing_table_root': _config["missing_table_root"],
             'simulate_missing' : _config["simulate_missing"]
         }
-    train_dataset = FOOD101Dataset(data_dir, transform_keys, split='train', 
+            
+    train_dataset = IMDBDataset(data_dir, transform_keys, split='train', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -255,19 +222,19 @@ if __name__=='__main__':
                                 image_only=image_only,
                                 missing_info=missing_info,
                                 feature_dir=feature_dir)
-    # test_dataset = FOOD101Dataset(data_dir, transform_keys, split='test', 
-    #                             image_size=image_size,
-    #                             max_text_len=max_text_len,
-    #                             draw_false_image=draw_false_image,
-    #                             draw_false_text=draw_false_text,
-    #                             image_only=image_only,
-    #                             missing_info=missing_info,
-    #                             feature_dir=feature_dir)
+    test_dataset = IMDBDataset(data_dir, transform_keys, split='test', 
+                                image_size=image_size,
+                                max_text_len=max_text_len,
+                                draw_false_image=draw_false_image,
+                                draw_false_text=draw_false_text,
+                                image_only=image_only,
+                                missing_info=missing_info,
+                                feature_dir=feature_dir)
     _config = {
         'missing_ratio':
             {'test': 0.7,
             'train': 0.7},
-        'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'missing_table_root': '../../benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
         'missing_type':
             {'test': 'image',
             'train': 'image'},
@@ -281,7 +248,7 @@ if __name__=='__main__':
             'missing_table_root': _config["missing_table_root"],
             'simulate_missing' : _config["simulate_missing"]
         }
-    train_dataset = FOOD101Dataset(data_dir, transform_keys, split='train', 
+    train_dataset = IMDBDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -289,12 +256,19 @@ if __name__=='__main__':
                                 image_only=image_only,
                                 missing_info=missing_info,
                                 feature_dir=feature_dir)
-    
+    test_dataset = IMDBDataset(data_dir, transform_keys, split='test', 
+                                image_size=image_size,
+                                max_text_len=max_text_len,
+                                draw_false_image=draw_false_image,
+                                draw_false_text=draw_false_text,
+                                image_only=image_only,
+                                missing_info=missing_info,
+                                feature_dir=feature_dir)
     # _config = {
     #     'missing_ratio':
     #         {'test': 0.7,
     #         'train': 0.7},
-    #     'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+    #     'missing_table_root': '../../benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
     #     'missing_type':
     #         {'test': 'both',
     #         'train': 'both'},
@@ -309,7 +283,7 @@ if __name__=='__main__':
     #         'simulate_missing' : _config["simulate_missing"]
     #     }
             
-    # train_dataset = FOOD101Dataset(data_dir, transform_keys, split='train', 
+    # train_dataset = IMDBDataset(data_dir, transform_keys, split='train', 
     #                             image_size=image_size,
     #                             max_text_len=max_text_len,
     #                             draw_false_image=draw_false_image,
@@ -317,7 +291,7 @@ if __name__=='__main__':
     #                             image_only=image_only,
     #                             missing_info=missing_info,
     #                             feature_dir=feature_dir)
-    # test_dataset = FOOD101Dataset(data_dir, transform_keys, split='test', 
+    # test_dataset = IMDBDataset(data_dir, transform_keys, split='test', 
     #                             image_size=image_size,
     #                             max_text_len=max_text_len,
     #                             draw_false_image=draw_false_image,
@@ -329,7 +303,7 @@ if __name__=='__main__':
     #     'missing_ratio':
     #         {'test': 0,
     #         'train': 0.7},
-    #     'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+    #     'missing_table_root': '../../benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
     #     'missing_type':
     #         {'test': 'both',
     #         'train': 'both'},
@@ -343,15 +317,7 @@ if __name__=='__main__':
     #         'missing_table_root': _config["missing_table_root"],
     #         'simulate_missing' : _config["simulate_missing"]
     #     }
-    # train_dataset = FOOD101Dataset(data_dir, transform_keys, split='train', 
-    #                             image_size=image_size,
-    #                             max_text_len=max_text_len,
-    #                             draw_false_image=draw_false_image,
-    #                             draw_false_text=draw_false_text,
-    #                             image_only=image_only,
-    #                             missing_info=missing_info,
-    #                             feature_dir=feature_dir)
-    # test_dataset = FOOD101Dataset(data_dir, transform_keys, split='test', 
+    # test_dataset = IMDBDataset(data_dir, transform_keys, split='test', 
     #                             image_size=image_size,
     #                             max_text_len=max_text_len,
     #                             draw_false_image=draw_false_image,
@@ -363,7 +329,7 @@ if __name__=='__main__':
     #     'missing_ratio':
     #         {'test': 1,
     #         'train': 0.7},
-    #     'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+    #     'missing_table_root': '../../benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
     #     'missing_type':
     #         {'test': 'text',
     #         'train': 'both'},
@@ -377,15 +343,7 @@ if __name__=='__main__':
     #         'missing_table_root': _config["missing_table_root"],
     #         'simulate_missing' : _config["simulate_missing"]
     #     }
-    # train_dataset = FOOD101Dataset(data_dir, transform_keys, split='train', 
-    #                             image_size=image_size,
-    #                             max_text_len=max_text_len,
-    #                             draw_false_image=draw_false_image,
-    #                             draw_false_text=draw_false_text,
-    #                             image_only=image_only,
-    #                             missing_info=missing_info,
-    #                             feature_dir=feature_dir)
-    # test_dataset = FOOD101Dataset(data_dir, transform_keys, split='test', 
+    # test_dataset = IMDBDataset(data_dir, transform_keys, split='test', 
     #                             image_size=image_size,
     #                             max_text_len=max_text_len,
     #                             draw_false_image=draw_false_image,
@@ -398,7 +356,7 @@ if __name__=='__main__':
     #     'missing_ratio':
     #         {'test': 1,
     #         'train': 0.7},
-    #     'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+    #     'missing_table_root': '../../benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
     #     'missing_type':
     #         {'test': 'image',
     #         'train': 'both'},
@@ -412,15 +370,7 @@ if __name__=='__main__':
     #         'missing_table_root': _config["missing_table_root"],
     #         'simulate_missing' : _config["simulate_missing"]
     #     }
-    # train_dataset = FOOD101Dataset(data_dir, transform_keys, split='train', 
-    #                             image_size=image_size,
-    #                             max_text_len=max_text_len,
-    #                             draw_false_image=draw_false_image,
-    #                             draw_false_text=draw_false_text,
-    #                             image_only=image_only,
-    #                             missing_info=missing_info,
-    #                             feature_dir=feature_dir)
-    # test_dataset = FOOD101Dataset(data_dir, transform_keys, split='test', 
+    # test_dataset = IMDBDataset(data_dir, transform_keys, split='test', 
     #                             image_size=image_size,
     #                             max_text_len=max_text_len,
     #                             draw_false_image=draw_false_image,

@@ -47,7 +47,7 @@ class Classifier(FModule):
     def __init__(self):
         super().__init__()
         self.hidden_size = 64
-        cls_num = 101
+        cls_num = 8
         self.classifier = nn.Sequential(
             nn.Linear(self.hidden_size, self.hidden_size * 2),
             nn.LayerNorm(self.hidden_size * 2),
@@ -75,14 +75,22 @@ class Model(FModule):
         
         # Image feature processing
         self.img_fc = Img_FC()
+        self.img_fc.m = None
+        self.img_fc.v = None
         
         # Text feature processing
         self.text_fc = Text_FC()
+        self.text_fc.m = None
+        self.text_fc.v = None
         
         self.attention = ModelAttention()
+        self.attention.m = None
+        self.attention.v = None
            
         # Final classifier
         self.classifier = Classifier()
+        self.classifier.m = None
+        self.classifier.v = None
 
         self.criterion = nn.CrossEntropyLoss()
 

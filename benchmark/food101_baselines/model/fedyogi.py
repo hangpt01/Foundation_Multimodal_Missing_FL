@@ -75,14 +75,22 @@ class Model(FModule):
         
         # Image feature processing
         self.img_fc = Img_FC()
+        self.img_fc.m = None
+        self.img_fc.v = None
         
         # Text feature processing
         self.text_fc = Text_FC()
+        self.text_fc.m = None
+        self.text_fc.v = None
         
         self.attention = ModelAttention()
+        self.attention.m = None
+        self.attention.v = None
            
         # Final classifier
         self.classifier = Classifier()
+        self.classifier.m = None
+        self.classifier.v = None
 
         self.criterion = nn.CrossEntropyLoss()
 

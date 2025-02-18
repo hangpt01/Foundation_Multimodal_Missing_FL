@@ -1,6 +1,6 @@
 import functools
 import time
-from .dataset import FOOD101Dataset
+from .dataset import IMDBDataset
 from benchmark.toolkits import DefaultTaskGen
 from benchmark.toolkits import ClassificationCalculator
 from benchmark.toolkits import IDXTaskPipe
@@ -10,14 +10,11 @@ import importlib
 import random
 import torch
 from torch.utils.data import DataLoader
+from sklearn.metrics import f1_score
 from transformers import (
     DataCollatorForLanguageModeling
 )
 import numpy as np
-import matplotlib.pyplot as plt
-from sklearn.metrics import accuracy_score, confusion_matrix
-from sklearn.cluster import KMeans, AgglomerativeClustering
-from sklearn.metrics.pairwise import cosine_similarity
 import wandb
 from tqdm import tqdm
 import warnings
@@ -49,12 +46,12 @@ class TaskPipe(IDXTaskPipe):
         
         origin_class = getattr(importlib.import_module(class_path), class_name)
         # import pdb; pdb.set_trace()
-        data_dir = "./benchmark/RAW_DATA/FOOD101/generate_arrows"
+        data_dir = "./benchmark/RAW_DATA/IMDB/generate_arrows"
         transform_keys = ['pixelbert']
         split="train"
         image_size = 384
         # TO_DELETE
-        max_text_len = 40
+        max_text_len = 128
         draw_false_image = 0
         draw_false_text = 0
         image_only = False
@@ -65,14 +62,14 @@ class TaskPipe(IDXTaskPipe):
                 'missing_table_root': _config["missing_table_root"],
                 'simulate_missing' : _config["simulate_missing"]
             }        
-        feature_dir = "./benchmark/food101_baselines/precomputed_features"
+        feature_dir = "./benchmark/imdb_baselines/precomputed_features"
         
         # origin_train_data = cls.args_to_dataset(origin_class, feddata['datasrc']['train_args'])
         # origin_test_data = cls.args_to_dataset(origin_class, feddata['datasrc']['test_args'])
         # import pdb; pdb.set_trace()
         # collator = DataCollatorForLanguageModeling
 
-        origin_train_data = FOOD101Dataset(data_dir, transform_keys, split='train', 
+        origin_train_data = IMDBDataset(data_dir, transform_keys, split='train', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -84,7 +81,7 @@ class TaskPipe(IDXTaskPipe):
         # origin_train_data.mlm_collator = collator(tokenizer=origin_train_data.tokenizer, mlm=True, mlm_probability=0.15)
         # origin_train_data.collate = functools.partial(origin_train_data.collate, mlm_collator=origin_train_data.mlm_collator)
 
-        origin_test_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_data = IMDBDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -107,14 +104,14 @@ class TaskPipe(IDXTaskPipe):
         'ratio':
             {'test': 0.7,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
         'type':
             {'test': 'both',
             'train': 'both'},
         'both_ratio': 0.5,
         'simulate_missing': False
         }
-        origin_test_miss_both_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_miss_both_data = IMDBDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -131,14 +128,14 @@ class TaskPipe(IDXTaskPipe):
         'ratio':
             {'test': 0,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
         'type':
             {'test': 'both',
             'train': 'both'},
         'both_ratio': 0,
         'simulate_missing': False
         }
-        origin_test_full_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_full_data = IMDBDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -155,14 +152,14 @@ class TaskPipe(IDXTaskPipe):
         'ratio':
             {'test': 1,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
         'type':
             {'test': 'text',
             'train': 'both'},
         'both_ratio': 0,
         'simulate_missing': False
         }
-        origin_test_image_only_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_image_only_data = IMDBDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -179,14 +176,14 @@ class TaskPipe(IDXTaskPipe):
         'ratio':
             {'test': 1,
             'train': 0.7},
-        'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
         'type':
             {'test': 'image',
             'train': 'both'},
         'both_ratio': 0,
         'simulate_missing': False
         }
-        origin_test_text_only_data = FOOD101Dataset(data_dir, transform_keys, split='test', 
+        origin_test_text_only_data = IMDBDataset(data_dir, transform_keys, split='test', 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,
@@ -481,17 +478,14 @@ def iid_partition(generator):
 #             valid_cidxs.append(local_data[k:])
 #         return train_cidxs, valid_cidxs
 
-# def get_food101_loader(dataset, batch_size=40, shuffle=True, num_workers=8, vocab_size=30522):
-#     return DataLoader(dataset, batch_size=batch_size, shuffle=shuffle, num_workers=num_workers, collate_fn=dataset.collate)
-    
 
 class TaskGen(DefaultTaskGen):
     def __init__(self, dist_id, num_clients=1, skewness=0.5, local_hld_rate=0.0, seed=0, missing=False, missing_ratio_train=0.7, missing_ratio_test=0.7, missing_type_train='both', missing_type_test='both', both_ratio=0.5, max_text_len=40):
-        super(TaskGen, self).__init__(benchmark='food101_baselines',
+        super(TaskGen, self).__init__(benchmark='imdb_baselines',
                                       dist_id=dist_id, 
                                       num_clients=num_clients,
                                       skewness=skewness,
-                                      rawdata_path='./benchmark/RAW_DATA/FOOD101',
+                                      rawdata_path='./benchmark/RAW_DATA/IMDB',
                                       local_hld_rate=local_hld_rate,
                                       seed=seed)
         if self.dist_id==0:
@@ -505,8 +499,8 @@ class TaskGen(DefaultTaskGen):
         # import pdb; pdb.set_trace()
         # self.rawdata_path = os.path.join(self.rawdata_path, str(self.num_classes)+'_classes')
         self.source_dict = {
-            'class_path': 'benchmark.food101_baselines.dataset',
-            'class_name': 'FOOD101Dataset',
+            'class_path': 'benchmark.imdb_baselines.dataset',
+            'class_name': 'IMDBDataset',
             'train_args': {
                 'root': '"'+self.rawdata_path+'"',
                 'download': 'True',
@@ -521,7 +515,7 @@ class TaskGen(DefaultTaskGen):
                 'train': missing_ratio_train,
                 'test': missing_ratio_test 
             },
-            'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_8_classes/',
+            'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables/',
             'missing_type': {
                 'train': missing_type_train,
                 'test': missing_type_test 
@@ -534,7 +528,7 @@ class TaskGen(DefaultTaskGen):
             'missing_ratio':
                 {'train': missing_ratio_train,
                 'test': missing_ratio_test},
-            'missing_table_root': './benchmark/RAW_DATA/FOOD101/missing_tables_8_classes/',
+            'missing_table_root': './benchmark/RAW_DATA/IMDB/missing_tables/',
             'missing_type':
                 {'train': missing_type_train,
                 'test': missing_type_test},
@@ -548,7 +542,7 @@ class TaskGen(DefaultTaskGen):
                 'missing_table_root': _config["missing_table_root"],
                 'simulate_missing' : _config["simulate_missing"]
             }
-        self.feature_dir = "./benchmark/food101_baselines/precomputed_features"
+        self.feature_dir = "./benchmark/imdb_baselines/precomputed_features"
         self.transform_keys = ['pixelbert']
         self.image_size = 384
         self.max_text_len = max_text_len
@@ -570,7 +564,7 @@ class TaskGen(DefaultTaskGen):
     def load_data(self):
             # collator = DataCollatorForLanguageModeling
 
-            self.train_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='train', 
+            self.train_data = IMDBDataset(self.data_dir, self.transform_keys, split='train', 
                                     image_size=self.image_size,
                                     max_text_len=self.max_text_len,
                                     draw_false_image=self.draw_false_image,
@@ -582,7 +576,7 @@ class TaskGen(DefaultTaskGen):
             # self.train_data.mlm_collator = collator(tokenizer=self.train_data.tokenizer, mlm=True, mlm_probability=0.15)
             # self.train_data.collate = functools.partial(self.train_data.collate, mlm_collator=self.train_data.mlm_collator)
             # import pdb; pdb.set_trace()
-            self.test_data = FOOD101Dataset(self.data_dir, self.transform_keys, split='test', 
+            self.test_data = IMDBDataset(self.data_dir, self.transform_keys, split='test', 
                                     image_size=self.image_size,
                                     max_text_len=self.max_text_len,
                                     draw_false_image=self.draw_false_image,
@@ -648,13 +642,6 @@ class TaskCalculator(ClassificationCalculator):
     
     @torch.no_grad()
     def test(self, model, dataset, batch_size=64, num_workers=0):
-        """
-        Metric = [mean_accuracy, mean_loss]
-        :param model:
-        :param dataset:
-        :param batch_size:
-        :return: [mean_accuracy, mean_loss]
-        """
         model.eval()
         # print("\nIn core", batch_size)
         if batch_size==-1:batch_size=len(dataset)
@@ -677,22 +664,17 @@ class TaskCalculator(ClassificationCalculator):
             #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
-        accuracy = accuracy_score(labels, predicts)
+        f1_macro = f1_score(labels, predicts, average='macro')
+        # f1_weighted = f1_score(labels, predicts, average='weighted')
         return {
             'loss': total_loss / (batch_id+1),
-            'acc': accuracy
+            'f1_macro': f1_macro,
+            # 'f1_weighted': f1_weighted
         }
     
 
     @torch.no_grad()
     def test_specific_data(self, model, dataset, batch_size=64, num_workers=0, client_id=-1, option=None, current_round=-1):
-        """
-        Metric = [mean_accuracy, mean_loss]
-        :param model:
-        :param dataset:
-        :param batch_size:
-        :return: [mean_accuracy, mean_loss]
-        """
         model.eval()
         if batch_size==-1:batch_size=len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
@@ -712,31 +694,16 @@ class TaskCalculator(ClassificationCalculator):
             #     break
         labels = np.array(labels)
         predicts = np.array(predicts)
-        accuracy = accuracy_score(labels, predicts)
-        # print("Client {}\n".format(client_id+1), labels, predicts)
-        # if current_round % 25 == 0:
-        #     confusion_matrix_save_path = 'fedtask/' + option['task'] + '/plot_confusion_matrix/' + option['model']
-        #     if not os.path.exists(confusion_matrix_save_path):
-        #         os.makedirs(confusion_matrix_save_path)
-        #     confusion_matrix_save_file = confusion_matrix_save_path + '/client_{}_confusion_matrix_round'.format(client_id+1) + str(current_round)
-        #     list_class = list(range(1,9))
-        #     if option['wandb']:
-        #         plot_confusion_matrix(labels, predicts, 'client_{}'.format(client_id+1), current_round, confusion_matrix_save_file, list_class)
+        f1_macro = f1_score(labels, predicts, average='macro')
+        # f1_weighted = f1_score(labels, predicts, average='weighted')
         return {
             'loss': total_loss / (batch_id+1),
-            'acc': accuracy
+            'f1_macro': f1_macro,
+            # 'f1_weighted': f1_weighted
         }
 
     @torch.no_grad()
     def evaluate(self, model, dataset, batch_size=64, num_workers=0):
-        """
-        Evaluate metric on client model
-        Metric = [mean_accuracy, mean_loss]
-        :param model:
-        :param dataset:
-        :param batch_size:
-        :return: [mean_accuracy, mean_loss]
-        """
         model.eval()
         if batch_size==-1: batch_size=len(dataset)
         data_loader = self.get_data_loader(dataset, batch_size=batch_size, num_workers=num_workers)
@@ -764,13 +731,6 @@ class TaskCalculator(ClassificationCalculator):
     
     @torch.no_grad()
     def server_test(self, model, dataset, batch_size=64, num_workers=0, option=None, current_round=-1):
-        """
-        Metric = [mean_accuracy, mean_loss]
-        :param model:
-        :param dataset:
-        :param batch_size:
-        :return: [mean_accuracy, mean_loss]
-        """
         # import pdb; pdb.set_trace()
         # print("-------------------------SERVER_TEST-----------------------")
         # print("Starting server test", datetime.now())
@@ -798,22 +758,17 @@ class TaskCalculator(ClassificationCalculator):
 
         labels = np.array(labels)
         predicts = np.array(predicts)
-        accuracy = accuracy_score(labels, predicts)
+        f1_macro = f1_score(labels, predicts, average='macro')
+        # f1_weighted = f1_score(labels, predicts, average='weighted')
         result['loss'] = total_loss / len(dataset)
-        result['acc'] = accuracy
+        result['f1_macro'] = f1_macro
+        # result['f1_weighted'] = f1_weighted
         # print("End server test", datetime.now())
         return result
         
     
     @torch.no_grad()
     def server_other_test(self, model, datasets, batch_size=64, num_workers=0):
-        """
-        Metric = [mean_accuracy, mean_loss]
-        :param model:
-        :param dataset:
-        :param batch_size:
-        :return: [mean_accuracy, mean_loss]
-        """
         # import pdb; pdb.set_trace()
         # print("-------------------------SERVER_OTHER_TEST-----------------------")
         # print("Starting server_other_test", datetime.now())
@@ -847,11 +802,11 @@ class TaskCalculator(ClassificationCalculator):
             labels = np.array(labels)
 
             predicts = np.array(predicts)
-            accuracy = accuracy_score(labels, predicts)
+            f1_macro = f1_score(labels, predicts, average='macro')
+            # f1_weighted = f1_score(labels, predicts, average='weighted')
             # for i in range(self.n_leads):
             #     result['loss_modal_combi'+str(test_combi_index+1)+'_modal'+str(i+1)] = loss_each_modal[i] / len(dataset)
             result[names[i]+'_loss'] = total_loss / len(dataset)
-            result[names[i]+'_acc'] = accuracy
-        
-        # print("End server_other_test", datetime.now())
+            result[names[i]+'_f1_macro'] = f1_macro
+            # result[names[i]+'_f1_weighted'] = f1_weighted
         return result

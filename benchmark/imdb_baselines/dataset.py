@@ -13,22 +13,22 @@ from collections import Counter
 import warnings
 warnings.filterwarnings("ignore")
 
-class FOOD101Dataset(BaseDataset):
+class IMDBDataset(BaseDataset):
     def __init__(self, *args, split="", missing_info={}, feature_dir="./precomputed_features", **kwargs):
         # assert split in ["train", "test"]
         self.split = split
         self.feature_dir = feature_dir
 
         if split == "train":
-            names = ["food101_train"]
+            names = ["mmimdb_train"]
         else:
-            names = ["food101_test"] 
+            names = ["mmimdb_test"] 
         # import pdb; pdb.set_trace()
         super().__init__(
             *args,
             **kwargs,
             names=names,
-            text_column_name="text",
+            text_column_name="plots",
             split=self.split,
             remove_duplicate=False,
         )
@@ -50,6 +50,7 @@ class FOOD101Dataset(BaseDataset):
         # import pdb; pdb.set_trace()
         
         if os.path.exists(missing_table_path):
+            # import pdb; pdb.set_trace()
             missing_table = torch.load(missing_table_path)
             if len(missing_table) != total_num:
                 print('missing table mismatched!')
@@ -126,7 +127,7 @@ class FOOD101Dataset(BaseDataset):
 
 if __name__=='__main__':
     print(datetime.now(), "Start creating Datasets")
-    data_dir = "../../benchmark/RAW_DATA/FOOD101/generate_arrows"
+    data_dir = "../../benchmark/RAW_DATA/IMDB/generate_arrows"
     feature_dir = "./precomputed_features"
     transform_keys = ['pixelbert']
     split="test"
@@ -139,7 +140,7 @@ if __name__=='__main__':
         'missing_ratio':
             {'test': 1,
             'train': 0.7},
-        'missing_table_root': '../../benchmark/RAW_DATA/FOOD101/missing_tables_other_tests/',
+        'missing_table_root': '../../benchmark/RAW_DATA/IMDB/missing_tables_other_tests/',
         'missing_type':
             {'test': 'text',
             'train': 'both'},
@@ -161,7 +162,7 @@ if __name__=='__main__':
     #     missing_info['type']['val'] = _config["test_type"]
     #     missing_info['type']['test'] = _config["test_type"]
             
-    train_dataset = FOOD101Dataset(data_dir, transform_keys, split=split, 
+    train_dataset = IMDBDataset(data_dir, transform_keys, split=split, 
                                 image_size=image_size,
                                 max_text_len=max_text_len,
                                 draw_false_image=draw_false_image,

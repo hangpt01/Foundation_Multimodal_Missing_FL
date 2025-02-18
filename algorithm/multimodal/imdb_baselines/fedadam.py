@@ -18,7 +18,8 @@ class Server(BasicServer):
         super(Server, self).__init__(option, model, clients, test_data)
         self.n_leads = 2
         self.test_data, self.other_test_datas = test_data
-
+        # self.test_data = test_data
+        self.lr = option['learning_rate']
         # self.get_missing_type_label()
 
 
@@ -86,39 +87,65 @@ class Server(BasicServer):
 
     @torch.no_grad()
     def aggregate(self, models: list):
+        """
+        FedAdam aggregation function.
+
+        Args:
+            self: Contains attributes like self.model, self.selected_clients, self.clients.
+            models (list): List of client models after local training.
+
+        Returns:
+            new_model: Updated global model after aggregation.
+        """
+        # Deep copy of the global model
         new_model = copy.deepcopy(self.model)
-        p = list()
-        chosen_models = list()
-        for k, client_id in enumerate(self.selected_clients):
-            p.append(self.clients[client_id].datavol)
-            chosen_models.append(models[k])
-            
+        
+        # Get data volumes of the selected clients
         p = [self.clients[client_id].datavol for client_id in self.selected_clients]
         
+        # Normalize data volumes
+        total_volume = sum(p)
+        p = [pk / total_volume for pk in p]
         
-        new_model.img_fc = fmodule._model_sum([
-            model.img_fc * pk for model, pk in zip(models, p)
-        ]) / sum(p)
+        # Initialize momentum and variance terms if not already defined
+        if not hasattr(self, 'm'):
+            self.m = {name: torch.zeros_like(param) for name, param in self.model.state_dict().items()}
+        if not hasattr(self, 'v'):
+            self.v = {name: torch.zeros_like(param) for name, param in self.model.state_dict().items()}
+        if not hasattr(self, 't'):
+            self.t = 0  # Initialize time step
 
-        new_model.text_fc = fmodule._model_sum([
-            model.text_fc * pk for model, pk in zip(models, p)
-        ]) / sum(p)
+        self.t += 1  # Increment time step
 
-        new_model.attention = fmodule._model_sum([
-            model.attention * pk for model, pk in zip(models, p)
-        ]) / sum(p)
+        # Calculate weighted average of updates
+        avg_update = {name: torch.zeros_like(param) for name, param in new_model.state_dict().items()}
+        for model, pk in zip(models, p):
+            for name, param in model.state_dict().items():
+                avg_update[name] += pk * param
+        beta1 = 0.9
+        beta2 = 0.999
+        epsilon = 1e-8
+        # FedAdam updates for the global model
+        global_state = new_model.state_dict()
+        for name, param in global_state.items():
+            # Update biased first moment
+            self.m[name] = beta1 * self.m[name] + (1 - beta1) * (avg_update[name] - param)
+            
+            # Update biased second moment
+            self.v[name] = beta2 * self.v[name] + (1 - beta2) * ((avg_update[name] - param) ** 2)
+            
+            # Compute bias-corrected moments
+            m_hat = self.m[name] / (1 - beta1 ** self.t)
+            v_hat = self.v[name] / (1 - beta2 ** self.t)
+            
+            # Apply FedAdam update rule
+            global_state[name] -= self.lr * m_hat / (torch.sqrt(v_hat) + epsilon)
 
-        new_model.fusion_fc = fmodule._model_sum([
-            model.fusion_fc * pk for model, pk in zip(models, p)
-        ]) / sum(p)
+        # Load the updated parameters into the global model
+        new_model.load_state_dict(global_state)
 
-        
-        # classifier
-        new_model.classifier = fmodule._model_sum([
-            model.classifier * pk for model, pk in zip(models, p)
-        ]) / sum(p)
-        
         return new_model
+
     
     def test(self, model=None):
         """
@@ -248,7 +275,7 @@ class Client(BasicClient):
                 model=model,
                 data=batch_data
             )['loss']
-            # print('\t',datetime.now(),iter, loss)
+            print('\t',datetime.now(),iter, loss)
             loss.backward()
             optimizer.step()
         
