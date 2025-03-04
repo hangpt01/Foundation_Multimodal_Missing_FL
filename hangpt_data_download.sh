@@ -20,6 +20,7 @@ wget https://archive.org/download/mmimdb/mmimdb.tar.gz
 # pytorch-lightning
 pip install pytorch-lightning==1.1.4
 # or
+pip install pytorch-lightning==1.1.4
 python3 -m pip install pytorch-lightning==1.1.4
 
 
