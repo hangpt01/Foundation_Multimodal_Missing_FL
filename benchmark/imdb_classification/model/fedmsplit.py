@@ -258,7 +258,7 @@ class Model(FModule):
         embedding_after_classifier = imgcls_logits.detach().cpu()
 
         dataset = "imdb"
-        model = "missing_aware"     
+        model = "fedmsplit"     
 
         # Save to a dictionary
         sample_data = {
