@@ -1,5 +1,5 @@
 python main.py \
-    --task food101_8_classes_fixed_cnum20_dist1_skew0.5_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
+    --task food101_8_classes_fixed_cnum20_dist1_skew0.5_seed0_missing_ratio_0.7_0.7_missing_type_image_image_both_ratio_0.0 \
     --model fedprox \
     --algorithm multimodal.food101_8_classes_fixed.fedprox \
     --sample full \
@@ -20,7 +20,7 @@ python main.py \
     --gpu 0 \
     --wandb
 python main.py \
-    --task food101_8_classes_fixed_cnum20_dist1_skew0.5_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
+    --task food101_8_classes_fixed_cnum20_dist1_skew0.5_seed0_missing_ratio_0.7_0.7_missing_type_image_image_both_ratio_0.0 \
     --model proposal \
     --algorithm multimodal.food101_8_classes_fixed.proposal \
     --sample full \
@@ -42,7 +42,7 @@ python main.py \
     --gpu 0 \
     --wandb
 python main.py \
-    --task food101_8_classes_fixed_cnum20_dist1_skew0.5_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
+    --task food101_8_classes_fixed_cnum20_dist1_skew0.5_seed0_missing_ratio_0.7_0.7_missing_type_image_image_both_ratio_0.0 \
     --model proposal_fedprox \
     --algorithm multimodal.food101_8_classes_fixed.proposal_fedprox \
     --sample full \
