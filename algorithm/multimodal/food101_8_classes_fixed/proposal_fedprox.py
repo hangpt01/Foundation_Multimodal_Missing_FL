@@ -194,7 +194,7 @@ class Server(BasicServer):
         #print(temp.shape)
         dataset = "food101"
         model = "L2P_Prob_only_global"
-        save_file = True
+        save_file = False
         if save_file:
             if self.current_round % 25 == 0 or self.current_round == 1:
                 output_dir = f"output/{dataset}/{model}/server/"

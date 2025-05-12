@@ -2,7 +2,7 @@ python generate_fedtask.py \
     --benchmark food101_8_classes_fixed \
     --dist 0 \
     --skew 0 \
-    --num_clients 20 \
+    --num_clients 100 \
     --seed 0 \
     --missing \
     --missing_ratio_train 0.7 \

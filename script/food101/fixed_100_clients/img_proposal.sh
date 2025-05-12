@@ -1,5 +1,18 @@
+python generate_fedtask.py \
+    --benchmark food101_8_classes_fixed \
+    --dist 0 \
+    --skew 0 \
+    --num_clients 100 \
+    --seed 0 \
+    --missing \
+    --missing_ratio_train 0.7 \
+    --missing_ratio_test 0.7 \
+    --missing_type_train image \
+    --missing_type_test image \
+    --both_ratio 0 \
+    --max_text_len 40
 python main.py \
-    --task food101_8_classes_fixed_cnum100_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_text_text_both_ratio_0.0 \
+    --task food101_8_classes_fixed_cnum100_dist0_skew0_seed0_missing_ratio_0.7_0.7_missing_type_image_image_both_ratio_0.0 \
     --model proposal \
     --algorithm multimodal.food101_8_classes_fixed.proposal \
     --sample full \
@@ -10,7 +23,7 @@ python main.py \
     --seed 1234 \
     --fedmsplit_prox_lambda 0 \
     --learning_rate 0.05 \
-    --reduce_sim_scalar 0.02 \
+    --reduce_sim_scalar 0.005 \
     --num_epochs 1 \
     --num_outer_loops 5 \
     --learning_rate_decay 1.0 \

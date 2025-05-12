@@ -1,0 +1,102 @@
+python generate_fedtask.py \
+    --benchmark food101_motivation \
+    --dist 0 \
+    --skew 0 \
+    --num_clients 100 \
+    --seed 0 \
+    --missing \
+    --missing_ratio_train 0.5 \
+    --missing_ratio_test 0.5 \
+    --missing_type_train both \
+    --missing_type_test both \
+    --both_ratio 0.5 \
+    --max_text_len 40
+python main.py \
+    --task food101_motivation_cnum100_dist0_skew0_seed0_missing_ratio_0.5_0.5_missing_type_both_both_both_ratio_0.5 \
+    --model fedmsplit \
+    --algorithm multimodal.food101_motivation.fedmsplit \
+    --sample uniform \
+    --aggregate other \
+    --num_rounds 250 \
+    --proportion 0.2 \
+    --lr_scheduler 0 \
+    --seed 1234 \
+    --fedmsplit_prox_lambda 0 \
+    --learning_rate 0.05 \
+    --num_epochs 1 \
+    --num_outer_loops 5 \
+    --learning_rate_decay 1.0 \
+    --note change_percentage_client \
+    --batch_size 512 \
+    --test_batch_size 512 \
+    --max_text_len 40 \
+    --gpu 0 \
+    --wandb
+python generate_fedtask.py \
+    --benchmark food101_motivation \
+    --dist 0 \
+    --skew 0 \
+    --num_clients 100 \
+    --seed 0 \
+    --missing \
+    --missing_ratio_train 0.5 \
+    --missing_ratio_test 0.5 \
+    --missing_type_train image \
+    --missing_type_test image \
+    --both_ratio 0 \
+    --max_text_len 40
+python main.py \
+    --task food101_motivation_cnum100_dist0_skew0_seed0_missing_ratio_0.5_0.5_missing_type_image_image_both_ratio_0.0 \
+    --model fedmsplit \
+    --algorithm multimodal.food101_motivation.fedmsplit \
+    --sample uniform \
+    --aggregate other \
+    --num_rounds 250 \
+    --proportion 0.2 \
+    --lr_scheduler 0 \
+    --seed 1234 \
+    --fedmsplit_prox_lambda 0 \
+    --learning_rate 0.05 \
+    --num_epochs 1 \
+    --num_outer_loops 5 \
+    --learning_rate_decay 1.0 \
+    --note change_percentage_client \
+    --batch_size 512 \
+    --test_batch_size 512 \
+    --max_text_len 40 \
+    --gpu 0 \
+    --wandb
+python generate_fedtask.py \
+    --benchmark food101_motivation \
+    --dist 0 \
+    --skew 0 \
+    --num_clients 100 \
+    --seed 0 \
+    --missing \
+    --missing_ratio_train 0.5 \
+    --missing_ratio_test 0.5 \
+    --missing_type_train text \
+    --missing_type_test text \
+    --both_ratio 0 \
+    --max_text_len 40
+python main.py \
+    --task food101_motivation_cnum100_dist0_skew0_seed0_missing_ratio_0.5_0.5_missing_type_text_text_both_ratio_0.0 \
+    --model fedmsplit \
+    --algorithm multimodal.food101_motivation.fedmsplit \
+    --sample uniform \
+    --aggregate other \
+    --num_rounds 250 \
+    --proportion 0.2 \
+    --lr_scheduler 0 \
+    --seed 1234 \
+    --fedmsplit_prox_lambda 0 \
+    --learning_rate 0.05 \
+    --num_epochs 1 \
+    --num_outer_loops 5 \
+    --learning_rate_decay 1.0 \
+    --note change_percentage_client \
+    --batch_size 512 \
+    --test_batch_size 512 \
+    --max_text_len 40 \
+    --gpu 0 \
+    --wandb
