@@ -12,7 +12,7 @@ python generate_fedtask.py \
     --both_ratio 0.5 \
     --max_text_len 40
 python main.py \
-    --task food101_classification_8_classes_cnum20_dist1_skew0.1_seed0_missing_ratio_0.7_0.7_missing_type_both_both_both_ratio_0.5 \
+    --task food101_8_classes_fixed_cnum20_dist1_skew0.1_seed0_missing_ratio_0.7_0.7_missing_type_both_both_both_ratio_0.5 \
     --model proposal \
     --algorithm multimodal.food101_8_classes_fixed.proposal \
     --sample full \
