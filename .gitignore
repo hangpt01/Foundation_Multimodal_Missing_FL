@@ -171,7 +171,7 @@ cython_debug/
 
 
 # EasyFL
-fedtask/
+# fedtask/
 benchmark/RAW_DATA
 notebook/__unused
 visualize_notebooks/
