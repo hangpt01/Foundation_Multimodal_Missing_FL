@@ -31,8 +31,7 @@ python main.py \
     --batch_size 128 \
     --test_batch_size 128 \
     --max_text_len 40 \
-    --gpu 0 
-    \
+    --gpu 1 \
     --wandb
 python generate_fedtask.py \
     --benchmark food101_8_classes_fixed \
@@ -67,7 +66,7 @@ python main.py \
     --batch_size 128 \
     --test_batch_size 128 \
     --max_text_len 40 \
-    --gpu 0 \
+    --gpu 1 \
     --wandb
 python generate_fedtask.py \
     --benchmark food101_8_classes_fixed \
@@ -102,5 +101,5 @@ python main.py \
     --batch_size 128 \
     --test_batch_size 128 \
     --max_text_len 40 \
-    --gpu 0 \
+    --gpu 1 \
     --wandb
