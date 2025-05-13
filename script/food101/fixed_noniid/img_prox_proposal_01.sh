@@ -20,7 +20,7 @@ python main.py \
     --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
-    --seed 1234 \
+    --seed 5678 \
     --fedprox_lambda 0.01 \
     --learning_rate 0.05 \
     --reduce_sim_scalar 0.005 \
