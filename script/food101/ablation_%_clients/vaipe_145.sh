@@ -1,3 +1,16 @@
+python generate_fedtask.py \
+    --benchmark food101_motivation \
+    --dist 0 \
+    --skew 0 \
+    --num_clients 100 \
+    --seed 0 \
+    --missing \
+    --missing_ratio_train 0.5 \
+    --missing_ratio_test 0.5 \
+    --missing_type_train text \
+    --missing_type_test text \
+    --both_ratio 0 \
+    --max_text_len 40
 python main.py \
     --task food101_motivation_cnum100_dist0_skew0_seed0_missing_ratio_0.5_0.5_missing_type_text_text_both_ratio_0.0 \
     --model fedmsplit \
