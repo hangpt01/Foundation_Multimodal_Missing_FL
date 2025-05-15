@@ -5,9 +5,9 @@ python main.py \
     --sample uniform \
     --aggregate other \
     --num_rounds 250 \
-    --proportion 0.5 \
+    --proportion 0.4 \
     --lr_scheduler 0 \
-    --seed 91011 \
+    --seed 5678 \
     --fedmsplit_prox_lambda 0 \
     --learning_rate 0.05 \
     --num_epochs 1 \
