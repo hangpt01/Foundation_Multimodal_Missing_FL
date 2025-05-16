@@ -7,7 +7,7 @@ python main.py \
     --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
-    --seed 4567 \
+    --seed 91011 \
     --fedmsplit_prox_lambda 0 \
     --learning_rate 0.05 \
     --reduce_sim_scalar 0.005 \
@@ -18,5 +18,5 @@ python main.py \
     --batch_size 128 \
     --test_batch_size 128 \
     --max_text_len 40 \
-    --gpu 2 \
+    --gpu 0 \
     --wandb

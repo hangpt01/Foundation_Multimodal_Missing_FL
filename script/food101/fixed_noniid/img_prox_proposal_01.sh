@@ -20,7 +20,7 @@ python main.py \
     --num_rounds 250 \
     --proportion 1.0 \
     --lr_scheduler 0 \
-    --seed 5678 \
+    --seed 4567 \
     --fedprox_lambda 0.01 \
     --learning_rate 0.05 \
     --reduce_sim_scalar 0.005 \
@@ -31,5 +31,5 @@ python main.py \
     --batch_size 128 \
     --test_batch_size 128 \
     --max_text_len 40 \
-    --gpu 1 \
+    --gpu 2 \
     --wandb
