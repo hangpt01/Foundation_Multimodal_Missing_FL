@@ -1,13 +1,13 @@
 python main.py \
     --task food101_motivation_cnum100_dist0_skew0_seed0_missing_ratio_0.5_0.5_missing_type_text_text_both_ratio_0.0 \
-    --model L2P_Prob_prompt_only_global_no_print \
-    --algorithm multimodal.food101_motivation.L2P_Prob_prompt_only_global \
+    --model fedmsplit \
+    --algorithm multimodal.food101_motivation.fedmsplit \
     --sample uniform \
     --aggregate other \
     --num_rounds 250 \
     --proportion 0.4 \
     --lr_scheduler 0 \
-    --seed 5678 \
+    --seed 91011 \
     --fedmsplit_prox_lambda 0 \
     --learning_rate 0.05 \
     --num_epochs 1 \
@@ -21,12 +21,12 @@ python main.py \
     --wandb
 python main.py \
     --task food101_motivation_cnum100_dist0_skew0_seed0_missing_ratio_0.5_0.5_missing_type_text_text_both_ratio_0.0 \
-    --model L2P_Prob_prompt_only_global_no_print \
-    --algorithm multimodal.food101_motivation.L2P_Prob_prompt_only_global \
+    --model fedmsplit \
+    --algorithm multimodal.food101_motivation.fedmsplit \
     --sample uniform \
     --aggregate other \
     --num_rounds 250 \
-    --proportion 0.4 \
+    --proportion 0.2 \
     --lr_scheduler 0 \
     --seed 91011 \
     --fedmsplit_prox_lambda 0 \
